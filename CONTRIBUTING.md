@@ -208,21 +208,6 @@ We follow [Semantic Versioning](https://semver.org/):
 - [ ] Tag created and pushed
 - [ ] Release notes written
 
-## Getting Help
-
-### Communication Channels
-
-- **GitHub Issues**: Bug reports and feature requests
-- **GitHub Discussions**: General questions and design discussions
-- **Slack**: Real-time chat (link in README)
-
-### Issue Templates
-
-Use appropriate issue templates:
-- **Bug Report**: For reporting bugs
-- **Feature Request**: For requesting new features
-- **Question**: For asking questions
-
 ### Common Development Tasks
 
 #### Adding a New Backend Adapter
@@ -250,10 +235,6 @@ Use appropriate issue templates:
 4. Use testify for assertions
 
 ## Security
-
-### Reporting Security Issues
-
-Please report security vulnerabilities privately by emailing security@unified-replication.io.
 
 ### Security Guidelines
 
