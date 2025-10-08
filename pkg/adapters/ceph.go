@@ -476,7 +476,7 @@ func (ca *CephAdapter) CreateReplication(ctx context.Context, uvr *replicationv1
 	// Update metrics
 	ca.BaseAdapter.updateMetrics("create", true, startTime)
 
-	logger.Info("Successfully created Ceph VolumeReplication", "volumeReplication", vr.Name)
+	logger.Info("Successfully created Ceph VolumeReplication", "volumeReplication", vr.ObjectMeta.Name)
 	return nil
 }
 
@@ -526,7 +526,7 @@ func (ca *CephAdapter) UpdateReplication(ctx context.Context, uvr *replicationv1
 	// Update metrics
 	ca.BaseAdapter.updateMetrics("update", true, startTime)
 
-	logger.Info("Successfully updated Ceph VolumeReplication", "volumeReplication", existingVR.Name)
+	logger.Info("Successfully updated Ceph VolumeReplication", "volumeReplication", existingVR.ObjectMeta.Name)
 	return nil
 }
 
@@ -561,7 +561,7 @@ func (ca *CephAdapter) DeleteReplication(ctx context.Context, uvr *replicationv1
 	// Update metrics
 	ca.BaseAdapter.updateMetrics("delete", true, startTime)
 
-	logger.Info("Successfully deleted Ceph VolumeReplication", "volumeReplication", vr.Name)
+	logger.Info("Successfully deleted Ceph VolumeReplication", "volumeReplication", vr.ObjectMeta.Name)
 	return nil
 }
 

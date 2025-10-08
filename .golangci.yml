@@ -1,0 +1,169 @@
+run:
+  timeout: 5m
+  go: '1.21'
+
+linters-settings:
+  govet:
+    check-shadowing: true
+  gocyclo:
+    min-complexity: 15
+  maligned:
+    suggest-new: true
+  dupl:
+    threshold: 100
+  goconst:
+    min-len: 2
+    min-occurrences: 2
+  misspell:
+    locale: US
+  lll:
+    line-length: 140
+  unused:
+    check-exported: false
+  unparam:
+    check-exported: false
+  nakedret:
+    max-func-lines: 30
+  prealloc:
+    simple: true
+    range-loops: true
+    for-loops: false
+  gocritic:
+    enabled-tags:
+      - diagnostic
+      - experimental
+      - opinionated
+      - performance
+      - style
+    disabled-checks:
+      - dupImport # https://github.com/go-critic/go-critic/issues/845
+      - ifElseChain
+      - octalLiteral
+      - whyNoLint
+      - wrapperFunc
+
+linters:
+  # please, do not use `enable-all`: it's deprecated and will be removed soon.
+  # inverted configuration with `enable-all` and `disable` is not scalable during updates of golangci-lint
+  disable-all: true
+  enable:
+    - bodyclose
+    - depguard
+    - dogsled
+    - dupl
+    - errcheck
+    - exportloopref
+    - exhaustive
+    - funlen
+    - gochecknoinits
+    - goconst
+    - gocritic
+    - gocyclo
+    - gofmt
+    - goimports
+    - gomnd
+    - goprintffuncname
+    - gosec
+    - gosimple
+    - govet
+    - ineffassign
+    - lll
+    - misspell
+    - nakedret
+    - noctx
+    - nolintlint
+    - revive
+    - rowserrcheck
+    - staticcheck
+    - stylecheck
+    - typecheck
+    - unconvert
+    - unparam
+    - unused
+    - whitespace
+
+issues:
+  # Excluding configuration per-path, per-linter, per-text and per-source
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - gomnd
+        - funlen
+        - gocyclo
+        - goconst
+        - dupl
+        - lll
+        - gocritic
+        - gosec
+    - path: pkg/adapters/ceph\.go
+      linters:
+        - gocyclo
+        - funlen
+    - path: controllers/
+      linters:
+        - gocyclo
+        - funlen
+        - typecheck
+    - path: pkg/discovery/
+      linters:
+        - gocyclo
+        - funlen
+    - text: "should have comment"
+      linters:
+        - golint
+    - text: "exported.*should have comment"
+      linters:
+        - golint
+    - text: "Error return value of.*is not checked"
+      linters:
+        - errcheck
+    - text: "unused-parameter"
+      linters:
+        - unparam
+    - text: "unused"
+      linters:
+        - unused
+    - text: "declared and not used"
+      linters:
+        - varcheck
+        - deadcode
+    - text: "could not import"
+      linters:
+        - typecheck
+    - text: "undefined:"
+      linters:
+        - typecheck
+    - text: "unsupported version"
+      linters:
+        - typecheck
+
+  # Maximum issues count per one linter. Set to 0 to disable. Default is 50.
+  max-issues-per-linter: 0
+
+  # Maximum count of issues with the same text. Set to 0 to disable. Default is 3.
+  max-same-issues: 0
+
+  # Show only new issues: if there are unstaged changes or untracked files,
+  # only those changes are analyzed, else only changes in HEAD~ are analyzed.
+  # It's a super-useful option for integration of golangci-lint into existing
+  # large codebase. It's not practical to fix all existing issues at once.
+  # Default is false.
+  new: false
+
+  # Show only new issues created after git revision `REV`
+  new-from-rev: ""
+
+  # Show only new issues created in git patch with set file path.
+  new-from-patch: ""
+
+  # Maximum allowed time for loading packages. This is useful for CI
+  # environments with slow network.
+  # Default is 30s.
+  timeout: 5m
+
+  # Include test files or not.
+  # Default is true.
+  tests: true
+
+  # Print the linter name in the output
+  print-linter-name: true

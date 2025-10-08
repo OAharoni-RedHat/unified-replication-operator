@@ -204,8 +204,8 @@ func TestUnifiedVolumeReplication_ObjectMeta(t *testing.T) {
 		},
 	}
 
-	assert.Equal(t, "test-replication", uvr.Name)
-	assert.Equal(t, "default", uvr.Namespace)
+	assert.Equal(t, "test-replication", uvr.ObjectMeta.Name)
+	assert.Equal(t, "default", uvr.ObjectMeta.Namespace)
 }
 
 func TestUnifiedVolumeReplicationStatus_Conditions(t *testing.T) {

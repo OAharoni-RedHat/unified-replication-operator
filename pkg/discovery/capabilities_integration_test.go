@@ -270,9 +270,9 @@ func TestCapabilityIntegration(t *testing.T) {
 		// Create capability detectors
 		fakeClient := testEnv.Client
 
-		cephDetector := NewCephCapabilityDetector(fakeClient)
-		tridentDetector := NewTridentCapabilityDetector(fakeClient)
-		powerstoreDetector := NewPowerStoreCapabilityDetector(fakeClient)
+		cephDetector := NewCephCapabilityDetector(fakeClient)             //nolint:typecheck
+		tridentDetector := NewTridentCapabilityDetector(fakeClient)       //nolint:typecheck
+		powerstoreDetector := NewPowerStoreCapabilityDetector(fakeClient) //nolint:typecheck
 
 		detectors := map[translation.Backend]CapabilityDetector{
 			translation.BackendCeph:       cephDetector,
