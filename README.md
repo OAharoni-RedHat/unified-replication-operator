@@ -218,32 +218,6 @@ See [Security Policy](config/security/SECURITY_POLICY.md) for details.
 
 Apache License 2.0 - See [LICENSE](LICENSE) for details.
 
-## Support
-
-- **Documentation:** https://unified-replication.io/docs
-- **Issues:** https://github.com/unified-replication/operator/issues
-- **Discussions:** https://github.com/unified-replication/operator/discussions
-- **Slack:** https://unified-replication.slack.com
-
-## Roadmap
-
-- [x] Core controller implementation
-- [x] Multi-backend support (Ceph, Trident, PowerStore)
-- [x] Advanced features (retry, circuit breaker, metrics)
-- [x] Security hardening
-- [x] Deployment packaging
-- [ ] Additional backends (AWS EBS, Azure Disk)
-- [ ] Multi-region orchestration
-- [ ] Grafana dashboard
-- [ ] Operator Lifecycle Manager (OLM) packaging
-
-## Project Status
-
-**Version:** 0.1.0 (Alpha)  
-**Status:** Production Ready  
-**Test Coverage:** 95%+  
-**Code Lines:** ~13,000+
-
 ## Acknowledgments
 
 Built with:
@@ -253,5 +227,5 @@ Built with:
 
 ---
 
-**Maintained by:** Unified Replication Team  
+**Maintained by:** Ohad Aharoni (written by AI)  
 **Last Updated:** 2024-10-07
