@@ -1,0 +1,63 @@
+{{- if .Values.security.networkPolicy.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "unified-replication-operator.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "unified-replication-operator.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "unified-replication-operator.selectorLabels" . | nindent 6 }}
+      control-plane: controller-manager
+  policyTypes:
+    {{- toYaml .Values.security.networkPolicy.policyTypes | nindent 4 }}
+  ingress:
+  # Webhook traffic from API server
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: kube-system
+    ports:
+    - protocol: TCP
+      port: {{ .Values.webhook.port }}
+  # Metrics scraping
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: monitoring
+    ports:
+    - protocol: TCP
+      port: {{ .Values.service.metricsPort }}
+  # Health checks
+  - from:
+    - namespaceSelector: {}
+    ports:
+    - protocol: TCP
+      port: {{ .Values.service.healthPort }}
+  egress:
+  # DNS
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: kube-system
+    ports:
+    - protocol: UDP
+      port: 53
+  # Kubernetes API
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: default
+    ports:
+    - protocol: TCP
+      port: 443
+  # Storage backends
+  - to:
+    - namespaceSelector: {}
+    ports:
+    - protocol: TCP
+      port: 443
+{{- end }}
+

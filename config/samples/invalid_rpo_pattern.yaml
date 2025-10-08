@@ -1,0 +1,28 @@
+apiVersion: replication.unified.io/v1alpha1
+kind: UnifiedVolumeReplication
+metadata:
+  name: invalid-rpo-pattern
+  namespace: default
+spec:
+  sourceEndpoint:
+    cluster: "prod-us-east-1"
+    region: "us-east-1"
+    storageClass: "ceph-rbd"
+  destinationEndpoint:
+    cluster: "dr-us-west-2"
+    region: "us-west-2"
+    storageClass: "trident-nas"
+  volumeMapping:
+    source:
+      pvcName: "app-data"
+      namespace: "production"
+    destination:
+      volumeHandle: "trident-vol-12345"
+      namespace: "disaster-recovery"
+  replicationState: "source"
+  replicationMode: "asynchronous"  
+  schedule:
+    # Invalid: RPO pattern doesn't match required format
+    rpo: "15-minutes"
+    rto: "invalid-time"
+    mode: "interval"

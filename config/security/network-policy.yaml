@@ -1,0 +1,84 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: unified-replication-operator
+  namespace: unified-replication-system
+  labels:
+    app.kubernetes.io/name: unified-replication-operator
+    app.kubernetes.io/component: security
+spec:
+  podSelector:
+    matchLabels:
+      control-plane: controller-manager
+  policyTypes:
+  - Ingress
+  - Egress
+  
+  ingress:
+  # Allow webhook traffic from API server
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: kube-system
+    ports:
+    - protocol: TCP
+      port: 9443  # Webhook port
+  
+  # Allow metrics scraping from Prometheus
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: monitoring
+    ports:
+    - protocol: TCP
+      port: 8080  # Metrics port
+  
+  # Allow health checks
+  - from:
+    - namespaceSelector: {}
+    ports:
+    - protocol: TCP
+      port: 8081  # Health check port
+  
+  egress:
+  # Allow DNS
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: kube-system
+    ports:
+    - protocol: UDP
+      port: 53
+  
+  # Allow Kubernetes API access
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: default
+    ports:
+    - protocol: TCP
+      port: 443
+  
+  # Allow access to storage backends in all namespaces
+  - to:
+    - namespaceSelector: {}
+    ports:
+    - protocol: TCP
+      port: 443  # HTTPS to backends
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: unified-replication-operator-deny-all-default
+  namespace: unified-replication-system
+  labels:
+    app.kubernetes.io/name: unified-replication-operator
+    app.kubernetes.io/component: security
+spec:
+  podSelector: {}
+  policyTypes:
+  - Ingress
+  - Egress
+  # This creates a default deny-all policy
+  # Specific allows are defined in the main policy above
+

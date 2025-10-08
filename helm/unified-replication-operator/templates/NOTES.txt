@@ -1,0 +1,68 @@
+Thank you for installing {{ .Chart.Name }}!
+
+Your release is named {{ .Release.Name }} and installed in namespace {{ .Release.Namespace }}.
+
+To verify the installation:
+
+  kubectl get pods -n {{ .Release.Namespace }} -l app.kubernetes.io/name={{ include "unified-replication-operator.name" . }}
+
+To view the operator logs:
+
+  kubectl logs -n {{ .Release.Namespace }} -l control-plane=controller-manager -f
+
+{{- if .Values.webhook.enabled }}
+
+Webhook is enabled. Verify it's configured:
+
+  kubectl get validatingwebhookconfiguration {{ include "unified-replication-operator.fullname" . }}-validating-webhook
+
+{{- end }}
+
+{{- if .Values.monitoring.serviceMonitor.enabled }}
+
+Prometheus ServiceMonitor is enabled for metrics collection.
+
+{{- end }}
+
+To create a replication, apply a UnifiedVolumeReplication resource:
+
+  kubectl apply -f - <<EOF
+  apiVersion: replication.unified.io/v1alpha1
+  kind: UnifiedVolumeReplication
+  metadata:
+    name: my-replication
+    namespace: default
+  spec:
+    replicationState: replica
+    replicationMode: asynchronous
+    volumeMapping:
+      source:
+        pvcName: source-pvc
+        namespace: default
+      destination:
+        volumeHandle: dest-volume
+        namespace: default
+    sourceEndpoint:
+      cluster: source-cluster
+      region: us-east-1
+      storageClass: ceph-rbd  # or trident-nas, powerstore-block
+    destinationEndpoint:
+      cluster: dest-cluster
+      region: us-west-1
+      storageClass: ceph-rbd
+    schedule:
+      mode: continuous
+      rpo: "15m"
+      rto: "5m"
+  EOF
+
+To check replication status:
+
+  kubectl get unifiedvolumereplications -A
+  kubectl describe unifiedvolumereplication my-replication -n default
+
+For more information, visit:
+  https://github.com/unified-replication/operator
+
+Happy replicating!
+

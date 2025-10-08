@@ -1,0 +1,28 @@
+apiVersion: replication.unified.io/v1alpha1
+kind: UnifiedVolumeReplication
+metadata:
+  name: invalid-identical-endpoints
+  namespace: default
+spec:
+  # Invalid: source and destination endpoints are identical
+  sourceEndpoint:
+    cluster: "same-cluster"
+    region: "us-east-1"
+    storageClass: "ceph-rbd"
+  destinationEndpoint:
+    cluster: "same-cluster"
+    region: "us-east-1"
+    storageClass: "ceph-rbd"
+  volumeMapping:
+    source:
+      pvcName: "app-data"
+      namespace: "production"
+    destination:
+      volumeHandle: "trident-vol-12345"
+      namespace: "disaster-recovery"
+  replicationState: "source"
+  replicationMode: "asynchronous"
+  schedule:
+    rpo: "15m"
+    rto: "5m"
+    mode: "interval"

@@ -1,0 +1,61 @@
+apiVersion: policy/v1beta1
+kind: PodSecurityPolicy
+metadata:
+  name: unified-replication-operator
+  labels:
+    app.kubernetes.io/name: unified-replication-operator
+    app.kubernetes.io/component: security
+spec:
+  privileged: false
+  allowPrivilegeEscalation: false
+  
+  # Required to prevent escalations
+  requiredDropCapabilities:
+  - ALL
+  
+  # Allow specific capabilities if needed (none required currently)
+  allowedCapabilities: []
+  
+  # Volumes
+  volumes:
+  - configMap
+  - emptyDir
+  - projected
+  - secret
+  - downwardAPI
+  - persistentVolumeClaim
+  
+  # Host namespaces
+  hostNetwork: false
+  hostIPC: false
+  hostPID: false
+  
+  # SELinux
+  seLinux:
+    rule: RunAsAny
+  
+  # Run as non-root
+  runAsUser:
+    rule: MustRunAsNonRoot
+  
+  # Supplemental groups
+  supplementalGroups:
+    rule: RunAsAny
+  
+  # FSGroup
+  fsGroup:
+    rule: RunAsAny
+  
+  # Read-only root filesystem
+  readOnlyRootFilesystem: true
+---
+# Pod Security Standards (PSS) - Restricted profile
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: unified-replication-system
+  labels:
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
+

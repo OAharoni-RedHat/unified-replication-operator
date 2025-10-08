@@ -1,0 +1,273 @@
+# Default values for unified-replication-operator
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+# Operator configuration
+replicaCount: 1
+
+image:
+  repository: unified-replication-operator
+  pullPolicy: IfNotPresent
+  # Overrides the image tag whose default is the chart appVersion.
+  tag: ""
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+# Service account configuration
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: true
+  # Annotations to add to the service account
+  annotations: {}
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name: ""
+
+# Pod annotations
+podAnnotations:
+  prometheus.io/scrape: "true"
+  prometheus.io/port: "8080"
+  prometheus.io/path: "/metrics"
+
+# Pod security context
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 65532
+  fsGroup: 65532
+  seccompProfile:
+    type: RuntimeDefault
+
+# Container security context
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  runAsNonRoot: true
+  runAsUser: 65532
+  capabilities:
+    drop:
+    - ALL
+
+# Service configuration
+service:
+  type: ClusterIP
+  port: 443
+  metricsPort: 8080
+  healthPort: 8081
+
+# Webhook configuration
+webhook:
+  enabled: true
+  port: 9443
+  certManager:
+    enabled: false  # Set to true if using cert-manager
+  # Certificate configuration (if not using cert-manager)
+  certificate:
+    # Auto-generate self-signed certificates
+    generate: true
+    # Or provide existing certificate
+    existingSecret: ""
+    # Certificate validity in days
+    validityDays: 365
+
+# Resource limits and requests
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+# Node selector
+nodeSelector: {}
+
+# Tolerations
+tolerations: []
+
+# Affinity rules
+affinity: {}
+
+# Controller configuration
+controller:
+  # Maximum concurrent reconciles
+  maxConcurrentReconciles: 3
+  
+  # Reconcile timeout
+  reconcileTimeout: "5m"
+  
+  # Enable engine integration (Phase 4.2)
+  useIntegratedEngine: true
+  
+  # Enable advanced features (Phase 4.3)
+  enableAdvancedFeatures: true
+  
+  # Logging level
+  logLevel: info
+  
+  # Enable leader election
+  leaderElection:
+    enabled: true
+    namespace: ""  # Defaults to release namespace
+
+# Engine configuration
+engines:
+  # Discovery engine
+  discovery:
+    enabled: true
+    cacheExpiry: "5m"
+    discoveryInterval: "1m"
+  
+  # Translation engine
+  translation:
+    enabled: true
+  
+  # Controller engine
+  controllerEngine:
+    enabled: true
+    enableCaching: true
+    cacheExpiry: "5m"
+
+# Advanced features configuration (Phase 4.3)
+advancedFeatures:
+  # State machine
+  stateMachine:
+    enabled: true
+    maxHistorySize: 100
+  
+  # Retry manager
+  retryManager:
+    enabled: true
+    maxAttempts: 5
+    initialDelay: "1s"
+    maxDelay: "5m"
+    multiplier: 2.0
+    jitter: 0.1
+  
+  # Circuit breaker
+  circuitBreaker:
+    enabled: true
+    failureThreshold: 5
+    successThreshold: 2
+    timeout: "1m"
+  
+  # Metrics
+  metrics:
+    enabled: true
+    port: 8080
+  
+  # Health checks
+  healthChecks:
+    enabled: true
+    livenessProbe:
+      initialDelaySeconds: 15
+      periodSeconds: 20
+      timeoutSeconds: 5
+      failureThreshold: 3
+    readinessProbe:
+      initialDelaySeconds: 5
+      periodSeconds: 10
+      timeoutSeconds: 5
+      failureThreshold: 3
+
+# Security configuration (Phase 5.1)
+security:
+  # Audit logging
+  audit:
+    enabled: true
+    maxEvents: 1000
+  
+  # Input validation
+  validation:
+    enabled: true
+    maxNameLength: 253
+    maxValueLength: 1024
+  
+  # Network policies
+  networkPolicy:
+    enabled: true
+    policyTypes:
+      - Ingress
+      - Egress
+  
+  # Pod security policy
+  podSecurityPolicy:
+    enabled: false  # Use podSecurityStandards instead
+  
+  # Pod security standards
+  podSecurityStandards:
+    enforce: restricted
+    audit: restricted
+    warn: restricted
+
+# Backend adapters
+backends:
+  # Ceph-CSI backend
+  ceph:
+    enabled: true
+  
+  # NetApp Trident backend
+  trident:
+    enabled: true
+  
+  # Dell PowerStore backend
+  powerstore:
+    enabled: true
+  
+  # Mock adapters (for testing only)
+  mock:
+    enabled: false
+
+# Monitoring
+monitoring:
+  # ServiceMonitor for Prometheus Operator
+  serviceMonitor:
+    enabled: false
+    interval: 30s
+    scrapeTimeout: 10s
+    labels: {}
+  
+  # Grafana dashboard
+  grafanaDashboard:
+    enabled: false
+    labels: {}
+
+# RBAC configuration
+rbac:
+  # Create RBAC resources
+  create: true
+  
+  # Additional ClusterRole rules
+  additionalRules: []
+
+# Custom Resource Definitions
+crds:
+  # Install CRDs
+  install: true
+  # Keep CRDs on uninstall
+  keep: true
+
+# Extra environment variables
+extraEnv: []
+# - name: LOG_LEVEL
+#   value: debug
+
+# Extra volumes
+extraVolumes: []
+# - name: extra-config
+#   configMap:
+#     name: extra-config
+
+# Extra volume mounts
+extraVolumeMounts: []
+# - name: extra-config
+#   mountPath: /etc/config
+
+# Deployment strategy
+strategy:
+  type: Recreate
+
+# Priority class
+priorityClassName: ""
+

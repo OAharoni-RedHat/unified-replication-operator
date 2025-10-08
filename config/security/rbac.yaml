@@ -1,0 +1,244 @@
+---
+# ServiceAccount for the operator
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: unified-replication-operator
+  namespace: unified-replication-system
+  labels:
+    app.kubernetes.io/name: unified-replication-operator
+    app.kubernetes.io/component: rbac
+---
+# ClusterRole with minimal required permissions
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: unified-replication-operator-manager
+  labels:
+    app.kubernetes.io/name: unified-replication-operator
+    app.kubernetes.io/component: rbac
+rules:
+# UnifiedVolumeReplication resources
+- apiGroups:
+  - replication.unified.io
+  resources:
+  - unifiedvolumereplications
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - replication.unified.io
+  resources:
+  - unifiedvolumereplications/status
+  verbs:
+  - get
+  - update
+  - patch
+- apiGroups:
+  - replication.unified.io
+  resources:
+  - unifiedvolumereplications/finalizers
+  verbs:
+  - update
+
+# Ceph VolumeReplication resources
+- apiGroups:
+  - replication.storage.openshift.io
+  resources:
+  - volumereplications
+  - volumereplicationclasses
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+
+# Trident resources (optional)
+- apiGroups:
+  - trident.netapp.io
+  resources:
+  - tridentmirrorrelationships
+  - tridentactionmirrorupdates
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+
+# PowerStore resources (optional)
+- apiGroups:
+  - replication.dell.com
+  resources:
+  - dellcsireplicationgroups
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+
+# Core resources - Read only
+- apiGroups:
+  - ""
+  resources:
+  - persistentvolumeclaims
+  - persistentvolumes
+  verbs:
+  - get
+  - list
+  - watch
+
+# Storage classes - Read only
+- apiGroups:
+  - storage.k8s.io
+  resources:
+  - storageclasses
+  verbs:
+  - get
+  - list
+  - watch
+
+# CRD discovery - Read only
+- apiGroups:
+  - apiextensions.k8s.io
+  resources:
+  - customresourcedefinitions
+  verbs:
+  - get
+  - list
+  - watch
+
+# Events - Create and patch only
+- apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - create
+  - patch
+
+# Secrets - Read only for webhook certs
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - get
+  resourceNames:
+  - unified-replication-webhook-server-cert
+---
+# ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: unified-replication-operator-manager
+  labels:
+    app.kubernetes.io/name: unified-replication-operator
+    app.kubernetes.io/component: rbac
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: unified-replication-operator-manager
+subjects:
+- kind: ServiceAccount
+  name: unified-replication-operator
+  namespace: unified-replication-system
+---
+# Role for leader election
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: unified-replication-leader-election
+  namespace: unified-replication-system
+  labels:
+    app.kubernetes.io/name: unified-replication-operator
+    app.kubernetes.io/component: rbac
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - coordination.k8s.io
+  resources:
+  - leases
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - create
+  - patch
+---
+# RoleBinding for leader election
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: unified-replication-leader-election
+  namespace: unified-replication-system
+  labels:
+    app.kubernetes.io/name: unified-replication-operator
+    app.kubernetes.io/component: rbac
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: unified-replication-leader-election
+subjects:
+- kind: ServiceAccount
+  name: unified-replication-operator
+  namespace: unified-replication-system
+---
+# Read-only role for monitoring/operators
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: unified-replication-operator-viewer
+  labels:
+    app.kubernetes.io/name: unified-replication-operator
+    app.kubernetes.io/component: rbac
+    rbac.authorization.k8s.io/aggregate-to-view: "true"
+rules:
+- apiGroups:
+  - replication.unified.io
+  resources:
+  - unifiedvolumereplications
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - replication.unified.io
+  resources:
+  - unifiedvolumereplications/status
+  verbs:
+  - get
+

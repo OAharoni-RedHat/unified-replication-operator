@@ -1,0 +1,34 @@
+apiVersion: replication.unified.io/v1alpha1
+kind: UnifiedVolumeReplication
+metadata:
+  name: app-data-dr-sample
+  namespace: default
+spec:
+  sourceEndpoint:
+    cluster: "prod-us-east-1"
+    region: "us-east-1"
+    storageClass: "ceph-rbd"
+  destinationEndpoint:
+    cluster: "dr-us-west-2"
+    region: "us-west-2"
+    storageClass: "trident-nas"
+  volumeMapping:
+    source:
+      pvcName: "app-data"
+      namespace: "production"
+    destination:
+      volumeHandle: "trident-vol-12345"
+      namespace: "disaster-recovery"
+  replicationState: "source"
+  replicationMode: "asynchronous"
+  schedule:
+    rpo: "15m"
+    rto: "5m"
+    mode: "interval"
+  extensions:
+    ceph:
+      mirroringMode: "journal"
+    trident:
+      actions:
+      - type: "mirror-update"
+        snapshotHandle: "snap-daily-001"

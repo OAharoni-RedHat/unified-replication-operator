@@ -1,0 +1,135 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "unified-replication-operator.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "unified-replication-operator.labels" . | nindent 4 }}
+    control-plane: controller-manager
+spec:
+  replicas: {{ .Values.replicaCount }}
+  strategy:
+    {{- toYaml .Values.strategy | nindent 4 }}
+  selector:
+    matchLabels:
+      {{- include "unified-replication-operator.selectorLabels" . | nindent 6 }}
+      control-plane: controller-manager
+  template:
+    metadata:
+      annotations:
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        {{- include "unified-replication-operator.selectorLabels" . | nindent 8 }}
+        control-plane: controller-manager
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "unified-replication-operator.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      {{- if .Values.priorityClassName }}
+      priorityClassName: {{ .Values.priorityClassName }}
+      {{- end }}
+      containers:
+      - name: manager
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        command:
+        - /manager
+        args:
+        - --leader-elect={{ .Values.controller.leaderElection.enabled }}
+        {{- if .Values.controller.leaderElection.namespace }}
+        - --leader-elect-namespace={{ .Values.controller.leaderElection.namespace }}
+        {{- end }}
+        - --max-concurrent-reconciles={{ .Values.controller.maxConcurrentReconciles }}
+        - --reconcile-timeout={{ .Values.controller.reconcileTimeout }}
+        - --use-integrated-engine={{ .Values.controller.useIntegratedEngine }}
+        - --enable-advanced-features={{ .Values.controller.enableAdvancedFeatures }}
+        - --log-level={{ .Values.controller.logLevel }}
+        - --health-probe-bind-address=:{{ .Values.service.healthPort }}
+        - --metrics-bind-address=:{{ .Values.service.metricsPort }}
+        {{- if .Values.webhook.enabled }}
+        - --webhook-port={{ .Values.webhook.port }}
+        {{- end }}
+        securityContext:
+          {{- toYaml .Values.securityContext | nindent 12 }}
+        ports:
+        - name: metrics
+          containerPort: {{ .Values.service.metricsPort }}
+          protocol: TCP
+        - name: health
+          containerPort: {{ .Values.service.healthPort }}
+          protocol: TCP
+        {{- if .Values.webhook.enabled }}
+        - name: webhook
+          containerPort: {{ .Values.webhook.port }}
+          protocol: TCP
+        {{- end }}
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: health
+          initialDelaySeconds: {{ .Values.advancedFeatures.healthChecks.livenessProbe.initialDelaySeconds }}
+          periodSeconds: {{ .Values.advancedFeatures.healthChecks.livenessProbe.periodSeconds }}
+          timeoutSeconds: {{ .Values.advancedFeatures.healthChecks.livenessProbe.timeoutSeconds }}
+          failureThreshold: {{ .Values.advancedFeatures.healthChecks.livenessProbe.failureThreshold }}
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: health
+          initialDelaySeconds: {{ .Values.advancedFeatures.healthChecks.readinessProbe.initialDelaySeconds }}
+          periodSeconds: {{ .Values.advancedFeatures.healthChecks.readinessProbe.periodSeconds }}
+          timeoutSeconds: {{ .Values.advancedFeatures.healthChecks.readinessProbe.timeoutSeconds }}
+          failureThreshold: {{ .Values.advancedFeatures.healthChecks.readinessProbe.failureThreshold }}
+        resources:
+          {{- toYaml .Values.resources | nindent 12 }}
+        volumeMounts:
+        {{- if .Values.webhook.enabled }}
+        - name: cert
+          mountPath: /tmp/k8s-webhook-server/serving-certs
+          readOnly: true
+        {{- end }}
+        - name: tmp
+          mountPath: /tmp
+        {{- with .Values.extraVolumeMounts }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        env:
+        - name: ENABLE_WEBHOOKS
+          value: "{{ .Values.webhook.enabled }}"
+        - name: ENABLE_AUDIT
+          value: "{{ .Values.security.audit.enabled }}"
+        - name: ENABLE_ADVANCED_FEATURES
+          value: "{{ .Values.controller.enableAdvancedFeatures }}"
+        {{- with .Values.extraEnv }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      volumes:
+      {{- if .Values.webhook.enabled }}
+      - name: cert
+        secret:
+          secretName: {{ include "unified-replication-operator.webhookCertSecret" . }}
+          defaultMode: 420
+      {{- end }}
+      - name: tmp
+        emptyDir: {}
+      {{- with .Values.extraVolumes }}
+      {{- toYaml . | nindent 6 }}
+      {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+

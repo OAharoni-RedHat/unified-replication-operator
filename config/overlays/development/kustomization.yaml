@@ -1,0 +1,46 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: unified-replication-dev
+
+namePrefix: dev-
+
+commonLabels:
+  environment: development
+  app.kubernetes.io/part-of: unified-replication-operator
+
+resources:
+- ../../default
+
+patches:
+- patch: |-
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: unified-replication-operator
+    spec:
+      replicas: 1
+      template:
+        spec:
+          containers:
+          - name: manager
+            resources:
+              limits:
+                cpu: 200m
+                memory: 256Mi
+              requests:
+                cpu: 50m
+                memory: 64Mi
+            args:
+            - --log-level=debug
+            - --max-concurrent-reconciles=1
+  target:
+    kind: Deployment
+
+configMapGenerator:
+- name: operator-config
+  literals:
+  - LOG_LEVEL=debug
+  - ENABLE_MOCK_ADAPTERS=true
+  - ENABLE_PROFILING=true
+

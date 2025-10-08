@@ -1,0 +1,23 @@
+apiVersion: v2
+name: unified-replication-operator
+description: A Helm chart for Unified Replication Operator - unified storage replication across Ceph, Trident, and PowerStore
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+keywords:
+  - storage
+  - replication
+  - ceph
+  - trident
+  - powerstore
+  - disaster-recovery
+  - backup
+home: https://github.com/unified-replication/operator
+sources:
+  - https://github.com/unified-replication/operator
+maintainers:
+  - name: Unified Replication Team
+    email: team@unified-replication.io
+icon: https://unified-replication.io/logo.png
+kubeVersion: ">=1.24.0-0"
+
