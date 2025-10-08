@@ -162,17 +162,17 @@ func (ce *ControllerEngine) discoverBackends(ctx context.Context, log logr.Logge
 	// Check cache first
 	if ce.enableCaching && time.Since(ce.lastDiscoveryTime) < ce.cacheExpiry {
 		ce.discoveryCacheMutex.RLock()
-		defer ce.discoveryCacheMutex.RUnlock()
-
 		if len(ce.discoveryCache) > 0 {
 			ce.cacheHits++
 			backends := make([]translation.Backend, 0, len(ce.discoveryCache))
 			for backend := range ce.discoveryCache {
 				backends = append(backends, translation.Backend(backend))
 			}
+			ce.discoveryCacheMutex.RUnlock()
 			log.V(1).Info("Using cached discovery results", "backends", backends)
 			return backends, nil
 		}
+		ce.discoveryCacheMutex.RUnlock()
 	}
 
 	ce.cacheMisses++

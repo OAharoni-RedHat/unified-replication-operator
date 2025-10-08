@@ -318,4 +318,3 @@ func (mr *MetricsRecorder) SetActiveReplications(count float64) {
 func (mr *MetricsRecorder) SetReplicationsByBackend(backend string, count float64) {
 	replicationsByBackend.WithLabelValues(backend).Set(count)
 }
-

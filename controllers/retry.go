@@ -128,7 +128,7 @@ func (rm *RetryManager) GetNextDelay(resourceKey string) time.Duration {
 	}
 
 	// Exponential backoff
-	delay := time.Duration(float64(rm.strategy.InitialDelay) * 
+	delay := time.Duration(float64(rm.strategy.InitialDelay) *
 		pow(rm.strategy.Multiplier, float64(attempts-1)))
 
 	// Cap at max delay
@@ -195,20 +195,20 @@ func (rm *RetryManager) isRetryableError(err error) bool {
 type CircuitBreakerState string
 
 const (
-	StateClosed    CircuitBreakerState = "closed"     // Normal operation
-	StateOpen      CircuitBreakerState = "open"       // Failing, reject requests
-	StateHalfOpen  CircuitBreakerState = "half-open"  // Testing if recovered
+	StateClosed   CircuitBreakerState = "closed"    // Normal operation
+	StateOpen     CircuitBreakerState = "open"      // Failing, reject requests
+	StateHalfOpen CircuitBreakerState = "half-open" // Testing if recovered
 )
 
 // CircuitBreaker implements circuit breaker pattern
 type CircuitBreaker struct {
-	state          CircuitBreakerState
-	failureCount   int
-	successCount   int
-	lastFailure    time.Time
-	lastSuccess    time.Time
-	openedAt       time.Time
-	stateMutex     sync.RWMutex
+	state        CircuitBreakerState
+	failureCount int
+	successCount int
+	lastFailure  time.Time
+	lastSuccess  time.Time
+	openedAt     time.Time
+	stateMutex   sync.RWMutex
 
 	// Configuration
 	failureThreshold int
@@ -231,7 +231,7 @@ func NewCircuitBreaker(failureThreshold, successThreshold int, timeout time.Dura
 // Call executes a function through the circuit breaker
 func (cb *CircuitBreaker) Call(fn func() error) error {
 	cb.stateMutex.Lock()
-	
+
 	// Check circuit state
 	switch cb.state {
 	case StateOpen:
@@ -316,12 +316,12 @@ func (cb *CircuitBreaker) GetMetrics() map[string]interface{} {
 	defer cb.stateMutex.RUnlock()
 
 	return map[string]interface{}{
-		"state":          string(cb.state),
-		"failure_count":  cb.failureCount,
-		"success_count":  cb.successCount,
-		"last_failure":   cb.lastFailure,
-		"last_success":   cb.lastSuccess,
-		"opened_at":      cb.openedAt,
+		"state":         string(cb.state),
+		"failure_count": cb.failureCount,
+		"success_count": cb.successCount,
+		"last_failure":  cb.lastFailure,
+		"last_success":  cb.lastSuccess,
+		"opened_at":     cb.openedAt,
 	}
 }
 
@@ -342,9 +342,8 @@ var randSeed = time.Now().UnixNano()
 func randomInt63n(n int64) int64 {
 	randMutex.Lock()
 	defer randMutex.Unlock()
-	
+
 	// Simple LCG (Linear Congruential Generator)
 	randSeed = (randSeed*1103515245 + 12345) & 0x7fffffff
 	return randSeed % n
 }
-

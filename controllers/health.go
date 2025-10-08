@@ -28,13 +28,13 @@ import (
 
 // HealthStatus represents the health status of the controller
 type HealthStatus struct {
-	Healthy          bool      `json:"healthy"`
-	LastCheck        time.Time `json:"last_check"`
-	LastReconcile    time.Time `json:"last_reconcile"`
-	ReconcileCount   int64     `json:"reconcile_count"`
-	ErrorRate        float64   `json:"error_rate"`
-	Message          string    `json:"message"`
-	Details          map[string]interface{} `json:"details,omitempty"`
+	Healthy        bool                   `json:"healthy"`
+	LastCheck      time.Time              `json:"last_check"`
+	LastReconcile  time.Time              `json:"last_reconcile"`
+	ReconcileCount int64                  `json:"reconcile_count"`
+	ErrorRate      float64                `json:"error_rate"`
+	Message        string                 `json:"message"`
+	Details        map[string]interface{} `json:"details,omitempty"`
 }
 
 // HealthChecker provides health check functionality
@@ -236,4 +236,3 @@ func GetCorrelationID(ctx context.Context) string {
 	}
 	return ""
 }
-

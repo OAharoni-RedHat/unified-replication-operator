@@ -85,7 +85,7 @@ func TestEngineIntegration_BasicWorkflow(t *testing.T) {
 	}
 
 	// Reconcile with integrated engine
-		result, err := reconciler.Reconcile(ctx, req)
+	result, err := reconciler.Reconcile(ctx, req)
 	// May error if discovery doesn't find backends, but should not panic
 	t.Logf("Reconcile with engine result: Requeue=%v, Error=%v", result.Requeue, err)
 
@@ -109,10 +109,10 @@ func TestEngineIntegration_AdapterSelection(t *testing.T) {
 	// Create resource with Trident extensions
 	uvr := createTestUVR("adapter-select-test", "default")
 
-		fakeClient := fake.NewClientBuilder().
-			WithScheme(s).
-			WithObjects(uvr).
-			Build()
+	fakeClient := fake.NewClientBuilder().
+		WithScheme(s).
+		WithObjects(uvr).
+		Build()
 
 	// Create engines
 	discoveryEngine := discovery.NewEngine(fakeClient, discovery.DefaultDiscoveryConfig())
@@ -191,14 +191,14 @@ func TestEngineIntegration_ErrorPropagation(t *testing.T) {
 
 	// Create resource
 	uvr := createTestUVR("error-test", "default")
-		fakeClient := fake.NewClientBuilder().
-			WithScheme(s).
-			WithObjects(uvr).
-			Build()
+	fakeClient := fake.NewClientBuilder().
+		WithScheme(s).
+		WithObjects(uvr).
+		Build()
 
 	// Create engines
 	discoveryEngine := discovery.NewEngine(fakeClient, discovery.DefaultDiscoveryConfig())
-		translationEngine := translation.NewEngine()
+	translationEngine := translation.NewEngine()
 
 	// Create reconciler WITHOUT adapter registry (will cause error)
 	reconciler := createTestReconciler(fakeClient, s)
@@ -207,15 +207,15 @@ func TestEngineIntegration_ErrorPropagation(t *testing.T) {
 	reconciler.AdapterRegistry = nil // This will cause error
 	reconciler.UseIntegratedEngine = true
 
-		req := reconcile.Request{
+	req := reconcile.Request{
 		NamespacedName: types.NamespacedName{
 			Name:      "error-test",
 			Namespace: "default",
 		},
-		}
+	}
 
 	// Should handle error gracefully
-		result, err := reconciler.Reconcile(ctx, req)
+	result, err := reconciler.Reconcile(ctx, req)
 
 	// Error is expected, but should not panic
 	t.Logf("Reconcile with missing registry: Requeue=%v, Error=%v", result.Requeue, err)

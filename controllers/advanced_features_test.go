@@ -88,7 +88,7 @@ func TestStateMachine(t *testing.T) {
 
 	t.Run("TransitionHistory", func(t *testing.T) {
 		sm.ClearHistory()
-		
+
 		sm.RecordTransition(
 			replicationv1alpha1.ReplicationStateReplica,
 			replicationv1alpha1.ReplicationStatePromoting,
@@ -115,11 +115,11 @@ func TestStateMachine(t *testing.T) {
 func TestRetryManager(t *testing.T) {
 	t.Run("ShouldRetry", func(t *testing.T) {
 		rm := NewRetryManager(nil)
-		
+
 		// Should retry on error
 		err := errors.New("temporary failure")
 		assert.True(t, rm.ShouldRetry("test-resource", err))
-		
+
 		// Should not retry when no error
 		assert.False(t, rm.ShouldRetry("test-resource", nil))
 	})
@@ -128,25 +128,25 @@ func TestRetryManager(t *testing.T) {
 		rm := NewRetryManager(&RetryStrategy{
 			MaxAttempts: 3,
 		})
-		
+
 		resourceKey := "test-resource"
-		
+
 		// Record attempts
 		assert.Equal(t, 0, rm.GetAttemptCount(resourceKey))
 		rm.RecordAttempt(resourceKey)
 		assert.Equal(t, 1, rm.GetAttemptCount(resourceKey))
 		rm.RecordAttempt(resourceKey)
 		assert.Equal(t, 2, rm.GetAttemptCount(resourceKey))
-		
+
 		// Should still retry (max is 3)
 		err := errors.New("test error")
 		assert.True(t, rm.ShouldRetry(resourceKey, err))
-		
+
 		// After max attempts
 		rm.RecordAttempt(resourceKey)
 		assert.Equal(t, 3, rm.GetAttemptCount(resourceKey))
 		assert.False(t, rm.ShouldRetry(resourceKey, err))
-		
+
 		// Reset
 		rm.ResetAttempts(resourceKey)
 		assert.Equal(t, 0, rm.GetAttemptCount(resourceKey))
@@ -159,23 +159,23 @@ func TestRetryManager(t *testing.T) {
 			Multiplier:   2.0,
 			Jitter:       0,
 		})
-		
+
 		resourceKey := "test-backoff"
-		
+
 		// First delay (no attempts yet)
 		delay0 := rm.GetNextDelay(resourceKey)
 		assert.Equal(t, 1*time.Second, delay0)
-		
+
 		// After first attempt, delay is still initial (attempts-1 in calculation)
 		rm.RecordAttempt(resourceKey)
 		delay1 := rm.GetNextDelay(resourceKey)
 		assert.GreaterOrEqual(t, delay1, 1*time.Second, "Should be at least initial delay")
-		
+
 		// After second attempt
 		rm.RecordAttempt(resourceKey)
 		delay2 := rm.GetNextDelay(resourceKey)
 		assert.GreaterOrEqual(t, delay2, 2*time.Second, "Should grow exponentially")
-		
+
 		t.Logf("Delays: %v, %v, %v", delay0, delay1, delay2)
 	})
 
@@ -183,17 +183,17 @@ func TestRetryManager(t *testing.T) {
 		if testing.Short() {
 			t.Skip("Skipping retry test in short mode")
 		}
-		
+
 		rm := NewRetryManager(&RetryStrategy{
 			MaxAttempts:  3,
 			InitialDelay: 10 * time.Millisecond,
 			MaxDelay:     100 * time.Millisecond,
 			Multiplier:   2.0,
 		})
-		
+
 		ctx := context.Background()
 		attempts := 0
-		
+
 		// Function that succeeds on 3rd attempt
 		err := rm.WithRetry(ctx, "test-retry", func() error {
 			attempts++
@@ -202,7 +202,7 @@ func TestRetryManager(t *testing.T) {
 			}
 			return nil
 		})
-		
+
 		assert.NoError(t, err)
 		assert.Equal(t, 3, attempts)
 	})
@@ -212,9 +212,9 @@ func TestRetryManager(t *testing.T) {
 func TestCircuitBreaker(t *testing.T) {
 	t.Run("ClosedState", func(t *testing.T) {
 		cb := NewCircuitBreaker(3, 2, 1*time.Second)
-		
+
 		assert.Equal(t, StateClosed, cb.GetState())
-		
+
 		// Successful call
 		err := cb.Call(func() error { return nil })
 		assert.NoError(t, err)
@@ -223,14 +223,14 @@ func TestCircuitBreaker(t *testing.T) {
 
 	t.Run("OpenState", func(t *testing.T) {
 		cb := NewCircuitBreaker(3, 2, 1*time.Second)
-		
+
 		// Fail multiple times
 		for i := 0; i < 3; i++ {
 			_ = cb.Call(func() error { return errors.New("failure") })
 		}
-		
+
 		assert.Equal(t, StateOpen, cb.GetState())
-		
+
 		// Next call should be rejected
 		err := cb.Call(func() error { return nil })
 		assert.Error(t, err)
@@ -239,22 +239,22 @@ func TestCircuitBreaker(t *testing.T) {
 
 	t.Run("HalfOpenState", func(t *testing.T) {
 		cb := NewCircuitBreaker(2, 2, 100*time.Millisecond)
-		
+
 		// Open the circuit
 		for i := 0; i < 2; i++ {
 			_ = cb.Call(func() error { return errors.New("failure") })
 		}
 		assert.Equal(t, StateOpen, cb.GetState())
-		
+
 		// Wait for timeout
 		time.Sleep(150 * time.Millisecond)
-		
+
 		// Next call transitions to half-open
 		_ = cb.Call(func() error { return nil })
-		
+
 		// After successful calls, should close
 		_ = cb.Call(func() error { return nil })
-		
+
 		// Should be closed or half-open
 		state := cb.GetState()
 		assert.True(t, state == StateClosed || state == StateHalfOpen)
@@ -262,13 +262,13 @@ func TestCircuitBreaker(t *testing.T) {
 
 	t.Run("Reset", func(t *testing.T) {
 		cb := NewCircuitBreaker(2, 2, 1*time.Second)
-		
+
 		// Open the circuit
 		for i := 0; i < 2; i++ {
 			_ = cb.Call(func() error { return errors.New("failure") })
 		}
 		assert.Equal(t, StateOpen, cb.GetState())
-		
+
 		// Reset
 		cb.Reset()
 		assert.Equal(t, StateClosed, cb.GetState())
@@ -276,9 +276,9 @@ func TestCircuitBreaker(t *testing.T) {
 
 	t.Run("Metrics", func(t *testing.T) {
 		cb := NewCircuitBreaker(3, 2, 1*time.Second)
-		
+
 		_ = cb.Call(func() error { return errors.New("failure") })
-		
+
 		metrics := cb.GetMetrics()
 		assert.Contains(t, metrics, "state")
 		assert.Contains(t, metrics, "failure_count")
@@ -290,7 +290,7 @@ func TestCircuitBreaker(t *testing.T) {
 // TestHealthChecker tests health checking
 func TestHealthChecker(t *testing.T) {
 	adapterRegistry := adapters.GetGlobalRegistry()
-	
+
 	reconciler := &UnifiedVolumeReplicationReconciler{
 		Log:               ctrl.Log.WithName("test"),
 		ReconcileCount:    100,
@@ -318,7 +318,7 @@ func TestHealthChecker(t *testing.T) {
 			LastReconcileTime: time.Now(),
 			AdapterRegistry:   adapterRegistry,
 		}
-		
+
 		hc2 := NewHealthChecker(unhealthyReconciler)
 		status := hc2.Check(ctx, unhealthyReconciler.Log)
 		assert.False(t, status.Healthy)
@@ -333,7 +333,7 @@ func TestHealthChecker(t *testing.T) {
 			LastReconcileTime: time.Now().Add(-15 * time.Minute),
 			AdapterRegistry:   adapterRegistry,
 		}
-		
+
 		hc3 := NewHealthChecker(staleReconciler)
 		status := hc3.Check(ctx, staleReconciler.Log)
 		assert.False(t, status.Healthy)
@@ -380,10 +380,10 @@ func TestCorrelationID(t *testing.T) {
 	t.Run("ContextCorrelationID", func(t *testing.T) {
 		ctx := context.Background()
 		id := "test-correlation-123"
-		
+
 		// Add to context
 		ctx = WithCorrelationID(ctx, id)
-		
+
 		// Retrieve from context
 		retrieved := GetCorrelationID(ctx)
 		assert.Equal(t, id, retrieved)
@@ -469,7 +469,7 @@ func TestAdvancedReconciliation(t *testing.T) {
 
 	// Reconcile
 	result, err := reconciler.Reconcile(ctx, req)
-	t.Logf("Reconcile result: Requeue=%v, RequeueAfter=%v, Error=%v", 
+	t.Logf("Reconcile result: Requeue=%v, RequeueAfter=%v, Error=%v",
 		result.Requeue, result.RequeueAfter, err)
 
 	// Check health
@@ -549,12 +549,12 @@ func TestRetryWithCircuitBreaker(t *testing.T) {
 
 	ctx := context.Background()
 	resourceKey := "test-resource"
-	
+
 	// Attempt with circuit breaker
 	attempts := 0
 	err := rm.WithRetry(ctx, resourceKey, func() error {
 		attempts++
-		
+
 		// Use circuit breaker
 		return cb.Call(func() error {
 			if attempts < 10 { // Always fail
@@ -570,4 +570,3 @@ func TestRetryWithCircuitBreaker(t *testing.T) {
 
 	t.Log("Retry with circuit breaker test completed")
 }
-

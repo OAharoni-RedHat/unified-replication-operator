@@ -1429,13 +1429,17 @@ func (ca *CephAdapter) Initialize(ctx context.Context) error {
 	logger := log.FromContext(ctx).WithName("ceph-adapter")
 	logger.Info("Initializing Ceph adapter")
 
-	// Perform initial health check
+	// Initialize base adapter first
+	if err := ca.BaseAdapter.Initialize(ctx); err != nil {
+		return fmt.Errorf("base adapter initialization failed: %w", err)
+	}
+
+	// Perform initial health check after base adapter is initialized
 	if err := ca.performHealthCheck(ctx); err != nil {
 		return fmt.Errorf("initial health check failed: %w", err)
 	}
 
-	// Initialize base adapter
-	return ca.BaseAdapter.Initialize(ctx)
+	return nil
 }
 
 // Cleanup performs adapter cleanup

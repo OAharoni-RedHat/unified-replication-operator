@@ -292,4 +292,3 @@ func (sm *StateMachine) GetHistoryForState(state replicationv1alpha1.Replication
 	}
 	return result
 }
-
