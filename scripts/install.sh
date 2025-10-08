@@ -9,7 +9,7 @@ PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 # Default values
 NAMESPACE="${NAMESPACE:-unified-replication-system}"
 RELEASE_NAME="${RELEASE_NAME:-unified-replication-operator}"
-HELM_TIMEOUT="${HELM_TIMEOUT:-5m}"
+HELM_TIMEOUT="${HELM_TIMEOUT:-10m}"
 SKIP_PREFLIGHT="${SKIP_PREFLIGHT:-false}"
 
 # Colors
@@ -59,6 +59,14 @@ preflight_checks() {
     HELM_VERSION=$(helm version --short 2>/dev/null || echo "unknown")
     echo_info "Helm version: $HELM_VERSION"
     
+    # Check kustomize (optional but recommended)
+    if command -v kustomize &> /dev/null; then
+        KUSTOMIZE_VERSION=$(kustomize version --short 2>/dev/null || echo "unknown")
+        echo_info "Kustomize version: $KUSTOMIZE_VERSION"
+    else
+        echo_warn "Kustomize not found. CRD installation will use direct kubectl apply."
+    fi
+    
     echo_info "Pre-flight checks passed ✓"
 }
 
@@ -87,7 +95,17 @@ install_crds() {
     echo_info "Installing CRDs..."
     
     if [ -d "$PROJECT_ROOT/config/crd" ]; then
-        kubectl apply -f "$PROJECT_ROOT/config/crd" || echo_warn "CRDs may already exist"
+        # Try to apply CRDs using kustomize first, fallback to direct kubectl apply
+        if command -v kustomize &> /dev/null; then
+            echo_info "Using kustomize to install CRDs..."
+            kustomize build "$PROJECT_ROOT/config/crd" | kubectl apply -f - || {
+                echo_warn "Kustomize build failed, trying direct kubectl apply..."
+                kubectl apply -f "$PROJECT_ROOT/config/crd" || echo_warn "CRDs may already exist"
+            }
+        else
+            echo_info "Kustomize not found, using direct kubectl apply..."
+            kubectl apply -f "$PROJECT_ROOT/config/crd" || echo_warn "CRDs may already exist"
+        fi
         echo_info "CRDs installed ✓"
     else
         echo_warn "CRD directory not found, skipping"
@@ -105,16 +123,32 @@ install_operator() {
         exit 1
     fi
     
-    helm upgrade --install \
+    # Check if release already exists
+    if helm list -n "$NAMESPACE" | grep -q "$RELEASE_NAME"; then
+        echo_info "Release $RELEASE_NAME already exists, upgrading..."
+    else
+        echo_info "Installing new release $RELEASE_NAME..."
+    fi
+    
+    # Install/upgrade with better error handling
+    if helm upgrade --install \
         "$RELEASE_NAME" \
         "$CHART_PATH" \
         --namespace "$NAMESPACE" \
         --create-namespace \
         --timeout "$HELM_TIMEOUT" \
         --wait \
-        "$@"
-    
-    echo_info "Operator installed ✓"
+        --atomic \
+        "$@"; then
+        echo_info "Operator installed ✓"
+    else
+        echo_error "Helm installation failed"
+        echo_info "Checking release status..."
+        helm status "$RELEASE_NAME" -n "$NAMESPACE" || true
+        echo_info "Checking pods in namespace..."
+        kubectl get pods -n "$NAMESPACE" || true
+        exit 1
+    fi
 }
 
 # Verify installation
