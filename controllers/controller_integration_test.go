@@ -71,7 +71,7 @@ func TestControllerIntegration_CreateUpdateDelete(t *testing.T) {
 	t.Log("Step 2: First reconcile - adding finalizer")
 	result, err := reconciler.Reconcile(ctx, req)
 	assert.NoError(t, err)
-	assert.True(t, result.Requeue)
+	assert.True(t, result.RequeueAfter > 0)
 
 	// Verify finalizer
 	updatedUVR := &replicationv1alpha1.UnifiedVolumeReplication{}
@@ -137,7 +137,7 @@ func TestControllerIntegration_StatusReporting(t *testing.T) {
 	// Reconcile multiple times and wait for status updates
 	for i := 0; i < 5; i++ {
 		result, err := reconciler.Reconcile(ctx, req)
-		t.Logf("Reconcile %d: Requeue=%v, RequeueAfter=%v, Error=%v", i, result.Requeue, result.RequeueAfter, err)
+		t.Logf("Reconcile %d: RequeueAfter=%v, Error=%v", i, result.RequeueAfter, err)
 		time.Sleep(200 * time.Millisecond)
 
 		// Check if status has been updated
@@ -246,11 +246,11 @@ func TestControllerIntegration_ReconcileRequeue(t *testing.T) {
 	// First reconcile
 	result, err := reconciler.Reconcile(ctx, req)
 	// Should requeue or have requeue delay
-	assert.True(t, result.Requeue || result.RequeueAfter > 0 || err != nil,
+	assert.True(t, result.RequeueAfter > 0 || err != nil,
 		"Should requeue or error on first reconcile")
 
-	t.Logf("Requeue result: Requeue=%v, RequeueAfter=%v, Error=%v",
-		result.Requeue, result.RequeueAfter, err)
+	t.Logf("Requeue result: RequeueAfter=%v, Error=%v",
+		result.RequeueAfter, err)
 
 	t.Log("Requeue test completed")
 }

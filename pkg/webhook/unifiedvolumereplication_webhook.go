@@ -19,7 +19,6 @@ package webhook
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -40,8 +39,8 @@ type UnifiedVolumeReplicationValidator struct {
 	SecurityValidator *security.SecurityValidator
 	AuditLogger       *security.AuditLogger
 	EnableAudit       bool
-	validationCount   int64
-	lastValidation    time.Time
+	// validationCount   int64 // TODO: Implement validation metrics
+	// lastValidation    time.Time // TODO: Implement validation tracking
 }
 
 // NewUnifiedVolumeReplicationValidator creates a new validator

@@ -469,8 +469,8 @@ func TestAdvancedReconciliation(t *testing.T) {
 
 	// Reconcile
 	result, err := reconciler.Reconcile(ctx, req)
-	t.Logf("Reconcile result: Requeue=%v, RequeueAfter=%v, Error=%v",
-		result.Requeue, result.RequeueAfter, err)
+	t.Logf("Reconcile result: RequeueAfter=%v, Error=%v",
+		result.RequeueAfter, err)
 
 	// Check health
 	healthStatus := reconciler.HealthChecker.Check(ctx, reconciler.Log)
@@ -521,7 +521,7 @@ func TestStateTransitionWithStateMachine(t *testing.T) {
 
 	// Reconcile again
 	result, err := reconciler.Reconcile(ctx, req)
-	t.Logf("Valid transition result: Requeue=%v, Error=%v", result.Requeue, err)
+	t.Logf("Valid transition result: RequeueAfter=%v, Error=%v", result.RequeueAfter, err)
 
 	// Verify state machine recorded transition
 	history := reconciler.StateMachine.GetHistory()

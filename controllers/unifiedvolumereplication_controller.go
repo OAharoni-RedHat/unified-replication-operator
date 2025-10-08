@@ -165,7 +165,7 @@ func (r *UnifiedVolumeReplicationReconciler) Reconcile(ctx context.Context, req 
 			return ctrl.Result{}, err
 		}
 		// Requeue to continue with reconciliation
-		return ctrl.Result{Requeue: true}, nil
+		return ctrl.Result{RequeueAfter: time.Second}, nil
 	}
 
 	// Reconcile the replication
@@ -516,7 +516,7 @@ func (r *UnifiedVolumeReplicationReconciler) getAdapter(ctx context.Context, uvr
 			if adapter, err := adapters.NewCephAdapter(r.Client, r.TranslationEngine); err == nil {
 				return adapter, nil
 			}
-			return nil, fmt.Errorf("Ceph adapter creation failed")
+			return nil, fmt.Errorf("ceph adapter creation failed")
 		}
 		if uvr.Spec.Extensions.Trident != nil {
 			log.Info("Using Trident mock adapter")

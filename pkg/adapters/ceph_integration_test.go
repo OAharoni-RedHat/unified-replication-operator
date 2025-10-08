@@ -396,7 +396,3 @@ func TestCephAdapterRegistryIntegration(t *testing.T) {
 }
 
 // Helper functions for integration tests
-
-func boolPtr(b bool) *bool {
-	return &b
-}

@@ -123,7 +123,7 @@ func TestDiscoveryIntegration(t *testing.T) {
 		time.Sleep(2 * time.Second)
 
 		// Cache should be expired
-		cachedResult, valid = engine.GetCachedResult()
+		_, valid = engine.GetCachedResult()
 		assert.False(t, valid)
 
 		// Refresh cache
@@ -131,7 +131,7 @@ func TestDiscoveryIntegration(t *testing.T) {
 		require.NoError(t, err)
 
 		// Cache should be valid again
-		cachedResult, valid = engine.GetCachedResult()
+		_, valid = engine.GetCachedResult()
 		assert.True(t, valid)
 	})
 

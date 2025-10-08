@@ -60,7 +60,7 @@ func TestReconciler_BasicLifecycle(t *testing.T) {
 
 	result, err := reconciler.Reconcile(ctx, req)
 	assert.NoError(t, err)
-	assert.True(t, result.Requeue || result.RequeueAfter > 0)
+	assert.True(t, result.RequeueAfter > 0)
 
 	// Verify finalizer was added
 	updatedUVR := &replicationv1alpha1.UnifiedVolumeReplication{}
@@ -94,7 +94,7 @@ func TestReconciler_StatusUpdate(t *testing.T) {
 	// Reconcile multiple times
 	for i := 0; i < 3; i++ {
 		result, err := reconciler.Reconcile(ctx, req)
-		t.Logf("Reconcile %d: Requeue=%v, RequeueAfter=%v, Error=%v", i, result.Requeue, result.RequeueAfter, err)
+		t.Logf("Reconcile %d: RequeueAfter=%v, Error=%v", i, result.RequeueAfter, err)
 		// May error if adapter not available, but should update status
 		_ = err
 	}
@@ -145,7 +145,7 @@ func TestReconciler_Deletion(t *testing.T) {
 	// Reconcile to handle deletion
 	result, err := reconciler.Reconcile(ctx, req)
 	assert.NoError(t, err)
-	assert.False(t, result.Requeue)
+	assert.Equal(t, time.Duration(0), result.RequeueAfter)
 
 	// Resource should be gone
 	deletedUVR := &replicationv1alpha1.UnifiedVolumeReplication{}
@@ -299,9 +299,9 @@ func TestReconciler_ErrorHandling(t *testing.T) {
 
 	// Should requeue or return error
 	// Note: err may be nil if validation error is handled gracefully
-	assert.True(t, result.Requeue || result.RequeueAfter > 0 || err != nil, "Should handle error appropriately")
+	assert.True(t, result.RequeueAfter > 0 || err != nil, "Should handle error appropriately")
 
-	t.Logf("Result: Requeue=%v, RequeueAfter=%v, Error=%v", result.Requeue, result.RequeueAfter, err)
+	t.Logf("Result: RequeueAfter=%v, Error=%v", result.RequeueAfter, err)
 
 	// Check status was updated with error
 	updatedUVR := &replicationv1alpha1.UnifiedVolumeReplication{}

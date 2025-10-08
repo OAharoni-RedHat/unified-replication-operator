@@ -124,7 +124,7 @@ var _ = Describe("UnifiedVolumeReplicationController", func() {
 				NamespacedName: namespacedName,
 			})
 			Expect(err).NotTo(HaveOccurred())
-			Expect(result.Requeue).To(BeTrue())
+			Expect(result.RequeueAfter).To(BeNumerically(">", 0))
 
 			// Fetch updated resource
 			updatedUVR := &replicationv1alpha1.UnifiedVolumeReplication{}
@@ -142,7 +142,7 @@ var _ = Describe("UnifiedVolumeReplicationController", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			// Second reconcile processes the resource
-			_, err = reconciler.Reconcile(ctx, reconcile.Request{
+			_, _ = reconciler.Reconcile(ctx, reconcile.Request{
 				NamespacedName: namespacedName,
 			})
 			// May error if adapter not available, but should update status
@@ -184,7 +184,7 @@ var _ = Describe("UnifiedVolumeReplicationController", func() {
 				NamespacedName: namespacedName,
 			})
 			Expect(err).NotTo(HaveOccurred())
-			Expect(result.Requeue).To(BeFalse())
+			Expect(result.RequeueAfter).To(BeNumerically("==", 0))
 		})
 
 		It("should update observed generation", func() {

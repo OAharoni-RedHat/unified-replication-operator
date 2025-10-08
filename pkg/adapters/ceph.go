@@ -269,9 +269,9 @@ type CephAdapter struct {
 	activeTransitions map[string]*StateTransition
 
 	// Performance metrics
-	operationMetrics sync.Map
-	lastHealthCheck  time.Time
-	healthMutex      sync.RWMutex
+	// operationMetrics sync.Map // TODO: Implement metrics collection
+	lastHealthCheck time.Time
+	healthMutex     sync.RWMutex
 }
 
 // NewCephAdapter creates a new CephAdapter instance
@@ -380,7 +380,7 @@ func (ca *CephAdapter) ValidateConfiguration(uvr *replicationv1alpha1.UnifiedVol
 
 	// Validate Ceph extensions
 	if err := ca.validateCephExtensions(uvr); err != nil {
-		return fmt.Errorf("Ceph extensions validation failed: %w", err)
+		return fmt.Errorf("ceph extensions validation failed: %w", err)
 	}
 
 	// Validate cross-field requirements
@@ -1519,7 +1519,7 @@ func (f *CephAdapterFactory) CreateAdapter(backend translation.Backend, client c
 	}
 
 	if client == nil {
-		return nil, fmt.Errorf("Kubernetes client is required for Ceph adapter")
+		return nil, fmt.Errorf("kubernetes client is required for ceph adapter")
 	}
 
 	if translator == nil {

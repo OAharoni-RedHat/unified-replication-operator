@@ -20,9 +20,11 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
-	"strings"
 	"sync"
 	"time"
+
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -44,7 +46,7 @@ type MockAdapter struct {
 	// Behavior simulation
 	nextOperationShouldFail bool
 	failureRate             float64
-	latencySimulation       time.Duration
+	// latencySimulation       time.Duration // TODO: Implement latency simulation
 }
 
 // MockConfig contains configuration for mock behavior
@@ -515,7 +517,7 @@ func NewMockAdapterFactory(backend translation.Backend, mockConfig *MockConfig) 
 		mockConfig = DefaultMockConfig()
 	}
 
-	baseFactory := NewBaseAdapterFactory(backend, fmt.Sprintf("Mock %s Adapter", strings.Title(string(backend))), "1.0.0-mock",
+	baseFactory := NewBaseAdapterFactory(backend, fmt.Sprintf("Mock %s Adapter", cases.Title(language.English).String(string(backend))), "1.0.0-mock",
 		fmt.Sprintf("Mock adapter for %s backend testing", backend))
 
 	return &MockAdapterFactory{

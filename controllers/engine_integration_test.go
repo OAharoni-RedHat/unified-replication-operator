@@ -87,7 +87,7 @@ func TestEngineIntegration_BasicWorkflow(t *testing.T) {
 	// Reconcile with integrated engine
 	result, err := reconciler.Reconcile(ctx, req)
 	// May error if discovery doesn't find backends, but should not panic
-	t.Logf("Reconcile with engine result: Requeue=%v, Error=%v", result.Requeue, err)
+	t.Logf("Reconcile with engine result: RequeueAfter=%v, Error=%v", result.RequeueAfter, err)
 
 	// Verify engine metrics are available
 	metrics := reconciler.GetMetrics()
@@ -218,10 +218,10 @@ func TestEngineIntegration_ErrorPropagation(t *testing.T) {
 	result, err := reconciler.Reconcile(ctx, req)
 
 	// Error is expected, but should not panic
-	t.Logf("Reconcile with missing registry: Requeue=%v, Error=%v", result.Requeue, err)
+	t.Logf("Reconcile with missing registry: RequeueAfter=%v, Error=%v", result.RequeueAfter, err)
 
 	// Verify error is handled
-	assert.True(t, result.Requeue || result.RequeueAfter > 0 || err != nil, "Should handle error")
+	assert.True(t, result.RequeueAfter > 0 || err != nil, "Should handle error")
 
 	t.Log("Error propagation test completed")
 }
