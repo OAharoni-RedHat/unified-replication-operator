@@ -11,6 +11,7 @@ NAMESPACE="${NAMESPACE:-unified-replication-system}"
 RELEASE_NAME="${RELEASE_NAME:-unified-replication-operator}"
 HELM_TIMEOUT="${HELM_TIMEOUT:-10m}"
 SKIP_PREFLIGHT="${SKIP_PREFLIGHT:-false}"
+CLEANUP_FAILED="${CLEANUP_FAILED:-false}"
 
 # Colors
 RED='\033[0;31m'
@@ -99,12 +100,13 @@ install_crds() {
         if command -v kustomize &> /dev/null; then
             echo_info "Using kustomize to install CRDs..."
             kustomize build "$PROJECT_ROOT/config/crd" | kubectl apply -f - || {
-                echo_warn "Kustomize build failed, trying direct kubectl apply..."
-                kubectl apply -f "$PROJECT_ROOT/config/crd" || echo_warn "CRDs may already exist"
+                echo_warn "Kustomize build failed, trying direct kubectl apply to bases directory..."
+                kubectl apply -f "$PROJECT_ROOT/config/crd/bases" || echo_warn "CRDs may already exist"
             }
         else
-            echo_info "Kustomize not found, using direct kubectl apply..."
-            kubectl apply -f "$PROJECT_ROOT/config/crd" || echo_warn "CRDs may already exist"
+            echo_info "Kustomize not found, applying CRDs directly from bases directory..."
+            # Apply CRDs directly from the bases directory, not the kustomization.yaml
+            kubectl apply -f "$PROJECT_ROOT/config/crd/bases" || echo_warn "CRDs may already exist"
         fi
         echo_info "CRDs installed ✓"
     else
@@ -123,9 +125,24 @@ install_operator() {
         exit 1
     fi
     
-    # Check if release already exists
+    # Check if release already exists and its status
     if helm list -n "$NAMESPACE" | grep -q "$RELEASE_NAME"; then
-        echo_info "Release $RELEASE_NAME already exists, upgrading..."
+        # Try to get status using jq if available, otherwise use simple text parsing
+        if command -v jq &> /dev/null; then
+            RELEASE_STATUS=$(helm status "$RELEASE_NAME" -n "$NAMESPACE" --output json 2>/dev/null | jq -r '.info.status' 2>/dev/null || echo "unknown")
+        else
+            RELEASE_STATUS=$(helm status "$RELEASE_NAME" -n "$NAMESPACE" 2>/dev/null | grep "STATUS:" | awk '{print $2}' || echo "unknown")
+        fi
+        echo_info "Release $RELEASE_NAME already exists with status: $RELEASE_STATUS"
+        
+        # If the release is in a failed state, uninstall it first
+        if [ "$RELEASE_STATUS" = "failed" ]; then
+            echo_warn "Release is in failed state, uninstalling before reinstall..."
+            helm uninstall "$RELEASE_NAME" -n "$NAMESPACE" || echo_warn "Failed to uninstall, continuing anyway..."
+            echo_info "Installing fresh release $RELEASE_NAME..."
+        else
+            echo_info "Upgrading existing release $RELEASE_NAME..."
+        fi
     else
         echo_info "Installing new release $RELEASE_NAME..."
     fi
@@ -175,6 +192,23 @@ verify_installation() {
     echo_info "Installation verified ✓"
 }
 
+# Clean up failed releases
+cleanup_failed_release() {
+    echo_info "Cleaning up failed release..."
+    
+    if helm list -n "$NAMESPACE" | grep -q "$RELEASE_NAME"; then
+        echo_info "Uninstalling failed release: $RELEASE_NAME"
+        helm uninstall "$RELEASE_NAME" -n "$NAMESPACE" || echo_warn "Failed to uninstall release"
+        
+        # Wait a moment for cleanup
+        sleep 5
+        
+        echo_info "Failed release cleaned up ✓"
+    else
+        echo_info "No release found to clean up"
+    fi
+}
+
 # Print status
 print_status() {
     echo ""
@@ -204,6 +238,12 @@ main() {
     echo_info "=== Unified Replication Operator Installation ==="
     echo ""
     
+    # Handle cleanup if requested
+    if [ "$CLEANUP_FAILED" = "true" ]; then
+        cleanup_failed_release
+        exit 0
+    fi
+    
     # Pre-flight checks
     if [ "$SKIP_PREFLIGHT" != "true" ]; then
         preflight_checks
@@ -224,6 +264,36 @@ main() {
     # Print status
     print_status
 }
+
+# Show help if requested
+if [ "$1" = "--help" ] || [ "$1" = "-h" ]; then
+    echo "Unified Replication Operator Installation Script"
+    echo ""
+    echo "Usage: $0 [options]"
+    echo ""
+    echo "Options:"
+    echo "  --help, -h              Show this help message"
+    echo "  --cleanup-failed        Clean up failed Helm release and exit"
+    echo "  --skip-preflight        Skip pre-flight checks"
+    echo "  --namespace NAMESPACE   Override default namespace (default: unified-replication-system)"
+    echo "  --release-name NAME     Override default release name (default: unified-replication-operator)"
+    echo "  --timeout TIMEOUT       Override Helm timeout (default: 10m)"
+    echo ""
+    echo "Environment Variables:"
+    echo "  NAMESPACE               Kubernetes namespace (default: unified-replication-system)"
+    echo "  RELEASE_NAME            Helm release name (default: unified-replication-operator)"
+    echo "  HELM_TIMEOUT            Helm installation timeout (default: 10m)"
+    echo "  SKIP_PREFLIGHT          Skip pre-flight checks (default: false)"
+    echo "  CLEANUP_FAILED          Clean up failed release (default: false)"
+    echo ""
+    echo "Examples:"
+    echo "  $0                                    # Standard installation"
+    echo "  $0 --cleanup-failed                  # Clean up failed release"
+    echo "  $0 --namespace my-namespace          # Install in custom namespace"
+    echo "  CLEANUP_FAILED=true $0               # Clean up using environment variable"
+    echo ""
+    exit 0
+fi
 
 # Run main
 main "$@"
