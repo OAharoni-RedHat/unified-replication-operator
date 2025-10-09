@@ -68,7 +68,7 @@ func TestTridentAdapter_CreateReplication(t *testing.T) {
 	uvr := createTestUVRForTrident("test-trident", "default")
 
 	t.Run("SuccessfulCreate", func(t *testing.T) {
-		err := adapter.CreateReplication(ctx, uvr)
+		err := adapter.EnsureReplication(ctx, uvr)
 		// May fail due to CRD not registered, but should not panic
 		if err != nil {
 			t.Logf("Create failed (expected without CRD): %v", err)

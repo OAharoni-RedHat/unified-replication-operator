@@ -155,65 +155,66 @@ func NewMockPowerStoreAdapter(client client.Client, translator *translation.Engi
 	return adapter
 }
 
-// CreateReplication creates a new replication in the mock backend
-func (mpa *MockPowerStoreAdapter) CreateReplication(ctx context.Context, uvr *replicationv1alpha1.UnifiedVolumeReplication) error {
+// EnsureReplication ensures the replication is in the desired state (idempotent)
+func (mpa *MockPowerStoreAdapter) EnsureReplication(ctx context.Context, uvr *replicationv1alpha1.UnifiedVolumeReplication) error {
 	logger := log.FromContext(ctx).WithName("mock-powerstore-adapter").WithValues("uvr", uvr.Name)
-	logger.Info("Creating mock PowerStore replication")
+	logger.Info("Ensuring PowerStore replication is in desired state")
 
-	startTime := time.Now()
 	mpa.simulateLatency()
 
+	// Check if we should simulate failure
 	if !mpa.simulateSuccess(mpa.config.CreateSuccessRate) {
-		mpa.BaseAdapter.updateMetrics("create", false, startTime)
-		return NewAdapterError(ErrorTypeConnection, translation.BackendPowerStore, "create", uvr.Name, "simulated creation failure")
+		return NewAdapterError(ErrorTypeConnection, translation.BackendPowerStore, "ensure", uvr.Name, "simulated creation failure")
 	}
 
 	mpa.mutex.Lock()
 	defer mpa.mutex.Unlock()
 
 	replicationKey := fmt.Sprintf("%s/%s", uvr.Namespace, uvr.Name)
-	if _, exists := mpa.replications[replicationKey]; exists {
-		mpa.BaseAdapter.updateMetrics("create", false, startTime)
-		return NewAdapterError(ErrorTypeValidation, translation.BackendPowerStore, "create", uvr.Name, "replication already exists")
+
+	// Check if replication exists
+	if mockRepl, exists := mpa.replications[replicationKey]; exists {
+		// Update existing replication
+		psState, _ := mpa.BaseAdapter.TranslateState(string(uvr.Spec.ReplicationState))
+		psMode, _ := mpa.BaseAdapter.TranslateMode(string(uvr.Spec.ReplicationMode))
+
+		mockRepl.State = psState
+		mockRepl.Mode = psMode
+		mockRepl.Version++
+		mockRepl.UpdatedAt = time.Now()
+		now := time.Now()
+		mockRepl.LastSyncTime = &now
+
+		logger.Info("Updated PowerStore replication")
+		return nil
 	}
 
-	// Translate unified state to PowerStore state
-	powerstoreState, err := mpa.BaseAdapter.translator.TranslateStateToBackend(translation.BackendPowerStore, string(uvr.Spec.ReplicationState))
+	// Create new replication
+	psState, err := mpa.BaseAdapter.TranslateState(string(uvr.Spec.ReplicationState))
 	if err != nil {
-		mpa.BaseAdapter.updateMetrics("create", false, startTime)
-		return NewAdapterErrorWithCause(ErrorTypeOperation, translation.BackendPowerStore, "create", uvr.Name, "failed to translate state", err)
+		return NewAdapterErrorWithCause(ErrorTypeValidation, translation.BackendPowerStore, "ensure", uvr.Name, "state translation failed", err)
 	}
 
-	powerstoreMode, err := mpa.BaseAdapter.translator.TranslateModeToBackend(translation.BackendPowerStore, string(uvr.Spec.ReplicationMode))
+	psMode, err := mpa.BaseAdapter.TranslateMode(string(uvr.Spec.ReplicationMode))
 	if err != nil {
-		mpa.BaseAdapter.updateMetrics("create", false, startTime)
-		return NewAdapterErrorWithCause(ErrorTypeOperation, translation.BackendPowerStore, "create", uvr.Name, "failed to translate mode", err)
+		return NewAdapterErrorWithCause(ErrorTypeValidation, translation.BackendPowerStore, "ensure", uvr.Name, "mode translation failed", err)
 	}
 
 	now := time.Now()
 	sessionID := fmt.Sprintf("session-%d", rand.Int63())
 	replicationGroupID := fmt.Sprintf("rg-%s-%s", uvr.Namespace, uvr.Name)
 
-	replication := &MockPowerStoreReplication{
+	mockRepl := &MockPowerStoreReplication{
 		Name:               uvr.Name,
 		Namespace:          uvr.Namespace,
-		State:              powerstoreState,
-		Mode:               powerstoreMode,
+		State:              psState,
+		Mode:               psMode,
 		SourceVolume:       uvr.Spec.VolumeMapping.Source.PvcName,
 		DestinationVolume:  uvr.Spec.VolumeMapping.Destination.VolumeHandle,
 		ReplicationGroupID: replicationGroupID,
 		SessionID:          sessionID,
 		Health:             ReplicationHealthHealthy,
 		Message:            "Replication created successfully",
-		Conditions: []StatusCondition{
-			{
-				Type:               "Ready",
-				Status:             "True",
-				LastTransitionTime: now,
-				Reason:             "Created",
-				Message:            "PowerStore replication created",
-			},
-		},
 		BackendSpecific: map[string]interface{}{
 			"replication_group_id": replicationGroupID,
 			"session_id":           sessionID,
@@ -224,14 +225,16 @@ func (mpa *MockPowerStoreAdapter) CreateReplication(ctx context.Context, uvr *re
 		},
 		CreatedAt:     now,
 		UpdatedAt:     now,
+		LastSyncTime:  &now,
 		Version:       1,
 		RPOCompliance: mpa.generateRPOCompliance(),
 		RTOEstimate:   mpa.estimateRTO(uvr),
 	}
 
-	mpa.replications[replicationKey] = replication
+	mpa.replications[replicationKey] = mockRepl
 	mpa.sessions[replicationKey] = sessionID
 
+	// Add creation event
 	mpa.addEvent(ReplicationEvent{
 		Type:      EventTypeCreated,
 		Message:   "Mock PowerStore replication created successfully",
@@ -239,69 +242,7 @@ func (mpa *MockPowerStoreAdapter) CreateReplication(ctx context.Context, uvr *re
 		Resource:  replicationKey,
 	})
 
-	mpa.BaseAdapter.updateMetrics("create", true, startTime)
-	logger.Info("Successfully created mock PowerStore replication")
-	return nil
-}
-
-// UpdateReplication updates an existing replication in the mock backend
-func (mpa *MockPowerStoreAdapter) UpdateReplication(ctx context.Context, uvr *replicationv1alpha1.UnifiedVolumeReplication) error {
-	logger := log.FromContext(ctx).WithName("mock-powerstore-adapter").WithValues("uvr", uvr.Name)
-	logger.Info("Updating mock PowerStore replication")
-
-	startTime := time.Now()
-	mpa.simulateLatency()
-
-	if !mpa.simulateSuccess(mpa.config.UpdateSuccessRate) {
-		mpa.BaseAdapter.updateMetrics("update", false, startTime)
-		return NewAdapterError(ErrorTypeConnection, translation.BackendPowerStore, "update", uvr.Name, "simulated update failure")
-	}
-
-	mpa.mutex.Lock()
-	defer mpa.mutex.Unlock()
-
-	replicationKey := fmt.Sprintf("%s/%s", uvr.Namespace, uvr.Name)
-	replication, exists := mpa.replications[replicationKey]
-	if !exists {
-		mpa.BaseAdapter.updateMetrics("update", false, startTime)
-		return NewAdapterError(ErrorTypeResource, translation.BackendPowerStore, "update", uvr.Name, "replication not found")
-	}
-
-	// Translate unified state to PowerStore state
-	powerstoreState, err := mpa.BaseAdapter.translator.TranslateStateToBackend(translation.BackendPowerStore, string(uvr.Spec.ReplicationState))
-	if err != nil {
-		mpa.BaseAdapter.updateMetrics("update", false, startTime)
-		return NewAdapterErrorWithCause(ErrorTypeOperation, translation.BackendPowerStore, "update", uvr.Name, "failed to translate state", err)
-	}
-
-	powerstoreMode, err := mpa.BaseAdapter.translator.TranslateModeToBackend(translation.BackendPowerStore, string(uvr.Spec.ReplicationMode))
-	if err != nil {
-		mpa.BaseAdapter.updateMetrics("update", false, startTime)
-		return NewAdapterErrorWithCause(ErrorTypeOperation, translation.BackendPowerStore, "update", uvr.Name, "failed to translate mode", err)
-	}
-
-	now := time.Now()
-
-	// Check for state transitions
-	if replication.State != powerstoreState {
-		mpa.simulateStateTransition(replication, powerstoreState)
-		mpa.addEvent(ReplicationEvent{
-			Type:      EventTypeUpdated,
-			Message:   fmt.Sprintf("State changed from %s to %s", replication.State, powerstoreState),
-			Timestamp: now,
-			Resource:  replicationKey,
-		})
-	}
-
-	replication.State = powerstoreState
-	replication.Mode = powerstoreMode
-	replication.UpdatedAt = now
-	replication.Version++
-	replication.RPOCompliance = mpa.generateRPOCompliance()
-	replication.RTOEstimate = mpa.estimateRTO(uvr)
-
-	mpa.BaseAdapter.updateMetrics("update", true, startTime)
-	logger.Info("Successfully updated mock PowerStore replication")
+	logger.Info("Created PowerStore replication")
 	return nil
 }
 

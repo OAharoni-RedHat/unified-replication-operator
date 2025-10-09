@@ -86,7 +86,7 @@ func testEndToEndWorkflow(t *testing.T, client client.Client, backend translatio
 
 	// Step 1: Create replication
 	t.Logf("Creating replication for backend %s", backend)
-	err = adapter.CreateReplication(ctx, uvr)
+	err = adapter.EnsureReplication(ctx, uvr)
 	assert.NoError(t, err)
 
 	// Step 2: Verify creation
@@ -98,7 +98,7 @@ func testEndToEndWorkflow(t *testing.T, client client.Client, backend translatio
 	// Step 3: Update replication (change state)
 	t.Logf("Updating replication state to promoting")
 	uvr.Spec.ReplicationState = replicationv1alpha1.ReplicationStatePromoting
-	err = adapter.UpdateReplication(ctx, uvr)
+	err = adapter.EnsureReplication(ctx, uvr)
 	assert.NoError(t, err)
 
 	// Step 4: Verify update
@@ -180,10 +180,10 @@ func testCrossBackendComparison(t *testing.T, client client.Client) {
 	powerstoreUVR := createIntegrationTestUVR("cross-powerstore", "default", translation.BackendPowerStore)
 
 	// Create replications on both backends
-	err = tridentAdapter.CreateReplication(ctx, tridentUVR)
+	err = tridentAdapter.EnsureReplication(ctx, tridentUVR)
 	require.NoError(t, err)
 
-	err = powerstoreAdapter.CreateReplication(ctx, powerstoreUVR)
+	err = powerstoreAdapter.EnsureReplication(ctx, powerstoreUVR)
 	require.NoError(t, err)
 
 	// Compare status responses
@@ -247,7 +247,7 @@ func testFailureRecoveryScenarios(t *testing.T, client client.Client) {
 		uvr := createIntegrationTestUVR("failure-test", "default", translation.BackendTrident)
 		uvr.Name = uvr.Name + string(rune(i))
 
-		err := adapter.CreateReplication(ctx, uvr)
+		err := adapter.EnsureReplication(ctx, uvr)
 		if err == nil {
 			successCount++
 			// Try to clean up successful creations
@@ -287,7 +287,7 @@ func testStateTransitionValidation(t *testing.T, client client.Client) {
 	uvr := createIntegrationTestUVR("state-test", "default", translation.BackendPowerStore)
 
 	// Create initial replication
-	err = adapter.CreateReplication(ctx, uvr)
+	err = adapter.EnsureReplication(ctx, uvr)
 	require.NoError(t, err)
 
 	// Test valid state transitions
@@ -306,7 +306,7 @@ func testStateTransitionValidation(t *testing.T, client client.Client) {
 		t.Run(transition.name, func(t *testing.T) {
 			// Set initial state
 			uvr.Spec.ReplicationState = transition.from
-			err = adapter.UpdateReplication(ctx, uvr)
+			err = adapter.EnsureReplication(ctx, uvr)
 			assert.NoError(t, err)
 
 			// Verify current state
@@ -318,7 +318,7 @@ func testStateTransitionValidation(t *testing.T, client client.Client) {
 
 			// Perform transition
 			uvr.Spec.ReplicationState = transition.to
-			err = adapter.UpdateReplication(ctx, uvr)
+			err = adapter.EnsureReplication(ctx, uvr)
 			assert.NoError(t, err)
 
 			// Verify new state
@@ -365,7 +365,7 @@ func testPerformanceCharacteristics(t *testing.T, client client.Client) {
 			uvr := createIntegrationTestUVR("perf-test", "default", translation.BackendTrident)
 			uvr.Name = uvr.Name + string(rune(i))
 
-			err := adapter.CreateReplication(ctx, uvr)
+			err := adapter.EnsureReplication(ctx, uvr)
 			assert.NoError(t, err)
 		}
 
@@ -383,7 +383,7 @@ func testPerformanceCharacteristics(t *testing.T, client client.Client) {
 	// Test status retrieval performance
 	t.Run("StatusRetrievalPerformance", func(t *testing.T) {
 		uvr := createIntegrationTestUVR("status-perf", "default", translation.BackendTrident)
-		err := adapter.CreateReplication(ctx, uvr)
+		err := adapter.EnsureReplication(ctx, uvr)
 		require.NoError(t, err)
 
 		numOperations := 1000
@@ -423,7 +423,7 @@ func testPerformanceCharacteristics(t *testing.T, client client.Client) {
 				uvr.Name = uvr.Name + string(rune(id))
 
 				// Perform multiple operations
-				err := adapter.CreateReplication(ctx, uvr)
+				err := adapter.EnsureReplication(ctx, uvr)
 				assert.NoError(t, err)
 
 				_, err = adapter.GetReplicationStatus(ctx, uvr)
@@ -549,7 +549,7 @@ func TestMockAdapterBehaviorConsistency_DISABLED(t *testing.T) {
 				uvr.Name = uvr.Name + string(rune(i))
 
 				// Each operation should succeed (100% success rate in test environment)
-				err = adapter.CreateReplication(ctx, uvr)
+				err = adapter.EnsureReplication(ctx, uvr)
 				assert.NoError(t, err)
 
 				status, err := adapter.GetReplicationStatus(ctx, uvr)
@@ -590,7 +590,7 @@ func TestMockAdapterCleanup(t *testing.T) {
 	for i := 0; i < 3; i++ {
 		uvr := createIntegrationTestUVR("cleanup-test", "default", translation.BackendTrident)
 		uvr.Name = uvr.Name + string(rune(i))
-		err = adapter.CreateReplication(ctx, uvr)
+		err = adapter.EnsureReplication(ctx, uvr)
 		require.NoError(t, err)
 	}
 

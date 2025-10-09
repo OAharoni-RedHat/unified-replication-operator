@@ -96,16 +96,15 @@ func NewControllerEngine(
 	}
 }
 
-// ProcessReplication executes the complete workflow for a replication
+// EnsureReplication executes the complete workflow for a replication
 // Discovery → Validation → Translation → Adapter Selection → Backend Operation
-func (ce *ControllerEngine) ProcessReplication(
+// This method is idempotent and ensures the backend is in the desired state
+func (ce *ControllerEngine) EnsureReplication(
 	ctx context.Context,
 	uvr *replicationv1alpha1.UnifiedVolumeReplication,
-	operation string,
 	log logr.Logger,
 ) error {
-	log.Info("Processing replication with integrated engines",
-		"operation", operation,
+	log.Info("Ensuring replication is in desired state",
 		"backend_hint", ce.getBackendHint(uvr))
 
 	ce.operationCount++
@@ -148,12 +147,12 @@ func (ce *ControllerEngine) ProcessReplication(
 		return fmt.Errorf("adapter selection failed: %w", err)
 	}
 
-	// Step 6: Backend Operation - Execute the operation
-	if err := ce.executeOperation(ctx, adapter, uvr, operation, log); err != nil {
-		return fmt.Errorf("operation execution failed: %w", err)
+	// Step 6: Backend Operation - Ensure replication is in desired state
+	if err := adapter.EnsureReplication(ctx, uvr); err != nil {
+		return fmt.Errorf("ensure replication failed: %w", err)
 	}
 
-	log.Info("Successfully processed replication")
+	log.Info("Successfully ensured replication is in desired state")
 	return nil
 }
 
@@ -354,28 +353,38 @@ func (ce *ControllerEngine) getAdapter(
 	return adapter, nil
 }
 
-// executeOperation executes the appropriate operation on the adapter
-func (ce *ControllerEngine) executeOperation(
+// ProcessReplication is deprecated. Use EnsureReplication instead.
+// Kept for backwards compatibility.
+func (ce *ControllerEngine) ProcessReplication(
 	ctx context.Context,
-	adapter adapters.ReplicationAdapter,
 	uvr *replicationv1alpha1.UnifiedVolumeReplication,
 	operation string,
 	log logr.Logger,
 ) error {
-	switch operation {
-	case "create":
-		return adapter.CreateReplication(ctx, uvr)
-	case "update":
-		return adapter.UpdateReplication(ctx, uvr)
-	case "delete":
+	log.V(1).Info("ProcessReplication is deprecated, use EnsureReplication instead")
+
+	// For delete operations, we still need special handling
+	if operation == "delete" {
+		backends, err := ce.discoverBackends(ctx, log)
+		if err != nil {
+			return fmt.Errorf("discovery failed: %w", err)
+		}
+
+		selectedBackend, err := ce.selectBackend(ctx, uvr, backends, log)
+		if err != nil {
+			return fmt.Errorf("backend selection failed: %w", err)
+		}
+
+		adapter, err := ce.getAdapter(ctx, selectedBackend, log)
+		if err != nil {
+			return fmt.Errorf("adapter selection failed: %w", err)
+		}
+
 		return adapter.DeleteReplication(ctx, uvr)
-	case "sync":
-		// Just get status, don't modify
-		_, err := adapter.GetReplicationStatus(ctx, uvr)
-		return err
-	default:
-		return fmt.Errorf("unknown operation: %s", operation)
 	}
+
+	// For all other operations, just ensure the replication is in desired state
+	return ce.EnsureReplication(ctx, uvr, log)
 }
 
 // GetReplicationStatus retrieves status from the backend with translation

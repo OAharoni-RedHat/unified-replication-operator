@@ -53,7 +53,7 @@ func TestMockAdapter(t *testing.T) {
 		uvr := createTestUVR("test-repl", "default")
 
 		// Create replication
-		err := adapter.CreateReplication(ctx, uvr)
+		err := adapter.EnsureReplication(ctx, uvr)
 		assert.NoError(t, err)
 
 		// Verify mock replication was created
@@ -64,10 +64,9 @@ func TestMockAdapter(t *testing.T) {
 		assert.Equal(t, "asynchronous", mockRepl.Mode)
 		assert.Equal(t, ReplicationHealthHealthy, mockRepl.Health)
 
-		// Try to create same replication again - should fail
-		err = adapter.CreateReplication(ctx, uvr)
-		assert.Error(t, err)
-		assert.True(t, IsAdapterError(err))
+		// Try to ensure same replication again - should succeed (idempotent)
+		err = adapter.EnsureReplication(ctx, uvr)
+		assert.NoError(t, err) // EnsureReplication is idempotent, should succeed
 	})
 
 	t.Run("UpdateReplication", func(t *testing.T) {
@@ -78,14 +77,15 @@ func TestMockAdapter(t *testing.T) {
 		uvr := createTestUVR("test-repl", "default")
 
 		// Create replication first
-		err := adapter.CreateReplication(ctx, uvr)
+		err := adapter.EnsureReplication(ctx, uvr)
 		require.NoError(t, err)
 
 		// Update replication state
 		uvr.Spec.ReplicationState = "source"
 		uvr.Generation = 2
 
-		err = adapter.UpdateReplication(ctx, uvr)
+		// Update using EnsureReplication (idempotent)
+		err = adapter.EnsureReplication(ctx, uvr)
 		assert.NoError(t, err)
 
 		// Verify update
@@ -94,11 +94,10 @@ func TestMockAdapter(t *testing.T) {
 		assert.Equal(t, "source", mockRepl.State)
 		assert.Equal(t, int64(2), mockRepl.ObservedGeneration)
 
-		// Update non-existing replication should fail
+		// Ensure non-existing replication should create it (idempotent)
 		uvr2 := createTestUVR("non-existing", "default")
-		err = adapter.UpdateReplication(ctx, uvr2)
-		assert.Error(t, err)
-		assert.True(t, IsAdapterError(err))
+		err = adapter.EnsureReplication(ctx, uvr2)
+		assert.NoError(t, err) // EnsureReplication creates if doesn't exist
 	})
 
 	t.Run("DeleteReplication", func(t *testing.T) {
@@ -109,7 +108,7 @@ func TestMockAdapter(t *testing.T) {
 		uvr := createTestUVR("test-repl", "default")
 
 		// Create replication first
-		err := adapter.CreateReplication(ctx, uvr)
+		err := adapter.EnsureReplication(ctx, uvr)
 		require.NoError(t, err)
 
 		// Delete replication
@@ -134,7 +133,7 @@ func TestMockAdapter(t *testing.T) {
 		uvr := createTestUVR("test-repl", "default")
 
 		// Create replication first
-		err := adapter.CreateReplication(ctx, uvr)
+		err := adapter.EnsureReplication(ctx, uvr)
 		require.NoError(t, err)
 
 		// Get status
@@ -163,7 +162,7 @@ func TestMockAdapter(t *testing.T) {
 		uvr := createTestUVR("test-repl", "default")
 
 		// Create replication first
-		err := adapter.CreateReplication(ctx, uvr)
+		err := adapter.EnsureReplication(ctx, uvr)
 		require.NoError(t, err)
 
 		// Test promotion
@@ -224,25 +223,28 @@ func TestMockAdapter(t *testing.T) {
 		// Set next operation to fail
 		adapter.SetNextOperationShouldFail(true)
 
-		err := adapter.CreateReplication(ctx, uvr)
+		err := adapter.EnsureReplication(ctx, uvr)
 		assert.Error(t, err)
 		assert.True(t, IsAdapterError(err))
 
 		// Next operation should succeed (failure flag reset)
-		err = adapter.CreateReplication(ctx, uvr)
+		err = adapter.EnsureReplication(ctx, uvr)
 		assert.NoError(t, err)
 
 		// Test failure rate
 		adapter.SetFailureRate(1.0) // 100% failure rate
 
-		err = adapter.UpdateReplication(ctx, uvr)
+		// EnsureReplication should fail due to high failure rate
+		uvr3 := createTestUVR("test-repl-3", "default")
+		err = adapter.EnsureReplication(ctx, uvr3)
 		assert.Error(t, err)
 		assert.True(t, IsAdapterError(err))
 
 		// Reset failure rate
 		adapter.SetFailureRate(0.0)
 
-		err = adapter.UpdateReplication(ctx, uvr)
+		// Now EnsureReplication should succeed
+		err = adapter.EnsureReplication(ctx, uvr3)
 		assert.NoError(t, err)
 	})
 
@@ -255,10 +257,10 @@ func TestMockAdapter(t *testing.T) {
 		uvr1 := createTestUVR("test-repl-1", "default")
 		uvr2 := createTestUVR("test-repl-2", "default")
 
-		err := adapter.CreateReplication(ctx, uvr1)
+		err := adapter.EnsureReplication(ctx, uvr1)
 		require.NoError(t, err)
 
-		err = adapter.CreateReplication(ctx, uvr2)
+		err = adapter.EnsureReplication(ctx, uvr2)
 		require.NoError(t, err)
 
 		// Get all replications
@@ -279,7 +281,7 @@ func TestMockAdapter(t *testing.T) {
 		uvr := createTestUVR("test-repl", "default")
 
 		// Create replication
-		err := adapter.CreateReplication(ctx, uvr)
+		err := adapter.EnsureReplication(ctx, uvr)
 		require.NoError(t, err)
 
 		// Check that creation event was generated
@@ -289,7 +291,7 @@ func TestMockAdapter(t *testing.T) {
 
 		// Update replication state to generate event
 		uvr.Spec.ReplicationState = "source"
-		err = adapter.UpdateReplication(ctx, uvr)
+		err = adapter.EnsureReplication(ctx, uvr)
 		require.NoError(t, err)
 
 		// Check that update event was generated
@@ -317,7 +319,7 @@ func TestMockAdapter(t *testing.T) {
 
 		uvr := createTestUVR("test-repl", "default")
 
-		err := adapter.CreateReplication(ctx, uvr)
+		err := adapter.EnsureReplication(ctx, uvr)
 		require.NoError(t, err)
 
 		mockRepl, _ := adapter.GetMockReplication(uvr)
@@ -341,7 +343,7 @@ func TestMockAdapter(t *testing.T) {
 
 		// Measure operation time
 		start := time.Now()
-		err := adapter.CreateReplication(ctx, uvr)
+		err := adapter.EnsureReplication(ctx, uvr)
 		duration := time.Since(start)
 
 		assert.NoError(t, err)

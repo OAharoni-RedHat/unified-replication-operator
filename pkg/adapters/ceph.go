@@ -443,75 +443,66 @@ func (ca *CephAdapter) validateCrossFieldRequirements(uvr *replicationv1alpha1.U
 	return nil
 }
 
-// CreateReplication creates a new VolumeReplication resource for Ceph
-func (ca *CephAdapter) CreateReplication(ctx context.Context, uvr *replicationv1alpha1.UnifiedVolumeReplication) error {
+// EnsureReplication ensures the VolumeReplication is in the desired state (idempotent)
+func (ca *CephAdapter) EnsureReplication(ctx context.Context, uvr *replicationv1alpha1.UnifiedVolumeReplication) error {
 	logger := log.FromContext(ctx).WithName("ceph-adapter").WithValues("uvr", uvr.Name)
-	logger.Info("Creating Ceph VolumeReplication")
+	logger.Info("Ensuring Ceph VolumeReplication is in desired state")
 
 	startTime := time.Now()
 
 	// Validate configuration
 	if err := ca.ValidateConfiguration(uvr); err != nil {
-		ca.BaseAdapter.updateMetrics("create", false, startTime)
-		return NewAdapterErrorWithCause(ErrorTypeValidation, translation.BackendCeph, "create", uvr.Name, "configuration validation failed", err)
+		ca.BaseAdapter.updateMetrics("ensure", false, startTime)
+		return NewAdapterErrorWithCause(ErrorTypeValidation, translation.BackendCeph, "ensure", uvr.Name, "configuration validation failed", err)
 	}
 
-	// Create VolumeReplication object
-	vr, err := ca.buildVolumeReplication(uvr)
-	if err != nil {
-		ca.BaseAdapter.updateMetrics("create", false, startTime)
-		return NewAdapterErrorWithCause(ErrorTypeValidation, translation.BackendCeph, "create", uvr.Name, "failed to build VolumeReplication", err)
-	}
-
-	// Create the resource
-	if err := ca.client.Create(ctx, vr); err != nil {
-		if errors.IsAlreadyExists(err) {
-			logger.Info("VolumeReplication already exists, updating instead")
-			return ca.UpdateReplication(ctx, uvr)
-		}
-		ca.BaseAdapter.updateMetrics("create", false, startTime)
-		return NewAdapterErrorWithCause(ErrorTypeConnection, translation.BackendCeph, "create", uvr.Name, "failed to create VolumeReplication", err)
-	}
-
-	// Update metrics
-	ca.BaseAdapter.updateMetrics("create", true, startTime)
-
-	logger.Info("Successfully created Ceph VolumeReplication", "volumeReplication", vr.ObjectMeta.Name)
-	return nil
-}
-
-// UpdateReplication updates an existing VolumeReplication resource
-func (ca *CephAdapter) UpdateReplication(ctx context.Context, uvr *replicationv1alpha1.UnifiedVolumeReplication) error {
-	logger := log.FromContext(ctx).WithName("ceph-adapter").WithValues("uvr", uvr.Name)
-	logger.Info("Updating Ceph VolumeReplication")
-
-	startTime := time.Now()
-
-	// Get the existing VolumeReplication
+	// Check if VolumeReplication already exists
 	existingVR := &VolumeReplication{}
-	if err := ca.client.Get(ctx, types.NamespacedName{
-		Name:      ca.buildVolumeReplicationName(uvr),
+	vrName := ca.buildVolumeReplicationName(uvr)
+	err := ca.client.Get(ctx, types.NamespacedName{
+		Name:      vrName,
 		Namespace: uvr.Namespace,
-	}, existingVR); err != nil {
+	}, existingVR)
+
+	if err != nil {
 		if errors.IsNotFound(err) {
-			logger.Info("VolumeReplication not found, creating instead")
-			return ca.CreateReplication(ctx, uvr)
+			// VolumeReplication doesn't exist, create it
+			logger.Info("VolumeReplication not found, creating")
+			vr, err := ca.buildVolumeReplication(uvr)
+			if err != nil {
+				ca.BaseAdapter.updateMetrics("create", false, startTime)
+				return NewAdapterErrorWithCause(ErrorTypeValidation, translation.BackendCeph, "create", uvr.Name, "failed to build VolumeReplication", err)
+			}
+
+			if err := ca.client.Create(ctx, vr); err != nil {
+				ca.BaseAdapter.updateMetrics("create", false, startTime)
+				return NewAdapterErrorWithCause(ErrorTypeConnection, translation.BackendCeph, "create", uvr.Name, "failed to create VolumeReplication", err)
+			}
+
+			ca.BaseAdapter.updateMetrics("create", true, startTime)
+			logger.Info("Successfully created Ceph VolumeReplication", "volumeReplication", vr.ObjectMeta.Name)
+			return nil
 		}
-		ca.BaseAdapter.updateMetrics("update", false, startTime)
-		return NewAdapterErrorWithCause(ErrorTypeConnection, translation.BackendCeph, "update", uvr.Name, "failed to get existing VolumeReplication", err)
+		// Some other error occurred
+		ca.BaseAdapter.updateMetrics("ensure", false, startTime)
+		return NewAdapterErrorWithCause(ErrorTypeConnection, translation.BackendCeph, "ensure", uvr.Name, "failed to check existing VolumeReplication", err)
 	}
 
-	// Validate the configuration
-	if err := ca.ValidateConfiguration(uvr); err != nil {
-		ca.BaseAdapter.updateMetrics("update", false, startTime)
-		return NewAdapterErrorWithCause(ErrorTypeValidation, translation.BackendCeph, "update", uvr.Name, "configuration validation failed", err)
-	}
+	// VolumeReplication exists, update it if needed
+	logger.V(1).Info("VolumeReplication exists, updating if needed")
 
 	// Translate unified state to Ceph state
 	cephState, _, err := ca.translateToCephState(string(uvr.Spec.ReplicationState))
 	if err != nil {
 		ca.BaseAdapter.updateMetrics("update", false, startTime)
 		return NewAdapterErrorWithCause(ErrorTypeValidation, translation.BackendCeph, "update", uvr.Name, "state translation failed", err)
+	}
+
+	// Check if update is needed
+	if existingVR.Spec.ReplicationState == cephState {
+		logger.V(1).Info("VolumeReplication is already in desired state, no update needed")
+		ca.BaseAdapter.updateMetrics("ensure", true, startTime)
+		return nil
 	}
 
 	// Update the spec
@@ -523,9 +514,7 @@ func (ca *CephAdapter) UpdateReplication(ctx context.Context, uvr *replicationv1
 		return NewAdapterErrorWithCause(ErrorTypeConnection, translation.BackendCeph, "update", uvr.Name, "failed to update VolumeReplication", err)
 	}
 
-	// Update metrics
 	ca.BaseAdapter.updateMetrics("update", true, startTime)
-
 	logger.Info("Successfully updated Ceph VolumeReplication", "volumeReplication", existingVR.ObjectMeta.Name)
 	return nil
 }
@@ -1331,7 +1320,7 @@ func (ca *CephAdapter) attemptRestartRecovery(ctx context.Context, uvr *replicat
 	time.Sleep(StateTransitionRetryInterval)
 
 	// Recreate the resource
-	return ca.CreateReplication(ctx, uvr)
+	return ca.EnsureReplication(ctx, uvr)
 }
 
 // attemptResetRecovery tries to recover by resetting to a safe state

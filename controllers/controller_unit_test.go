@@ -200,69 +200,7 @@ func TestReconciler_ConditionManagement(t *testing.T) {
 	t.Log("Condition management test passed")
 }
 
-func TestReconciler_OperationDetermination(t *testing.T) {
-	s := createTestScheme(t)
-	reconciler := createTestReconciler(nil, s)
-
-	tests := []struct {
-		name       string
-		generation int64
-		conditions []metav1.Condition
-		expectedOp string
-	}{
-		{
-			name:       "new resource with no conditions",
-			generation: 1,
-			conditions: []metav1.Condition{},
-			expectedOp: "create",
-		},
-		{
-			name:       "resource with no ready condition",
-			generation: 1,
-			conditions: []metav1.Condition{
-				{Type: "Other", Status: metav1.ConditionTrue},
-			},
-			expectedOp: "create",
-		},
-		{
-			name:       "ready resource with matching generation",
-			generation: 2,
-			conditions: []metav1.Condition{
-				{Type: "Ready", Status: metav1.ConditionTrue, ObservedGeneration: 2},
-			},
-			expectedOp: "sync",
-		},
-		{
-			name:       "ready resource with old generation",
-			generation: 3,
-			conditions: []metav1.Condition{
-				{Type: "Ready", Status: metav1.ConditionTrue, ObservedGeneration: 2},
-			},
-			expectedOp: "update",
-		},
-		{
-			name:       "not ready resource",
-			generation: 1,
-			conditions: []metav1.Condition{
-				{Type: "Ready", Status: metav1.ConditionFalse, ObservedGeneration: 1},
-			},
-			expectedOp: "update",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			uvr := createTestUVR("test", "default")
-			uvr.Generation = tt.generation
-			uvr.Status.Conditions = tt.conditions
-
-			op := reconciler.determineOperation(uvr)
-			assert.Equal(t, tt.expectedOp, op, "Operation determination mismatch")
-		})
-	}
-
-	t.Log("Operation determination test passed")
-}
+// Operation determination tests removed (behavior now handled by EnsureReplication)
 
 func TestReconciler_ErrorHandling(t *testing.T) {
 	ctx := context.Background()

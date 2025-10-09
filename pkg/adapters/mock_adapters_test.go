@@ -64,7 +64,7 @@ func TestMockTridentAdapter(t *testing.T) {
 		ctx := context.Background()
 		uvr := createTestUnifiedVolumeReplication("test-trident", "default")
 
-		err := adapter.CreateReplication(ctx, uvr)
+		err := adapter.EnsureReplication(ctx, uvr)
 		assert.NoError(t, err)
 
 		// Verify replication was created in mock backend
@@ -95,7 +95,7 @@ func TestMockTridentAdapter(t *testing.T) {
 		ctx := context.Background()
 		uvr := createTestUnifiedVolumeReplication("test-fail", "default")
 
-		err := adapter.CreateReplication(ctx, uvr)
+		err := adapter.EnsureReplication(ctx, uvr)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "simulated creation failure")
 
@@ -113,12 +113,12 @@ func TestMockTridentAdapter(t *testing.T) {
 		uvr := createTestUnifiedVolumeReplication("test-update", "default")
 
 		// Create first
-		err := adapter.CreateReplication(ctx, uvr)
+		err := adapter.EnsureReplication(ctx, uvr)
 		require.NoError(t, err)
 
 		// Update state
 		uvr.Spec.ReplicationState = replicationv1alpha1.ReplicationStatePromoting
-		err = adapter.UpdateReplication(ctx, uvr)
+		err = adapter.EnsureReplication(ctx, uvr)
 		assert.NoError(t, err)
 
 		// Verify state was updated
@@ -140,7 +140,7 @@ func TestMockTridentAdapter(t *testing.T) {
 		uvr := createTestUnifiedVolumeReplication("test-delete", "default")
 
 		// Create first
-		err := adapter.CreateReplication(ctx, uvr)
+		err := adapter.EnsureReplication(ctx, uvr)
 		require.NoError(t, err)
 
 		// Verify created
@@ -178,7 +178,7 @@ func TestMockTridentAdapter(t *testing.T) {
 		uvr := createTestUnifiedVolumeReplication("test-status", "default")
 
 		// Create first
-		err := adapter.CreateReplication(ctx, uvr)
+		err := adapter.EnsureReplication(ctx, uvr)
 		require.NoError(t, err)
 
 		// Get status
@@ -205,7 +205,7 @@ func TestMockTridentAdapter(t *testing.T) {
 		uvr := createTestUnifiedVolumeReplication("test-ops", "default")
 
 		// Create first
-		err := adapter.CreateReplication(ctx, uvr)
+		err := adapter.EnsureReplication(ctx, uvr)
 		require.NoError(t, err)
 
 		// Test promote
@@ -247,7 +247,7 @@ func TestMockTridentAdapter(t *testing.T) {
 		uvr := createTestUnifiedVolumeReplication("test-latency", "default")
 
 		start := time.Now()
-		err := adapter.CreateReplication(ctx, uvr)
+		err := adapter.EnsureReplication(ctx, uvr)
 		duration := time.Since(start)
 
 		assert.NoError(t, err)
@@ -262,7 +262,7 @@ func TestMockTridentAdapter(t *testing.T) {
 		uvr := createTestUnifiedVolumeReplication("test-events", "default")
 
 		// Perform operations that should generate events
-		adapter.CreateReplication(ctx, uvr)
+		adapter.EnsureReplication(ctx, uvr)
 		adapter.PromoteReplica(ctx, uvr)
 		adapter.DeleteReplication(ctx, uvr)
 
@@ -323,7 +323,7 @@ func TestMockTridentAdapter(t *testing.T) {
 			uvr := createTestUnifiedVolumeReplication("test-prob", "default")
 			uvr.Name = uvr.Name + string(rune(i)) // Make unique
 
-			err := adapter.CreateReplication(ctx, uvr)
+			err := adapter.EnsureReplication(ctx, uvr)
 			if err == nil {
 				successCount++
 			} else {
@@ -372,7 +372,7 @@ func TestMockPowerStoreAdapter(t *testing.T) {
 		ctx := context.Background()
 		uvr := createTestUnifiedVolumeReplication("test-ps", "default")
 
-		err := adapter.CreateReplication(ctx, uvr)
+		err := adapter.EnsureReplication(ctx, uvr)
 		assert.NoError(t, err)
 
 		// Verify replication was created
@@ -415,7 +415,7 @@ func TestMockPowerStoreAdapter(t *testing.T) {
 		ctx := context.Background()
 		uvr := createTestUnifiedVolumeReplication("test-rpo", "default")
 
-		err := adapter.CreateReplication(ctx, uvr)
+		err := adapter.EnsureReplication(ctx, uvr)
 		require.NoError(t, err)
 
 		status, err := adapter.GetReplicationStatus(ctx, uvr)
@@ -443,7 +443,7 @@ func TestMockPowerStoreAdapter(t *testing.T) {
 		ctx := context.Background()
 		uvr := createTestUnifiedVolumeReplication("test-session", "default")
 
-		err := adapter.CreateReplication(ctx, uvr)
+		err := adapter.EnsureReplication(ctx, uvr)
 		require.NoError(t, err)
 
 		status, err := adapter.GetReplicationStatus(ctx, uvr)
@@ -462,7 +462,7 @@ func TestMockPowerStoreAdapter(t *testing.T) {
 		uvr := createTestUnifiedVolumeReplication("test-failover", "default")
 
 		// Create replication
-		err := adapter.CreateReplication(ctx, uvr)
+		err := adapter.EnsureReplication(ctx, uvr)
 		require.NoError(t, err)
 
 		// Get original session ID
@@ -497,7 +497,7 @@ func TestMockPowerStoreAdapter(t *testing.T) {
 			RpoSettings: &[]string{"Five_Minutes"}[0], // Metro with short RPO
 		}
 
-		err := adapter.CreateReplication(ctx, uvr)
+		err := adapter.EnsureReplication(ctx, uvr)
 		require.NoError(t, err)
 
 		status, err := adapter.GetReplicationStatus(ctx, uvr)

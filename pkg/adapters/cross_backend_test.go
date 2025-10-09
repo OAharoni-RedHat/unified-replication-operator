@@ -222,8 +222,8 @@ func TestCrossBackendPerformance(t *testing.T) {
 			}
 
 			// Operations may fail without CRDs, but we test they don't panic
-			_ = backend.adapter.CreateReplication(ctx, backend.uvr)
-			_ = backend.adapter.UpdateReplication(ctx, backend.uvr)
+			_ = backend.adapter.EnsureReplication(ctx, backend.uvr)
+			_ = backend.adapter.EnsureReplication(ctx, backend.uvr)
 			_, _ = backend.adapter.GetReplicationStatus(ctx, backend.uvr)
 			_ = backend.adapter.DeleteReplication(ctx, backend.uvr)
 
@@ -281,7 +281,7 @@ func TestCrossBackendErrorHandling(t *testing.T) {
 			}
 
 			// Operations should return errors, not panic
-			err = backend.adapter.CreateReplication(ctx, invalidUVR)
+			err = backend.adapter.EnsureReplication(ctx, invalidUVR)
 			if err != nil {
 				// Verify error is an AdapterError
 				if adapterErr, ok := GetAdapterError(err); ok {

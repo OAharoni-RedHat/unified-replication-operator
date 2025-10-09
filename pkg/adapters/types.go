@@ -26,9 +26,8 @@ import (
 
 // ReplicationAdapter defines the interface that all backend adapters must implement
 type ReplicationAdapter interface {
-	// Core CRUD operations
-	CreateReplication(ctx context.Context, uvr *replicationv1alpha1.UnifiedVolumeReplication) error
-	UpdateReplication(ctx context.Context, uvr *replicationv1alpha1.UnifiedVolumeReplication) error
+	// Core operations - use EnsureReplication for reconciliation
+	EnsureReplication(ctx context.Context, uvr *replicationv1alpha1.UnifiedVolumeReplication) error
 	DeleteReplication(ctx context.Context, uvr *replicationv1alpha1.UnifiedVolumeReplication) error
 	GetReplicationStatus(ctx context.Context, uvr *replicationv1alpha1.UnifiedVolumeReplication) (*ReplicationStatus, error)
 

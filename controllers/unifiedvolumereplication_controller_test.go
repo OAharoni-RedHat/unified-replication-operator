@@ -291,69 +291,7 @@ var _ = Describe("UnifiedVolumeReplicationController", func() {
 		})
 	})
 
-	Context("Operation determination", func() {
-		var (
-			reconciler *UnifiedVolumeReplicationReconciler
-			uvr        *replicationv1alpha1.UnifiedVolumeReplication
-		)
-
-		BeforeEach(func() {
-			reconciler = &UnifiedVolumeReplicationReconciler{
-				Log: ctrl.Log.WithName("test"),
-			}
-
-			uvr = &replicationv1alpha1.UnifiedVolumeReplication{
-				ObjectMeta: metav1.ObjectMeta{
-					Generation: 1,
-				},
-				Status: replicationv1alpha1.UnifiedVolumeReplicationStatus{
-					Conditions: []metav1.Condition{},
-				},
-			}
-		})
-
-		It("should determine create for new resource", func() {
-			op := reconciler.determineOperation(uvr)
-			Expect(op).To(Equal("create"))
-		})
-
-		It("should determine update when generation changes", func() {
-			// Add ready condition
-			reconciler.updateCondition(uvr, metav1.Condition{
-				Type:               "Ready",
-				Status:             metav1.ConditionTrue,
-				ObservedGeneration: 1,
-			})
-
-			// Increment generation
-			uvr.Generation = 2
-
-			op := reconciler.determineOperation(uvr)
-			Expect(op).To(Equal("update"))
-		})
-
-		It("should determine sync when ready and up-to-date", func() {
-			reconciler.updateCondition(uvr, metav1.Condition{
-				Type:               "Ready",
-				Status:             metav1.ConditionTrue,
-				ObservedGeneration: 1,
-			})
-
-			op := reconciler.determineOperation(uvr)
-			Expect(op).To(Equal("sync"))
-		})
-
-		It("should determine update when ready condition is false", func() {
-			reconciler.updateCondition(uvr, metav1.Condition{
-				Type:               "Ready",
-				Status:             metav1.ConditionFalse,
-				ObservedGeneration: 1,
-			})
-
-			op := reconciler.determineOperation(uvr)
-			Expect(op).To(Equal("update"))
-		})
-	})
+	// Operation determination tests removed (behavior now handled by EnsureReplication)
 
 	Context("Adapter selection", func() {
 		var (

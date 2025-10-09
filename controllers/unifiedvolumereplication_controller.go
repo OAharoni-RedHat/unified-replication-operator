@@ -232,33 +232,24 @@ func (r *UnifiedVolumeReplicationReconciler) reconcileReplication(ctx context.Co
 		return ctrl.Result{RequeueAfter: requeueDelayError}, err
 	}
 
-	// Determine the operation based on status
-	operation := r.determineOperation(uvr)
-	log.Info("Determined operation", "operation", operation)
-
-	// Execute the operation
-	var opErr error
-
-	// Use integrated controller engine
-	log.Info("Using integrated controller engine")
-	opErr = r.ControllerEngine.ProcessReplication(ctx, uvr, operation, log)
-
-	if opErr != nil {
-		log.Error(opErr, "Operation failed", "operation", operation)
+	// Ensure the replication is in the desired state (idempotent reconciliation)
+	log.Info("Ensuring replication is in desired state")
+	if err := r.ControllerEngine.EnsureReplication(ctx, uvr, log); err != nil {
+		log.Error(err, "Failed to ensure replication")
 		r.updateCondition(uvr, metav1.Condition{
 			Type:               "Ready",
 			Status:             metav1.ConditionFalse,
-			Reason:             "OperationFailed",
-			Message:            fmt.Sprintf("Operation %s failed: %v", operation, opErr),
+			Reason:             "ReconciliationFailed",
+			Message:            fmt.Sprintf("Failed to ensure replication: %v", err),
 			ObservedGeneration: uvr.Generation,
 		})
-		r.Recorder.Eventf(uvr, corev1.EventTypeWarning, "OperationFailed", "Operation %s failed: %v", operation, opErr)
+		r.Recorder.Eventf(uvr, corev1.EventTypeWarning, "ReconciliationFailed", "Failed to ensure replication: %v", err)
 
 		if err := r.Status().Update(ctx, uvr); err != nil {
 			log.Error(err, "Failed to update status")
 		}
 
-		return ctrl.Result{RequeueAfter: requeueDelayError}, opErr
+		return ctrl.Result{RequeueAfter: requeueDelayError}, err
 	}
 
 	// Update status from integrated engine
@@ -330,33 +321,6 @@ func (r *UnifiedVolumeReplicationReconciler) handleDeletion(ctx context.Context,
 
 	log.Info("Deletion completed")
 	return ctrl.Result{}, nil
-}
-
-// determineOperation determines what operation needs to be performed
-func (r *UnifiedVolumeReplicationReconciler) determineOperation(uvr *replicationv1alpha1.UnifiedVolumeReplication) string {
-	// If no conditions, this is a new resource
-	if len(uvr.Status.Conditions) == 0 {
-		return "create"
-	}
-
-	// Check if ready condition exists
-	readyCondition := r.getCondition(uvr, "Ready")
-	if readyCondition == nil {
-		return "create"
-	}
-
-	// If observed generation is behind, need to update
-	if readyCondition.ObservedGeneration < uvr.Generation {
-		return "update"
-	}
-
-	// If ready but status is false, might need update
-	if readyCondition.Status == metav1.ConditionFalse {
-		return "update"
-	}
-
-	// Otherwise just sync status
-	return "sync"
 }
 
 // getAdapter retrieves the appropriate adapter for the UVR

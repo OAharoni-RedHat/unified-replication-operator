@@ -24,6 +24,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
@@ -63,28 +64,55 @@ func NewPowerStoreAdapter(client client.Client, translator *translation.Engine) 
 	return adapter, nil
 }
 
-// CreateReplication creates a DellCSIReplicationGroup resource
-func (psa *PowerStoreAdapter) CreateReplication(ctx context.Context, uvr *replicationv1alpha1.UnifiedVolumeReplication) error {
+// EnsureReplication ensures the DellCSIReplicationGroup is in the desired state (idempotent)
+func (psa *PowerStoreAdapter) EnsureReplication(ctx context.Context, uvr *replicationv1alpha1.UnifiedVolumeReplication) error {
 	logger := log.FromContext(ctx).WithName("powerstore-adapter").WithValues("uvr", uvr.Name)
-	logger.Info("Creating PowerStore replication group")
+	logger.Info("Ensuring PowerStore replication group is in desired state")
 
 	startTime := time.Now()
 
 	// Validate configuration
 	if err := psa.ValidateConfiguration(uvr); err != nil {
-		psa.updateMetrics("create", false, startTime)
-		return NewAdapterErrorWithCause(ErrorTypeValidation, translation.BackendPowerStore, "create", uvr.Name,
-			"configuration validation failed", err)
+		psa.updateMetrics("ensure", false, startTime)
+		return NewAdapterErrorWithCause(ErrorTypeValidation, translation.BackendPowerStore, "ensure", uvr.Name, "configuration validation failed", err)
 	}
 
+	// Check if DellCSIReplicationGroup exists
+	existing := &unstructured.Unstructured{}
+	existing.SetGroupVersionKind(DellCSIReplicationGroupGVK)
+	err := psa.client.Get(ctx, types.NamespacedName{
+		Name:      uvr.Name,
+		Namespace: uvr.Namespace,
+	}, existing)
+
+	if err != nil {
+		if errors.IsNotFound(err) {
+			// Resource doesn't exist, create it
+			logger.Info("DellCSIReplicationGroup not found, creating")
+			return psa.createPowerStoreReplicationGroup(ctx, uvr, startTime)
+		}
+		// Some other error
+		psa.updateMetrics("ensure", false, startTime)
+		return NewAdapterErrorWithCause(ErrorTypeConnection, translation.BackendPowerStore, "ensure", uvr.Name, "failed to check existing DellCSIReplicationGroup", err)
+	}
+
+	// Resource exists, update it
+	logger.V(1).Info("DellCSIReplicationGroup exists, updating if needed")
+	return psa.updatePowerStoreReplicationGroup(ctx, uvr, existing, startTime)
+}
+
+// createPowerStoreReplicationGroup creates a new DellCSIReplicationGroup resource
+func (psa *PowerStoreAdapter) createPowerStoreReplicationGroup(ctx context.Context, uvr *replicationv1alpha1.UnifiedVolumeReplication, startTime time.Time) error {
+	logger := log.FromContext(ctx).WithName("powerstore-adapter").WithValues("uvr", uvr.Name)
+
 	// Translate state and mode
-	powerstoreState, err := psa.TranslateState(string(uvr.Spec.ReplicationState))
+	psState, err := psa.TranslateState(string(uvr.Spec.ReplicationState))
 	if err != nil {
 		psa.updateMetrics("create", false, startTime)
 		return err
 	}
 
-	powerstoreMode, err := psa.TranslateMode(string(uvr.Spec.ReplicationMode))
+	psMode, err := psa.TranslateMode(string(uvr.Spec.ReplicationMode))
 	if err != nil {
 		psa.updateMetrics("create", false, startTime)
 		return err
@@ -96,7 +124,7 @@ func (psa *PowerStoreAdapter) CreateReplication(ctx context.Context, uvr *replic
 	rg.SetName(uvr.Name)
 	rg.SetNamespace(uvr.Namespace)
 
-	// Set labels
+	// Set labels for tracking
 	labels := map[string]interface{}{
 		"app.kubernetes.io/managed-by": "unified-replication-operator",
 		"unified-replication.io/name":  uvr.Name,
@@ -105,36 +133,29 @@ func (psa *PowerStoreAdapter) CreateReplication(ctx context.Context, uvr *replic
 
 	// Build spec
 	spec := map[string]interface{}{
-		"replicationState":       powerstoreState,
-		"protectionGroupName":    fmt.Sprintf("%s-pg", uvr.Name),
-		"storageClassName":       uvr.Spec.SourceEndpoint.StorageClass,
-		"remoteSystem":           uvr.Spec.DestinationEndpoint.Cluster,
-		"remoteStorageClassName": uvr.Spec.DestinationEndpoint.StorageClass,
+		"state":             psState,
+		"replicationPolicy": psMode,
+		"sourceVolumes": []interface{}{
+			map[string]interface{}{
+				"pvcName":      uvr.Spec.VolumeMapping.Source.PvcName,
+				"volumeHandle": "",
+			},
+		},
+		"remoteVolumes": []interface{}{
+			map[string]interface{}{
+				"volumeHandle": uvr.Spec.VolumeMapping.Destination.VolumeHandle,
+			},
+		},
+		"syncSchedule": uvr.Spec.Schedule.Rpo,
 	}
 
-	// Add mode-specific settings
-	if powerstoreMode == "Sync" {
-		// Synchronous/Metro replication
-		spec["protectionPolicy"] = "Metro"
-	} else {
-		// Asynchronous replication
-		spec["protectionPolicy"] = "Async"
-	}
-
-	// Add RPO settings from extensions
+	// Add PowerStore-specific extensions if provided
 	if uvr.Spec.Extensions != nil && uvr.Spec.Extensions.Powerstore != nil {
 		if uvr.Spec.Extensions.Powerstore.RpoSettings != nil {
-			spec["rpoPolicy"] = *uvr.Spec.Extensions.Powerstore.RpoSettings
+			spec["rpoSettings"] = *uvr.Spec.Extensions.Powerstore.RpoSettings
 		}
 		if len(uvr.Spec.Extensions.Powerstore.VolumeGroups) > 0 {
-			spec["volumeGroupList"] = uvr.Spec.Extensions.Powerstore.VolumeGroups
-		}
-	}
-
-	// Add PVC to volume group
-	if uvr.Spec.VolumeMapping.Source.PvcName != "" {
-		spec["pvcList"] = []interface{}{
-			uvr.Spec.VolumeMapping.Source.PvcName,
+			spec["volumeGroups"] = uvr.Spec.Extensions.Powerstore.VolumeGroups
 		}
 	}
 
@@ -156,71 +177,59 @@ func (psa *PowerStoreAdapter) CreateReplication(ctx context.Context, uvr *replic
 	return nil
 }
 
-// UpdateReplication updates a DellCSIReplicationGroup resource
-func (psa *PowerStoreAdapter) UpdateReplication(ctx context.Context, uvr *replicationv1alpha1.UnifiedVolumeReplication) error {
+// updatePowerStoreReplicationGroup updates an existing DellCSIReplicationGroup resource
+func (psa *PowerStoreAdapter) updatePowerStoreReplicationGroup(ctx context.Context, uvr *replicationv1alpha1.UnifiedVolumeReplication, existing *unstructured.Unstructured, startTime time.Time) error {
 	logger := log.FromContext(ctx).WithName("powerstore-adapter").WithValues("uvr", uvr.Name)
-	logger.Info("Updating PowerStore replication group")
 
-	startTime := time.Now()
-
-	// Get existing resource
-	rg := &unstructured.Unstructured{}
-	rg.SetGroupVersionKind(DellCSIReplicationGroupGVK)
-	key := client.ObjectKey{Name: uvr.Name, Namespace: uvr.Namespace}
-
-	if err := psa.client.Get(ctx, key, rg); err != nil {
-		if errors.IsNotFound(err) {
-			// Resource doesn't exist, create it
-			return psa.CreateReplication(ctx, uvr)
-		}
-		psa.updateMetrics("update", false, startTime)
-		return NewAdapterErrorWithCause(ErrorTypeOperation, translation.BackendPowerStore, "update", uvr.Name,
-			"failed to get DellCSIReplicationGroup", err)
-	}
-
-	// Translate new state and mode
-	powerstoreState, err := psa.TranslateState(string(uvr.Spec.ReplicationState))
+	// Translate state and mode
+	psState, err := psa.TranslateState(string(uvr.Spec.ReplicationState))
 	if err != nil {
 		psa.updateMetrics("update", false, startTime)
 		return err
 	}
 
-	powerstoreMode, err := psa.TranslateMode(string(uvr.Spec.ReplicationMode))
+	psMode, err := psa.TranslateMode(string(uvr.Spec.ReplicationMode))
 	if err != nil {
 		psa.updateMetrics("update", false, startTime)
 		return err
 	}
 
-	// Update spec
-	spec, _, _ := unstructured.NestedMap(rg.Object, "spec")
-	if spec == nil {
-		spec = make(map[string]interface{})
+	// Update spec fields
+	spec := map[string]interface{}{
+		"state":             psState,
+		"replicationPolicy": psMode,
+		"sourceVolumes": []interface{}{
+			map[string]interface{}{
+				"pvcName":      uvr.Spec.VolumeMapping.Source.PvcName,
+				"volumeHandle": "",
+			},
+		},
+		"remoteVolumes": []interface{}{
+			map[string]interface{}{
+				"volumeHandle": uvr.Spec.VolumeMapping.Destination.VolumeHandle,
+			},
+		},
+		"syncSchedule": uvr.Spec.Schedule.Rpo,
 	}
 
-	spec["replicationState"] = powerstoreState
-
-	// Update protection policy based on mode
-	if powerstoreMode == "Sync" {
-		spec["protectionPolicy"] = "Metro"
-	} else {
-		spec["protectionPolicy"] = "Async"
-	}
-
-	// Update RPO if provided
+	// Add PowerStore-specific extensions if provided
 	if uvr.Spec.Extensions != nil && uvr.Spec.Extensions.Powerstore != nil {
 		if uvr.Spec.Extensions.Powerstore.RpoSettings != nil {
-			spec["rpoPolicy"] = *uvr.Spec.Extensions.Powerstore.RpoSettings
+			spec["rpoSettings"] = *uvr.Spec.Extensions.Powerstore.RpoSettings
+		}
+		if len(uvr.Spec.Extensions.Powerstore.VolumeGroups) > 0 {
+			spec["volumeGroups"] = uvr.Spec.Extensions.Powerstore.VolumeGroups
 		}
 	}
 
-	if err := unstructured.SetNestedMap(rg.Object, spec, "spec"); err != nil {
+	if err := unstructured.SetNestedMap(existing.Object, spec, "spec"); err != nil {
 		psa.updateMetrics("update", false, startTime)
 		return NewAdapterErrorWithCause(ErrorTypeOperation, translation.BackendPowerStore, "update", uvr.Name,
-			"failed to update spec", err)
+			"failed to update DellCSIReplicationGroup spec", err)
 	}
 
 	// Update the resource
-	if err := psa.client.Update(ctx, rg); err != nil {
+	if err := psa.client.Update(ctx, existing); err != nil {
 		psa.updateMetrics("update", false, startTime)
 		return NewAdapterErrorWithCause(ErrorTypeOperation, translation.BackendPowerStore, "update", uvr.Name,
 			"failed to update DellCSIReplicationGroup", err)
@@ -229,6 +238,11 @@ func (psa *PowerStoreAdapter) UpdateReplication(ctx context.Context, uvr *replic
 	psa.updateMetrics("update", true, startTime)
 	logger.Info("Successfully updated PowerStore replication group")
 	return nil
+}
+
+// updateMetrics is a helper that delegates to BaseAdapter
+func (psa *PowerStoreAdapter) updateMetrics(operation string, success bool, startTime time.Time) {
+	psa.BaseAdapter.updateMetrics(operation, success, startTime)
 }
 
 // DeleteReplication deletes a DellCSIReplicationGroup resource
@@ -363,7 +377,7 @@ func (psa *PowerStoreAdapter) PromoteReplica(ctx context.Context, uvr *replicati
 
 	// Update state to active/source
 	uvr.Spec.ReplicationState = replicationv1alpha1.ReplicationStateSource
-	return psa.UpdateReplication(ctx, uvr)
+	return psa.EnsureReplication(ctx, uvr)
 }
 
 // DemoteSource demotes a source to replica (failback)
@@ -373,7 +387,7 @@ func (psa *PowerStoreAdapter) DemoteSource(ctx context.Context, uvr *replication
 
 	// Update state to passive/replica
 	uvr.Spec.ReplicationState = replicationv1alpha1.ReplicationStateReplica
-	return psa.UpdateReplication(ctx, uvr)
+	return psa.EnsureReplication(ctx, uvr)
 }
 
 // ResyncReplication triggers a resync operation

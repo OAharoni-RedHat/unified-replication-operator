@@ -24,6 +24,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
@@ -70,19 +71,46 @@ func NewTridentAdapter(client client.Client, translator *translation.Engine) (*T
 	return adapter, nil
 }
 
-// CreateReplication creates a TridentMirrorRelationship resource
-func (ta *TridentAdapter) CreateReplication(ctx context.Context, uvr *replicationv1alpha1.UnifiedVolumeReplication) error {
+// EnsureReplication ensures the TridentMirrorRelationship is in the desired state (idempotent)
+func (ta *TridentAdapter) EnsureReplication(ctx context.Context, uvr *replicationv1alpha1.UnifiedVolumeReplication) error {
 	logger := log.FromContext(ctx).WithName("trident-adapter").WithValues("uvr", uvr.Name)
-	logger.Info("Creating Trident mirror relationship")
+	logger.Info("Ensuring Trident mirror relationship is in desired state")
 
 	startTime := time.Now()
 
 	// Validate configuration
 	if err := ta.ValidateConfiguration(uvr); err != nil {
-		ta.updateMetrics("create", false, startTime)
-		return NewAdapterErrorWithCause(ErrorTypeValidation, translation.BackendTrident, "create", uvr.Name,
-			"configuration validation failed", err)
+		ta.updateMetrics("ensure", false, startTime)
+		return NewAdapterErrorWithCause(ErrorTypeValidation, translation.BackendTrident, "ensure", uvr.Name, "configuration validation failed", err)
 	}
+
+	// Check if TridentMirrorRelationship exists
+	existing := &unstructured.Unstructured{}
+	existing.SetGroupVersionKind(TridentMirrorRelationshipGVK)
+	err := ta.client.Get(ctx, types.NamespacedName{
+		Name:      uvr.Name,
+		Namespace: uvr.Namespace,
+	}, existing)
+
+	if err != nil {
+		if errors.IsNotFound(err) {
+			// Resource doesn't exist, create it
+			logger.Info("TridentMirrorRelationship not found, creating")
+			return ta.createTridentMirrorRelationship(ctx, uvr, startTime)
+		}
+		// Some other error
+		ta.updateMetrics("ensure", false, startTime)
+		return NewAdapterErrorWithCause(ErrorTypeConnection, translation.BackendTrident, "ensure", uvr.Name, "failed to check existing TridentMirrorRelationship", err)
+	}
+
+	// Resource exists, update it
+	logger.V(1).Info("TridentMirrorRelationship exists, updating if needed")
+	return ta.updateTridentMirrorRelationship(ctx, uvr, existing, startTime)
+}
+
+// createTridentMirrorRelationship creates a new TridentMirrorRelationship resource
+func (ta *TridentAdapter) createTridentMirrorRelationship(ctx context.Context, uvr *replicationv1alpha1.UnifiedVolumeReplication, startTime time.Time) error {
+	logger := log.FromContext(ctx).WithName("trident-adapter").WithValues("uvr", uvr.Name)
 
 	// Translate state and mode
 	tridentState, err := ta.TranslateState(string(uvr.Spec.ReplicationState))
@@ -153,29 +181,11 @@ func (ta *TridentAdapter) CreateReplication(ctx context.Context, uvr *replicatio
 	return nil
 }
 
-// UpdateReplication updates a TridentMirrorRelationship resource
-func (ta *TridentAdapter) UpdateReplication(ctx context.Context, uvr *replicationv1alpha1.UnifiedVolumeReplication) error {
+// updateTridentMirrorRelationship updates an existing TridentMirrorRelationship resource
+func (ta *TridentAdapter) updateTridentMirrorRelationship(ctx context.Context, uvr *replicationv1alpha1.UnifiedVolumeReplication, existing *unstructured.Unstructured, startTime time.Time) error {
 	logger := log.FromContext(ctx).WithName("trident-adapter").WithValues("uvr", uvr.Name)
-	logger.Info("Updating Trident mirror relationship")
 
-	startTime := time.Now()
-
-	// Get existing resource
-	tmr := &unstructured.Unstructured{}
-	tmr.SetGroupVersionKind(TridentMirrorRelationshipGVK)
-	key := client.ObjectKey{Name: uvr.Name, Namespace: uvr.Namespace}
-
-	if err := ta.client.Get(ctx, key, tmr); err != nil {
-		if errors.IsNotFound(err) {
-			// Resource doesn't exist, create it
-			return ta.CreateReplication(ctx, uvr)
-		}
-		ta.updateMetrics("update", false, startTime)
-		return NewAdapterErrorWithCause(ErrorTypeOperation, translation.BackendTrident, "update", uvr.Name,
-			"failed to get TridentMirrorRelationship", err)
-	}
-
-	// Translate new state and mode
+	// Translate state and mode
 	tridentState, err := ta.TranslateState(string(uvr.Spec.ReplicationState))
 	if err != nil {
 		ta.updateMetrics("update", false, startTime)
@@ -188,21 +198,18 @@ func (ta *TridentAdapter) UpdateReplication(ctx context.Context, uvr *replicatio
 		return err
 	}
 
-	// Update spec
-	spec, _, _ := unstructured.NestedMap(tmr.Object, "spec")
-	if spec == nil {
-		spec = make(map[string]interface{})
+	// Update spec fields
+	spec := map[string]interface{}{
+		"state":               tridentState,
+		"replicationPolicy":   tridentMode,
+		"volumeGroupName":     fmt.Sprintf("%s-vg", uvr.Name),
+		"localPVCName":        uvr.Spec.VolumeMapping.Source.PvcName,
+		"localVolumeHandle":   "", // Will be discovered
+		"remoteVolumeHandle":  uvr.Spec.VolumeMapping.Destination.VolumeHandle,
+		"replicationSchedule": uvr.Spec.Schedule.Rpo,
 	}
 
-	spec["state"] = tridentState
-	spec["replicationPolicy"] = tridentMode
-
-	// Update schedule if changed
-	if uvr.Spec.Schedule.Rpo != "" {
-		spec["replicationSchedule"] = uvr.Spec.Schedule.Rpo
-	}
-
-	// Update actions if provided
+	// Add Trident-specific extensions if provided
 	if uvr.Spec.Extensions != nil && uvr.Spec.Extensions.Trident != nil {
 		if len(uvr.Spec.Extensions.Trident.Actions) > 0 {
 			actions := make([]interface{}, 0, len(uvr.Spec.Extensions.Trident.Actions))
@@ -216,14 +223,14 @@ func (ta *TridentAdapter) UpdateReplication(ctx context.Context, uvr *replicatio
 		}
 	}
 
-	if err := unstructured.SetNestedMap(tmr.Object, spec, "spec"); err != nil {
+	if err := unstructured.SetNestedMap(existing.Object, spec, "spec"); err != nil {
 		ta.updateMetrics("update", false, startTime)
 		return NewAdapterErrorWithCause(ErrorTypeOperation, translation.BackendTrident, "update", uvr.Name,
-			"failed to update spec", err)
+			"failed to update TridentMirrorRelationship spec", err)
 	}
 
 	// Update the resource
-	if err := ta.client.Update(ctx, tmr); err != nil {
+	if err := ta.client.Update(ctx, existing); err != nil {
 		ta.updateMetrics("update", false, startTime)
 		return NewAdapterErrorWithCause(ErrorTypeOperation, translation.BackendTrident, "update", uvr.Name,
 			"failed to update TridentMirrorRelationship", err)
@@ -232,6 +239,11 @@ func (ta *TridentAdapter) UpdateReplication(ctx context.Context, uvr *replicatio
 	ta.updateMetrics("update", true, startTime)
 	logger.Info("Successfully updated Trident mirror relationship")
 	return nil
+}
+
+// updateMetrics is a helper that delegates to BaseAdapter
+func (ta *TridentAdapter) updateMetrics(operation string, success bool, startTime time.Time) {
+	ta.BaseAdapter.updateMetrics(operation, success, startTime)
 }
 
 // DeleteReplication deletes a TridentMirrorRelationship resource
@@ -361,7 +373,7 @@ func (ta *TridentAdapter) PromoteReplica(ctx context.Context, uvr *replicationv1
 
 	// For Trident, promotion is done by updating state to "established" (source)
 	uvr.Spec.ReplicationState = replicationv1alpha1.ReplicationStateSource
-	return ta.UpdateReplication(ctx, uvr)
+	return ta.EnsureReplication(ctx, uvr)
 }
 
 // DemoteSource demotes a source to replica
@@ -371,7 +383,7 @@ func (ta *TridentAdapter) DemoteSource(ctx context.Context, uvr *replicationv1al
 
 	// For Trident, demotion is done by updating state to "snapmirrored" (replica)
 	uvr.Spec.ReplicationState = replicationv1alpha1.ReplicationStateReplica
-	return ta.UpdateReplication(ctx, uvr)
+	return ta.EnsureReplication(ctx, uvr)
 }
 
 // ResyncReplication triggers a resync operation

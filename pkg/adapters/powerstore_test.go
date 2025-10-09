@@ -68,7 +68,7 @@ func TestPowerStoreAdapter_CreateReplication(t *testing.T) {
 	uvr := createTestUVRForPowerStore("test-powerstore", "default")
 
 	t.Run("SuccessfulCreate", func(t *testing.T) {
-		err := adapter.CreateReplication(ctx, uvr)
+		err := adapter.EnsureReplication(ctx, uvr)
 		// May fail due to CRD not registered, but should not panic
 		if err != nil {
 			t.Logf("Create failed (expected without CRD): %v", err)
@@ -169,7 +169,7 @@ func TestPowerStoreAdapter_MetroReplication(t *testing.T) {
 	uvr := createTestUVRForPowerStore("test-metro", "default")
 	uvr.Spec.ReplicationMode = replicationv1alpha1.ReplicationModeSynchronous
 
-	err = adapter.CreateReplication(ctx, uvr)
+	err = adapter.EnsureReplication(ctx, uvr)
 	// Validates Metro-specific logic doesn't panic
 	_ = err
 }

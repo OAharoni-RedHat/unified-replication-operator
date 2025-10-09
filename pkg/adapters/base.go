@@ -235,14 +235,11 @@ func (ba *BaseAdapter) TranslateBackendMode(backendMode string) (string, error) 
 // Default implementations of ReplicationAdapter interface methods
 // These should be overridden by specific adapter implementations
 
-// CreateReplication creates a replication (default implementation)
-func (ba *BaseAdapter) CreateReplication(ctx context.Context, uvr *replicationv1alpha1.UnifiedVolumeReplication) error {
-	return ba.NotImplementedError("CreateReplication")
-}
-
-// UpdateReplication updates a replication (default implementation)
-func (ba *BaseAdapter) UpdateReplication(ctx context.Context, uvr *replicationv1alpha1.UnifiedVolumeReplication) error {
-	return ba.NotImplementedError("UpdateReplication")
+// EnsureReplication ensures the replication is in the desired state (idempotent)
+// This is the primary method for reconciliation - it handles both create and update
+// Default implementation returns NotImplementedError - adapters must override this
+func (ba *BaseAdapter) EnsureReplication(ctx context.Context, uvr *replicationv1alpha1.UnifiedVolumeReplication) error {
+	return ba.NotImplementedError("EnsureReplication")
 }
 
 // DeleteReplication deletes a replication (default implementation)
@@ -440,4 +437,36 @@ func (ba *BaseAdapter) ConnectionError(message string, cause error) error {
 func (ba *BaseAdapter) TimeoutError(operation string, timeout time.Duration) error {
 	return NewAdapterError(ErrorTypeTimeout, ba.backend, operation, "",
 		fmt.Sprintf("operation timed out after %s", timeout))
+}
+
+// updateMetrics updates internal metrics (stub implementation)
+func (ba *BaseAdapter) updateMetrics(operation string, success bool, startTime time.Time) {
+	// Stub implementation - metrics tracking can be added later if needed
+	// This prevents errors but doesn't actually track metrics
+}
+
+// GetMetrics returns adapter metrics (stub implementation)
+func (ba *BaseAdapter) GetMetrics() AdapterMetrics {
+	return AdapterMetrics{
+		TotalOperations: 0,
+		SuccessfulOps:   0,
+		FailedOps:       0,
+	}
+}
+
+// GetStats returns adapter statistics (stub implementation)
+func (ba *BaseAdapter) GetStats() AdapterStats {
+	ba.mu.RLock()
+	defer ba.mu.RUnlock()
+
+	return AdapterStats{
+		Backend:            ba.backend,
+		Uptime:             0,
+		ActiveReplications: 0,
+		TotalReplications:  0,
+		Metrics:            ba.GetMetrics(),
+		LastHealthCheck:    time.Now(),
+		SupportedFeatures:  ba.capabilities.Features,
+		Version:            ba.info.Version,
+	}
 }

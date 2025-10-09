@@ -132,9 +132,9 @@ func NewMockAdapter(backend translation.Backend, client client.Client, translato
 	}
 }
 
-// CreateReplication creates a mock replication
-func (m *MockAdapter) CreateReplication(ctx context.Context, uvr *replicationv1alpha1.UnifiedVolumeReplication) error {
-	if err := m.simulateOperation("create"); err != nil {
+// EnsureReplication ensures the mock replication is in the desired state (idempotent)
+func (m *MockAdapter) EnsureReplication(ctx context.Context, uvr *replicationv1alpha1.UnifiedVolumeReplication) error {
+	if err := m.simulateOperation("ensure"); err != nil {
 		return err
 	}
 
@@ -142,10 +142,29 @@ func (m *MockAdapter) CreateReplication(ctx context.Context, uvr *replicationv1a
 	defer m.mu.Unlock()
 
 	key := m.getReplicationKey(uvr)
-	if _, exists := m.replications[key]; exists {
-		return NewAdapterError(ErrorTypeResource, m.GetBackendType(), "create", uvr.Name, "replication already exists")
+
+	// Check if replication exists
+	if mockRepl, exists := m.replications[key]; exists {
+		// Update existing replication
+		mockRepl.State = string(uvr.Spec.ReplicationState)
+		mockRepl.Mode = string(uvr.Spec.ReplicationMode)
+		mockRepl.ObservedGeneration = uvr.Generation
+		mockRepl.LastSyncTime = time.Now()
+
+		if m.config.EventGeneration {
+			event := ReplicationEvent{
+				Type:      EventTypeUpdated,
+				Timestamp: time.Now(),
+				Resource:  uvr.Name,
+				Message:   "Replication updated to desired state",
+			}
+			mockRepl.Events = append(mockRepl.Events, event)
+		}
+
+		return nil
 	}
 
+	// Create new replication
 	mockRepl := &MockReplication{
 		Name:               uvr.Name,
 		State:              string(uvr.Spec.ReplicationState),
@@ -157,69 +176,26 @@ func (m *MockAdapter) CreateReplication(ctx context.Context, uvr *replicationv1a
 		ObservedGeneration: uvr.Generation,
 	}
 
-	// Initialize sync progress if enabled
 	if m.config.ProgressTracking {
 		mockRepl.SyncProgress = &SyncProgress{
-			TotalBytes:      1000000, // 1MB mock data
+			TotalBytes:      1000000, // 1MB
 			SyncedBytes:     0,
 			PercentComplete: 0.0,
 			EstimatedTime:   "5m",
 		}
 	}
 
-	m.replications[key] = mockRepl
-
-	// Generate creation event
 	if m.config.EventGeneration {
 		event := ReplicationEvent{
 			Type:      EventTypeCreated,
 			Timestamp: time.Now(),
 			Resource:  uvr.Name,
-			Message:   "Replication created successfully",
+			Message:   "Mock replication created",
 		}
-		mockRepl.Events = append(mockRepl.Events, event)
+		mockRepl.Events = []ReplicationEvent{event}
 	}
 
-	// Start background state simulation if enabled
-	if m.config.StateTransitions {
-		go m.simulateStateTransitions(key)
-	}
-
-	return nil
-}
-
-// UpdateReplication updates a mock replication
-func (m *MockAdapter) UpdateReplication(ctx context.Context, uvr *replicationv1alpha1.UnifiedVolumeReplication) error {
-	if err := m.simulateOperation("update"); err != nil {
-		return err
-	}
-
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	key := m.getReplicationKey(uvr)
-	mockRepl, exists := m.replications[key]
-	if !exists {
-		return NewAdapterError(ErrorTypeResource, m.GetBackendType(), "update", uvr.Name, "replication not found")
-	}
-
-	// Update mock replication
-	oldState := mockRepl.State
-	mockRepl.State = string(uvr.Spec.ReplicationState)
-	mockRepl.Mode = string(uvr.Spec.ReplicationMode)
-	mockRepl.ObservedGeneration = uvr.Generation
-
-	// Generate update event if state changed
-	if m.config.EventGeneration && oldState != mockRepl.State {
-		event := ReplicationEvent{
-			Type:      EventTypeUpdated,
-			Timestamp: time.Now(),
-			Resource:  uvr.Name,
-			Message:   fmt.Sprintf("State changed from %s to %s", oldState, mockRepl.State),
-		}
-		mockRepl.Events = append(mockRepl.Events, event)
-	}
-
+	m.replications[key] = mockRepl
 	return nil
 }
 

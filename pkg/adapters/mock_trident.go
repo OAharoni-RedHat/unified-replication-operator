@@ -139,43 +139,53 @@ func NewMockTridentAdapter(client client.Client, translator *translation.Engine,
 	return adapter
 }
 
-// CreateReplication creates a new replication in the mock backend
-func (mta *MockTridentAdapter) CreateReplication(ctx context.Context, uvr *replicationv1alpha1.UnifiedVolumeReplication) error {
+// EnsureReplication ensures the replication is in the desired state (idempotent)
+func (mta *MockTridentAdapter) EnsureReplication(ctx context.Context, uvr *replicationv1alpha1.UnifiedVolumeReplication) error {
 	logger := log.FromContext(ctx).WithName("mock-trident-adapter").WithValues("uvr", uvr.Name)
-	logger.Info("Creating mock Trident replication")
+	logger.Info("Ensuring Trident replication is in desired state")
 
-	startTime := time.Now()
 	mta.simulateLatency()
 
+	// Check if we should simulate failure
 	if !mta.simulateSuccess(mta.config.CreateSuccessRate) {
-		mta.BaseAdapter.updateMetrics("create", false, startTime)
-		return NewAdapterError(ErrorTypeConnection, translation.BackendTrident, "create", uvr.Name, "simulated creation failure")
+		return NewAdapterError(ErrorTypeConnection, translation.BackendTrident, "ensure", uvr.Name, "simulated creation failure")
 	}
 
 	mta.mutex.Lock()
 	defer mta.mutex.Unlock()
 
 	replicationKey := fmt.Sprintf("%s/%s", uvr.Namespace, uvr.Name)
-	if _, exists := mta.replications[replicationKey]; exists {
-		mta.BaseAdapter.updateMetrics("create", false, startTime)
-		return NewAdapterError(ErrorTypeValidation, translation.BackendTrident, "create", uvr.Name, "replication already exists")
+
+	// Check if replication exists
+	if mockRepl, exists := mta.replications[replicationKey]; exists {
+		// Update existing replication
+		tridentState, _ := mta.BaseAdapter.TranslateState(string(uvr.Spec.ReplicationState))
+		tridentMode, _ := mta.BaseAdapter.TranslateMode(string(uvr.Spec.ReplicationMode))
+
+		mockRepl.State = tridentState
+		mockRepl.Mode = tridentMode
+		mockRepl.Version++
+		mockRepl.UpdatedAt = time.Now()
+		now := time.Now()
+		mockRepl.LastSyncTime = &now
+
+		logger.Info("Updated Trident replication")
+		return nil
 	}
 
-	// Translate unified state to Trident state
-	tridentState, err := mta.BaseAdapter.translator.TranslateStateToBackend(translation.BackendTrident, string(uvr.Spec.ReplicationState))
+	// Create new replication
+	tridentState, err := mta.BaseAdapter.TranslateState(string(uvr.Spec.ReplicationState))
 	if err != nil {
-		mta.BaseAdapter.updateMetrics("create", false, startTime)
-		return NewAdapterErrorWithCause(ErrorTypeOperation, translation.BackendTrident, "create", uvr.Name, "failed to translate state", err)
+		return NewAdapterErrorWithCause(ErrorTypeValidation, translation.BackendTrident, "ensure", uvr.Name, "state translation failed", err)
 	}
 
-	tridentMode, err := mta.BaseAdapter.translator.TranslateModeToBackend(translation.BackendTrident, string(uvr.Spec.ReplicationMode))
+	tridentMode, err := mta.BaseAdapter.TranslateMode(string(uvr.Spec.ReplicationMode))
 	if err != nil {
-		mta.BaseAdapter.updateMetrics("create", false, startTime)
-		return NewAdapterErrorWithCause(ErrorTypeOperation, translation.BackendTrident, "create", uvr.Name, "failed to translate mode", err)
+		return NewAdapterErrorWithCause(ErrorTypeValidation, translation.BackendTrident, "ensure", uvr.Name, "mode translation failed", err)
 	}
 
 	now := time.Now()
-	replication := &MockTridentReplication{
+	mockRepl := &MockTridentReplication{
 		Name:              uvr.Name,
 		Namespace:         uvr.Namespace,
 		State:             tridentState,
@@ -199,82 +209,23 @@ func (mta *MockTridentAdapter) CreateReplication(ctx context.Context, uvr *repli
 			"actionType":             "create",
 			"lastActionTime":         now.Format(time.RFC3339),
 		},
-		CreatedAt: now,
-		UpdatedAt: now,
-		Version:   1,
+		CreatedAt:    now,
+		UpdatedAt:    now,
+		LastSyncTime: &now,
+		Version:      1,
 	}
 
-	mta.replications[replicationKey] = replication
+	mta.replications[replicationKey] = mockRepl
+
+	// Add creation event
 	mta.addEvent(ReplicationEvent{
 		Type:      EventTypeCreated,
 		Message:   "Mock Trident replication created successfully",
 		Timestamp: now,
-		Resource:  fmt.Sprintf("%s/%s", uvr.Namespace, uvr.Name),
+		Resource:  replicationKey,
 	})
 
-	mta.BaseAdapter.updateMetrics("create", true, startTime)
-	logger.Info("Successfully created mock Trident replication")
-	return nil
-}
-
-// UpdateReplication updates an existing replication in the mock backend
-func (mta *MockTridentAdapter) UpdateReplication(ctx context.Context, uvr *replicationv1alpha1.UnifiedVolumeReplication) error {
-	logger := log.FromContext(ctx).WithName("mock-trident-adapter").WithValues("uvr", uvr.Name)
-	logger.Info("Updating mock Trident replication")
-
-	startTime := time.Now()
-	mta.simulateLatency()
-
-	if !mta.simulateSuccess(mta.config.UpdateSuccessRate) {
-		mta.BaseAdapter.updateMetrics("update", false, startTime)
-		return NewAdapterError(ErrorTypeConnection, translation.BackendTrident, "update", uvr.Name, "simulated update failure")
-	}
-
-	mta.mutex.Lock()
-	defer mta.mutex.Unlock()
-
-	replicationKey := fmt.Sprintf("%s/%s", uvr.Namespace, uvr.Name)
-	replication, exists := mta.replications[replicationKey]
-	if !exists {
-		mta.BaseAdapter.updateMetrics("update", false, startTime)
-		return NewAdapterError(ErrorTypeResource, translation.BackendTrident, "update", uvr.Name, "replication not found")
-	}
-
-	// Translate unified state to Trident state
-	tridentState, err := mta.BaseAdapter.translator.TranslateStateToBackend(translation.BackendTrident, string(uvr.Spec.ReplicationState))
-	if err != nil {
-		mta.BaseAdapter.updateMetrics("update", false, startTime)
-		return NewAdapterErrorWithCause(ErrorTypeOperation, translation.BackendTrident, "update", uvr.Name, "failed to translate state", err)
-	}
-
-	tridentMode, err := mta.BaseAdapter.translator.TranslateModeToBackend(translation.BackendTrident, string(uvr.Spec.ReplicationMode))
-	if err != nil {
-		mta.BaseAdapter.updateMetrics("update", false, startTime)
-		return NewAdapterErrorWithCause(ErrorTypeOperation, translation.BackendTrident, "update", uvr.Name, "failed to translate mode", err)
-	}
-
-	now := time.Now()
-
-	// Check for state transitions
-	if replication.State != tridentState {
-		mta.simulateStateTransition(replication, tridentState)
-		mta.addEvent(ReplicationEvent{
-			Type:      EventTypeUpdated,
-			Message:   fmt.Sprintf("State changed from %s to %s", replication.State, tridentState),
-			Timestamp: now,
-			Resource:  replicationKey,
-		})
-	}
-
-	replication.State = tridentState
-	replication.Mode = tridentMode
-	replication.UpdatedAt = now
-	replication.Version++
-	replication.BackendSpecific["actionType"] = "update"
-	replication.BackendSpecific["lastActionTime"] = now.Format(time.RFC3339)
-
-	mta.BaseAdapter.updateMetrics("update", true, startTime)
-	logger.Info("Successfully updated mock Trident replication")
+	logger.Info("Created Trident replication")
 	return nil
 }
 

@@ -134,7 +134,7 @@ func TestCephAdapterIntegration_DISABLED(t *testing.T) {
 		}
 
 		// Test 1: Create replication
-		err = adapter.CreateReplication(ctx, uvr)
+		err = adapter.EnsureReplication(ctx, uvr)
 		assert.NoError(t, err)
 
 		// Verify VolumeReplication was created
@@ -151,7 +151,7 @@ func TestCephAdapterIntegration_DISABLED(t *testing.T) {
 
 		// Test 2: Update replication state
 		uvr.Spec.ReplicationState = "replica"
-		err = adapter.UpdateReplication(ctx, uvr)
+		err = adapter.EnsureReplication(ctx, uvr)
 		assert.NoError(t, err)
 
 		// Verify VolumeReplication was updated
@@ -224,7 +224,7 @@ func TestCephAdapterIntegration_DISABLED(t *testing.T) {
 			},
 		}
 
-		err = adapter.CreateReplication(ctx, uvr)
+		err = adapter.EnsureReplication(ctx, uvr)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "not supported for Ceph replication")
 
@@ -310,7 +310,7 @@ func TestCephAdapterIntegration_DISABLED(t *testing.T) {
 		}
 
 		// Create replication with extensions
-		err = adapter.CreateReplication(ctx, uvr)
+		err = adapter.EnsureReplication(ctx, uvr)
 		assert.NoError(t, err)
 
 		// Verify VolumeReplication was created with extensions applied
