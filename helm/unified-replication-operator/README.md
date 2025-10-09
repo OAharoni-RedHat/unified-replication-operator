@@ -44,8 +44,7 @@ helm install unified-replication-operator ./helm/unified-replication-operator \
   --namespace unified-replication-system \
   --create-namespace \
   --set controller.maxConcurrentReconciles=5 \
-  --set security.audit.enabled=true \
-  --set monitoring.serviceMonitor.enabled=true
+  --set security.audit.enabled=true
 ```
 
 ## Configuration
@@ -102,15 +101,6 @@ backends:
     enabled: false                # Mock adapters (testing only)
 ```
 
-#### Monitoring
-
-```yaml
-monitoring:
-  serviceMonitor:
-    interval: 30s                 # Scrape interval
-  grafanaDashboard:
-    enabled: true                 # Create Grafana dashboard
-```
 
 ### Complete Values Reference
 
@@ -224,8 +214,6 @@ advancedFeatures:
     maxAttempts: 5
   circuitBreaker:
     enabled: true
-  metrics:
-    enabled: true
   healthChecks:
     enabled: true
 
@@ -235,11 +223,6 @@ security:
   networkPolicy:
     enabled: true
 
-monitoring:
-  serviceMonitor:
-    enabled: true
-  grafanaDashboard:
-    enabled: true
 
 backends:
   ceph: {enabled: true}

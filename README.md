@@ -16,7 +16,7 @@ A Kubernetes operator that provides unified storage replication management acros
 - **High Availability** - Leader election, multiple replicas
 - **Advanced Features** - Retry logic, circuit breakers, state machine
 - **Security Hardened** - TLS, RBAC, audit logging, pod security
-- **Production Ready** - Prometheus metrics, health checks, comprehensive docs
+- **Production Ready** - Health checks and comprehensive docs
 
 ## Quick Start
 
@@ -143,30 +143,12 @@ backends:
   ceph: {enabled: true}
   trident: {enabled: true}
   powerstore: {enabled: true}
-
-monitoring:
-  serviceMonitor: {enabled: true}
 ```
 
 ### Advanced Configuration
 
 See [values.yaml](helm/unified-replication-operator/values.yaml) for all options.
 
-## Monitoring
-
-### Prometheus Metrics
-
-19 metrics exposed on port 8080:
-
-- Reconciliation metrics (rate, duration, errors)
-- State transition metrics
-- Backend operation metrics
-- Retry and circuit breaker metrics
-- Discovery and translation metrics
-
-### Grafana Dashboards
-
-Pre-configured dashboards available in `config/monitoring/`
 
 ## Development
 
@@ -223,7 +205,6 @@ Apache License 2.0 - See [LICENSE](LICENSE) for details.
 Built with:
 - [Kubebuilder](https://github.com/kubernetes-sigs/kubebuilder)
 - [controller-runtime](https://github.com/kubernetes-sigs/controller-runtime)
-- [Prometheus](https://prometheus.io/)
 
 ---
 

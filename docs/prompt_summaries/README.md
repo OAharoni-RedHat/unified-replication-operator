@@ -38,7 +38,6 @@ unified-replication-operator/docs/prompt_summaries/
   - State machine validation
   - Retry and backoff strategies
   - Circuit breaker pattern
-  - Prometheus metrics (19 metrics)
   - Health and readiness checks
   - Correlation ID tracking
 
