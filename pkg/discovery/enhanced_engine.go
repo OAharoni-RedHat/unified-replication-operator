@@ -34,7 +34,6 @@ type EnhancedEngine struct {
 	capabilityConfig    *CapabilityConfig
 	capabilityRegistry  CapabilityRegistry
 	capabilityDetectors map[translation.Backend]CapabilityDetector
-	healthMonitor       *HealthMonitor
 }
 
 // NewEnhancedEngine creates a new enhanced discovery engine
@@ -55,10 +54,7 @@ func NewEnhancedEngine(client client.Client, config *DiscoveryConfig, capConfig 
 	// Initialize capability detectors
 	enhanced.initializeCapabilityDetectors()
 
-	// Initialize health monitor if enabled
-	if capConfig.EnableHealthChecking {
-		enhanced.healthMonitor = NewHealthMonitor(enhanced, capConfig)
-	}
+	// Background health monitor removed
 
 	return enhanced
 }
@@ -315,20 +311,7 @@ func (e *EnhancedEngine) ValidateBackendConfiguration(backend translation.Backen
 }
 
 // StartCapabilityMonitoring starts background capability and health monitoring
-func (e *EnhancedEngine) StartCapabilityMonitoring(ctx context.Context) error {
-	if e.healthMonitor != nil {
-		return e.healthMonitor.Start(ctx)
-	}
-	return nil
-}
-
-// StopCapabilityMonitoring stops background monitoring
-func (e *EnhancedEngine) StopCapabilityMonitoring() error {
-	if e.healthMonitor != nil {
-		return e.healthMonitor.Stop()
-	}
-	return nil
-}
+// Background capability monitoring removed
 
 // GetCapabilityRegistry returns the capability registry
 func (e *EnhancedEngine) GetCapabilityRegistry() CapabilityRegistry {
@@ -342,21 +325,7 @@ func (e *EnhancedEngine) RefreshCapabilities(ctx context.Context) error {
 
 // Close cleans up the enhanced discovery engine
 func (e *EnhancedEngine) Close() error {
-	var errs []error
-
-	if err := e.StopCapabilityMonitoring(); err != nil {
-		errs = append(errs, err)
-	}
-
-	if err := e.Engine.Close(); err != nil {
-		errs = append(errs, err)
-	}
-
-	if len(errs) > 0 {
-		return fmt.Errorf("multiple errors during close: %v", errs)
-	}
-
-	return nil
+	return e.Engine.Close()
 }
 
 // NewEnhancedDiscoverer creates a new enhanced discoverer instance

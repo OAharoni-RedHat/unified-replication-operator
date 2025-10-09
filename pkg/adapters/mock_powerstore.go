@@ -148,10 +148,6 @@ func NewMockPowerStoreAdapter(client client.Client, translator *translation.Engi
 		go adapter.backgroundStateProcessor()
 	}
 
-	if config.HealthFluctuation {
-		go adapter.backgroundHealthMonitor()
-	}
-
 	return adapter
 }
 
@@ -488,7 +484,6 @@ func (mpa *MockPowerStoreAdapter) GetSupportedFeatures() []AdapterFeature {
 		FeaturePauseResume,
 		FeatureConsistencyGroups,
 		FeatureVolumeGroups,
-		FeatureHealthMonitoring,
 		FeatureMetrics,
 		FeatureProgressTracking,
 		FeatureRealTimeStatus,
@@ -715,23 +710,6 @@ func (mpa *MockPowerStoreAdapter) backgroundStateProcessor() {
 				}
 			}
 		}
-		mpa.mutex.Unlock()
-	}
-}
-
-func (mpa *MockPowerStoreAdapter) backgroundHealthMonitor() {
-	ticker := time.NewTicker(mpa.config.HealthCheckInterval)
-	defer ticker.Stop()
-
-	for range ticker.C {
-		mpa.mutex.Lock()
-		// Simulate occasional health fluctuations
-		if mpa.simulateSuccess(0.95) {
-			mpa.isHealthy = true
-		} else {
-			mpa.isHealthy = false
-		}
-		mpa.lastHealthCheck = time.Now()
 		mpa.mutex.Unlock()
 	}
 }

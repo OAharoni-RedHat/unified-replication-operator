@@ -132,7 +132,6 @@ const (
 	FeatureMultiCloud     AdapterFeature = "MultiCloud"
 
 	// Management features
-	FeatureHealthMonitoring AdapterFeature = "HealthMonitoring"
 	FeatureMetrics          AdapterFeature = "Metrics"
 	FeatureProgressTracking AdapterFeature = "ProgressTracking"
 	FeatureRealTimeStatus   AdapterFeature = "RealTimeStatus"

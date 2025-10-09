@@ -70,10 +70,10 @@ func testCreateFailure(t *testing.T, backend translation.Backend) {
 		_ = adapter.Initialize(ctx)
 
 		uvr := createValidUVR("test-create-fail", "default", backend)
-		err := adapter.CreateReplication(ctx, uvr)
+		err := adapter.EnsureReplication(ctx, uvr)
 
 		// Should get an error
-		assert.Error(t, err, "Create should fail with 0% success rate")
+		assert.Error(t, err, "EnsureReplication should fail with 0% success rate")
 
 		// Verify adapter is still functional (doesn't crash)
 		assert.True(t, adapter.IsHealthy() || !adapter.IsHealthy(), "Health check should complete without panic")
@@ -106,12 +106,12 @@ func testUpdateFailure(t *testing.T, backend translation.Backend) {
 
 		uvr := createValidUVR("test-update-fail", "default", backend)
 
-		// First, create should succeed (or we override the rate)
-		_ = adapter.CreateReplication(ctx, uvr)
+		// First, ensure should succeed (or we override the rate)
+		_ = adapter.EnsureReplication(ctx, uvr)
 
-		// Now update should fail
-		err := adapter.UpdateReplication(ctx, uvr)
-		assert.Error(t, err, "Update should fail with 0% success rate")
+		// Now ensure with changes should fail
+		err := adapter.EnsureReplication(ctx, uvr)
+		assert.Error(t, err, "EnsureReplication should fail with 0% success rate")
 	})
 }
 
@@ -140,7 +140,7 @@ func testDeleteFailure(t *testing.T, backend translation.Backend) {
 		_ = adapter.Initialize(ctx)
 
 		uvr := createValidUVR("test-delete-fail", "default", backend)
-		_ = adapter.CreateReplication(ctx, uvr)
+		_ = adapter.EnsureReplication(ctx, uvr)
 
 		err := adapter.DeleteReplication(ctx, uvr)
 		assert.Error(t, err, "Delete should fail with 0% success rate")
@@ -172,7 +172,7 @@ func testStatusFailure(t *testing.T, backend translation.Backend) {
 		_ = adapter.Initialize(ctx)
 
 		uvr := createValidUVR("test-status-fail", "default", backend)
-		_ = adapter.CreateReplication(ctx, uvr)
+		_ = adapter.EnsureReplication(ctx, uvr)
 
 		_, err := adapter.GetReplicationStatus(ctx, uvr)
 		assert.Error(t, err, "GetStatus should fail with 0% success rate")
@@ -219,7 +219,7 @@ func TestIntermittentFailures(t *testing.T) {
 
 			for i := 0; i < numOps; i++ {
 				uvr := createValidUVR("test-intermittent", "default", backend)
-				err := adapter.CreateReplication(ctx, uvr)
+				err := adapter.EnsureReplication(ctx, uvr)
 				if err == nil {
 					successes++
 				} else {
@@ -274,7 +274,7 @@ func TestRecoveryFromFailure(t *testing.T) {
 			uvr := createValidUVR("test-recovery", "default", backend)
 
 			// First attempt should fail
-			err := adapter.CreateReplication(ctx, uvr)
+			err := adapter.EnsureReplication(ctx, uvr)
 			assert.Error(t, err, "First attempt should fail")
 
 			// "Fix" the issue by recreating adapter with good config
@@ -292,7 +292,7 @@ func TestRecoveryFromFailure(t *testing.T) {
 			_ = adapter.Initialize(ctx)
 
 			// Second attempt should succeed
-			err = adapter.CreateReplication(ctx, uvr)
+			err = adapter.EnsureReplication(ctx, uvr)
 			assert.NoError(t, err, "Second attempt should succeed after recovery")
 		})
 	}
@@ -330,7 +330,7 @@ func TestErrorPropagation(t *testing.T) {
 			_ = adapter.Initialize(ctx)
 
 			uvr := createValidUVR("test-error-prop", "default", backend)
-			err := adapter.CreateReplication(ctx, uvr)
+			err := adapter.EnsureReplication(ctx, uvr)
 
 			// Verify error is not nil and has meaningful information
 			require.Error(t, err, "Should return error")
@@ -385,11 +385,11 @@ func TestPartialFailureScenarios(t *testing.T) {
 			uvr := createValidUVR("test-partial", "default", backend)
 
 			// Create should succeed
-			err := adapter.CreateReplication(ctx, uvr)
+			err := adapter.EnsureReplication(ctx, uvr)
 			assert.NoError(t, err, "Create should succeed")
 
 			// Update should fail
-			err = adapter.UpdateReplication(ctx, uvr)
+			err = adapter.EnsureReplication(ctx, uvr)
 			assert.Error(t, err, "Update should fail")
 
 			// Delete should succeed

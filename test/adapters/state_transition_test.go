@@ -115,12 +115,12 @@ func testStateTransition(t *testing.T, backend translation.Backend, transition S
 	// Create replication in initial state
 	uvr := createValidUVR("test-transition", "default", backend)
 	uvr.Spec.ReplicationState = transition.from
-	err := adapter.CreateReplication(ctx, uvr)
+	err := adapter.EnsureReplication(ctx, uvr)
 	require.NoError(t, err, "Failed to create replication in initial state")
 
 	// Attempt transition
 	uvr.Spec.ReplicationState = transition.to
-	err = adapter.UpdateReplication(ctx, uvr)
+	err = adapter.EnsureReplication(ctx, uvr)
 
 	if transition.shouldWork {
 		// For transitions that should work, we log if they don't
@@ -163,7 +163,7 @@ func TestStateTransitionConsistency(t *testing.T) {
 			// Create in replica state
 			uvr := createValidUVR("test-consistency", "default", backend)
 			uvr.Spec.ReplicationState = replicationv1alpha1.ReplicationStateReplica
-			err := adapter.CreateReplication(ctx, uvr)
+			err := adapter.EnsureReplication(ctx, uvr)
 			require.NoError(t, err)
 
 			// Get initial status
@@ -172,7 +172,7 @@ func TestStateTransitionConsistency(t *testing.T) {
 			initialState := status.State
 
 			// Update to same state (should be idempotent)
-			err = adapter.UpdateReplication(ctx, uvr)
+			err = adapter.EnsureReplication(ctx, uvr)
 			assert.NoError(t, err, "Update to same state should be idempotent")
 
 			// Verify state hasn't changed
@@ -221,12 +221,12 @@ func TestStateTransitionTiming(t *testing.T) {
 				// Create replication
 				uvr := createValidUVR("test-timing", "default", backend)
 				uvr.Spec.ReplicationState = transition.from
-				_ = adapter.CreateReplication(ctx, uvr)
+				_ = adapter.EnsureReplication(ctx, uvr)
 
 				// Measure transition time
 				start := testing.Benchmark(func(b *testing.B) {
 					uvr.Spec.ReplicationState = transition.to
-					_ = adapter.UpdateReplication(ctx, uvr)
+					_ = adapter.EnsureReplication(ctx, uvr)
 				})
 
 				if start.N > 0 {
@@ -301,7 +301,7 @@ func TestStatusReporting(t *testing.T) {
 			// Create replication
 			uvr := createValidUVR("test-status", "default", backend)
 			uvr.Spec.ReplicationState = replicationv1alpha1.ReplicationStateReplica
-			err := adapter.CreateReplication(ctx, uvr)
+			err := adapter.EnsureReplication(ctx, uvr)
 			require.NoError(t, err)
 
 			// Get status and verify it matches
@@ -319,7 +319,7 @@ func TestStatusReporting(t *testing.T) {
 
 			// Update state and verify status updates
 			uvr.Spec.ReplicationState = replicationv1alpha1.ReplicationStatePromoting
-			_ = adapter.UpdateReplication(ctx, uvr)
+			_ = adapter.EnsureReplication(ctx, uvr)
 
 			newStatus, err := adapter.GetReplicationStatus(ctx, uvr)
 			if err == nil && newStatus != nil {
@@ -356,7 +356,7 @@ func TestConcurrentStateTransitions(t *testing.T) {
 
 			// Create replication
 			uvr := createValidUVR("test-concurrent", "default", backend)
-			err := adapter.CreateReplication(ctx, uvr)
+			err := adapter.EnsureReplication(ctx, uvr)
 			require.NoError(t, err)
 
 			// Try concurrent updates
@@ -375,7 +375,7 @@ func TestConcurrentStateTransitions(t *testing.T) {
 				go func(idx int) {
 					uvrCopy := uvr.DeepCopy()
 					uvrCopy.Spec.ReplicationState = states[idx%len(states)]
-					done <- adapter.UpdateReplication(ctx, uvrCopy)
+					done <- adapter.EnsureReplication(ctx, uvrCopy)
 				}(i)
 			}
 

@@ -55,10 +55,9 @@ const (
 	CapabilityMultiCloud     BackendCapability = "multi_cloud"
 
 	// Management capabilities
-	CapabilityHealthMonitoring BackendCapability = "health_monitoring"
-	CapabilityMetrics          BackendCapability = "metrics"
-	CapabilityAlerting         BackendCapability = "alerting"
-	CapabilityLogging          BackendCapability = "logging"
+	CapabilityMetrics  BackendCapability = "metrics"
+	CapabilityAlerting BackendCapability = "alerting"
+	CapabilityLogging  BackendCapability = "logging"
 )
 
 // CapabilityLevel indicates the level of support for a capability

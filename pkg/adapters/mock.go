@@ -107,7 +107,6 @@ func NewMockAdapter(backend translation.Backend, client client.Client, translato
 			FeatureResync,
 			FeaturePauseResume,
 			FeatureProgressTracking,
-			FeatureHealthMonitoring,
 		},
 		MaxConcurrentOps: 100,
 		MaxVolumeSize:    "1TB",

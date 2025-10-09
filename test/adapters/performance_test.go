@@ -48,7 +48,7 @@ func BenchmarkAdapterCreate(b *testing.B) {
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
 				uvr := createValidUVR(fmt.Sprintf("bench-create-%d", i), "default", backend)
-				err := adapter.CreateReplication(ctx, uvr)
+				err := adapter.EnsureReplication(ctx, uvr)
 				if err != nil {
 					b.Fatalf("CreateReplication failed: %v", err)
 				}
@@ -75,11 +75,11 @@ func BenchmarkAdapterUpdate(b *testing.B) {
 
 			// Pre-create replication
 			uvr := createValidUVR("bench-update", "default", backend)
-			_ = adapter.CreateReplication(ctx, uvr)
+			_ = adapter.EnsureReplication(ctx, uvr)
 
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
-				err := adapter.UpdateReplication(ctx, uvr)
+				err := adapter.EnsureReplication(ctx, uvr)
 				if err != nil {
 					b.Fatalf("UpdateReplication failed: %v", err)
 				}
@@ -106,7 +106,7 @@ func BenchmarkAdapterGetStatus(b *testing.B) {
 
 			// Pre-create replication
 			uvr := createValidUVR("bench-status", "default", backend)
-			_ = adapter.CreateReplication(ctx, uvr)
+			_ = adapter.EnsureReplication(ctx, uvr)
 
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
@@ -140,7 +140,7 @@ func BenchmarkAdapterDelete(b *testing.B) {
 				b.StopTimer()
 				// Create replication before each delete
 				uvr := createValidUVR(fmt.Sprintf("bench-delete-%d", i), "default", backend)
-				_ = adapter.CreateReplication(ctx, uvr)
+				_ = adapter.EnsureReplication(ctx, uvr)
 				b.StartTimer()
 
 				err := adapter.DeleteReplication(ctx, uvr)
@@ -213,12 +213,12 @@ func TestAdapterPerformanceBaseline(t *testing.T) {
 			// Measure create latency
 			start := time.Now()
 			uvr := createValidUVR("perf-test", "default", backend)
-			_ = adapter.CreateReplication(ctx, uvr)
+			_ = adapter.EnsureReplication(ctx, uvr)
 			metrics.createLatency = time.Since(start)
 
 			// Measure update latency
 			start = time.Now()
-			_ = adapter.UpdateReplication(ctx, uvr)
+			_ = adapter.EnsureReplication(ctx, uvr)
 			metrics.updateLatency = time.Since(start)
 
 			// Measure status latency
@@ -284,7 +284,7 @@ func TestAdapterConcurrency(t *testing.T) {
 			for i := 0; i < numConcurrent; i++ {
 				go func(idx int) {
 					uvr := createValidUVR(fmt.Sprintf("concurrent-%d", idx), "default", backend)
-					done <- adapter.CreateReplication(ctx, uvr)
+					done <- adapter.EnsureReplication(ctx, uvr)
 				}(i)
 			}
 
@@ -335,7 +335,7 @@ func TestAdapterThroughput(t *testing.T) {
 
 			for i := 0; i < numOperations; i++ {
 				uvr := createValidUVR(fmt.Sprintf("throughput-%d", i), "default", backend)
-				err := adapter.CreateReplication(ctx, uvr)
+				err := adapter.EnsureReplication(ctx, uvr)
 				if err != nil {
 					t.Logf("Operation %d failed: %v", i, err)
 				}

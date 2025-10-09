@@ -83,11 +83,11 @@ func testAdapterCompliance(t *testing.T, adapter adapters.ReplicationAdapter, ba
 	assert.NoError(t, err, "SupportsConfiguration should not error")
 	assert.True(t, supports, "Should support valid configuration")
 
-	// Test 8: CreateReplication works
-	err = adapter.CreateReplication(ctx, uvr)
+	// Test 8: EnsureReplication works
+	err = adapter.EnsureReplication(ctx, uvr)
 	if err != nil {
 		// Some backends may have strict validation that our generic test UVR doesn't meet
-		t.Logf("CreateReplication failed (may be expected for backend %s): %v", backend, err)
+		t.Logf("EnsureReplication failed (may be expected for backend %s): %v", backend, err)
 		t.Log("Skipping remaining tests that require created resource")
 
 		// Still verify the adapter is healthy
@@ -108,12 +108,12 @@ func testAdapterCompliance(t *testing.T, adapter adapters.ReplicationAdapter, ba
 		assert.NotEmpty(t, status.Mode, "Status should have mode")
 	}
 
-	// Test 10: UpdateReplication works
+	// Test 10: EnsureReplication works for updates
 	uvr.Spec.ReplicationState = replicationv1alpha1.ReplicationStatePromoting
-	err = adapter.UpdateReplication(ctx, uvr)
-	// Update may not work for all backends/states
+	err = adapter.EnsureReplication(ctx, uvr)
+	// Ensure may not work for all backends/states
 	if err != nil {
-		t.Logf("UpdateReplication returned error (may be expected): %v", err)
+		t.Logf("EnsureReplication returned error (may be expected): %v", err)
 	}
 
 	// Test 11: DeleteReplication works
@@ -145,8 +145,8 @@ func TestCrossAdapterConsistency(t *testing.T) {
 			require.NoError(t, err)
 
 			uvr := createValidUVR("test-consistent", "default", backend)
-			err = adapter.CreateReplication(ctx, uvr)
-			assert.NoError(t, err, "Create should succeed for %s", backend)
+			err = adapter.EnsureReplication(ctx, uvr)
+			assert.NoError(t, err, "EnsureReplication should succeed for %s", backend)
 
 			status, err := adapter.GetReplicationStatus(ctx, uvr)
 			assert.NoError(t, err, "GetStatus should succeed for %s", backend)
@@ -169,12 +169,12 @@ func TestCrossAdapterConsistency(t *testing.T) {
 			require.NoError(t, err)
 
 			uvr := createValidUVR("test-states", "default", backend)
-			err = adapter.CreateReplication(ctx, uvr)
+			err = adapter.EnsureReplication(ctx, uvr)
 			require.NoError(t, err)
 
 			for _, state := range states {
 				uvr.Spec.ReplicationState = state
-				err = adapter.UpdateReplication(ctx, uvr)
+				err = adapter.EnsureReplication(ctx, uvr)
 				// State transitions should be handled gracefully
 				// Even if not all transitions are supported, should not panic
 				if err != nil {
@@ -274,8 +274,8 @@ func TestAdapterResourceCleanup(t *testing.T) {
 					"default",
 					backend,
 				)
-				err = adapter.CreateReplication(ctx, uvrs[i])
-				require.NoError(t, err, "Failed to create replication %d", i)
+				err = adapter.EnsureReplication(ctx, uvrs[i])
+				require.NoError(t, err, "Failed to ensure replication %d", i)
 			}
 
 			// Delete all resources

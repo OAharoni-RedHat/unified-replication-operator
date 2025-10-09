@@ -132,10 +132,6 @@ func NewMockTridentAdapter(client client.Client, translator *translation.Engine,
 		go adapter.backgroundStateProcessor()
 	}
 
-	if config.HealthFluctuation {
-		go adapter.backgroundHealthMonitor()
-	}
-
 	return adapter
 }
 
@@ -437,7 +433,6 @@ func (mta *MockTridentAdapter) GetSupportedFeatures() []AdapterFeature {
 		FeatureFailback,
 		FeaturePauseResume,
 		FeatureAutoResync,
-		FeatureHealthMonitoring,
 		FeatureMetrics,
 		FeatureProgressTracking,
 		FeatureRealTimeStatus,
@@ -636,23 +631,6 @@ func (mta *MockTridentAdapter) backgroundStateProcessor() {
 				}
 			}
 		}
-		mta.mutex.Unlock()
-	}
-}
-
-func (mta *MockTridentAdapter) backgroundHealthMonitor() {
-	ticker := time.NewTicker(mta.config.HealthCheckInterval)
-	defer ticker.Stop()
-
-	for range ticker.C {
-		mta.mutex.Lock()
-		// Simulate occasional health fluctuations
-		if mta.simulateSuccess(0.95) {
-			mta.isHealthy = true
-		} else {
-			mta.isHealthy = false
-		}
-		mta.lastHealthCheck = time.Now()
 		mta.mutex.Unlock()
 	}
 }

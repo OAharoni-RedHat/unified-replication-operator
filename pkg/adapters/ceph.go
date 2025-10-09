@@ -1406,7 +1406,6 @@ func (ca *CephAdapter) GetSupportedFeatures() []AdapterFeature {
 		FeaturePauseResume,
 		FeatureAutoResync,
 		FeatureSnapshotBased,
-		FeatureHealthMonitoring,
 		FeatureMetrics,
 		FeatureProgressTracking,
 		FeatureRealTimeStatus,

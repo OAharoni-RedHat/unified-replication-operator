@@ -104,7 +104,6 @@ func TestAdapterTypes(t *testing.T) {
 			FeatureLowLatency,
 			FeatureMultiRegion,
 			FeatureMultiCloud,
-			FeatureHealthMonitoring,
 			FeatureMetrics,
 			FeatureProgressTracking,
 			FeatureRealTimeStatus,

@@ -51,7 +51,6 @@ func TestCapabilityTypes(t *testing.T) {
 			CapabilityLowLatency,
 			CapabilityMultiRegion,
 			CapabilityMultiCloud,
-			CapabilityHealthMonitoring,
 			CapabilityMetrics,
 			CapabilityAlerting,
 			CapabilityLogging,
@@ -482,56 +481,7 @@ func TestEnhancedEngine(t *testing.T) {
 	})
 }
 
-func TestHealthMonitor(t *testing.T) {
-	config := DefaultDiscoveryConfig()
-	capConfig := DefaultCapabilityConfig()
-	capConfig.HealthCheckInterval = 100 * time.Millisecond
-	capConfig.MaxConcurrentChecks = 1
-
-	fakeClient := createFakeClient()
-	engine := NewEnhancedEngine(fakeClient, config, capConfig)
-
-	t.Run("NewHealthMonitor", func(t *testing.T) {
-		monitor := NewHealthMonitor(engine, capConfig)
-		assert.NotNil(t, monitor)
-		assert.False(t, monitor.IsRunning())
-	})
-
-	t.Run("Start and Stop", func(t *testing.T) {
-		monitor := NewHealthMonitor(engine, capConfig)
-
-		// Start monitoring
-		err := monitor.Start(context.Background())
-		assert.NoError(t, err)
-		assert.True(t, monitor.IsRunning())
-
-		// Stop monitoring
-		err = monitor.Stop()
-		assert.NoError(t, err)
-		assert.False(t, monitor.IsRunning())
-	})
-
-	t.Run("GetHealthSummary", func(t *testing.T) {
-		monitor := NewHealthMonitor(engine, capConfig)
-
-		// Register some test capabilities
-		testCaps := &BackendCapabilities{
-			Backend: translation.BackendCeph,
-			Health: HealthStatus{
-				Status: HealthLevelHealthy,
-			},
-		}
-		err := engine.capabilityRegistry.RegisterCapabilities(translation.BackendCeph, testCaps)
-		require.NoError(t, err)
-
-		summary := monitor.GetHealthSummary()
-		assert.Equal(t, 1, summary.TotalBackends)
-		assert.Equal(t, 1, summary.HealthyBackends)
-		assert.Equal(t, 0, summary.UnhealthyBackends)
-		assert.True(t, summary.IsHealthy())
-		assert.Equal(t, 100.0, summary.HealthPercentage())
-	})
-}
+// Tests related to background health monitoring have been removed.
 
 func TestCapabilityConfig(t *testing.T) {
 	t.Run("DefaultCapabilityConfig", func(t *testing.T) {

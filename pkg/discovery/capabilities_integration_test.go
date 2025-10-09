@@ -163,48 +163,7 @@ func TestCapabilityIntegration(t *testing.T) {
 		assert.Error(t, err)
 	})
 
-	t.Run("Health monitoring", func(t *testing.T) {
-		// Set up enhanced engine with health monitoring
-		config := DefaultDiscoveryConfig()
-		capConfig := DefaultCapabilityConfig()
-		capConfig.EnableHealthChecking = true
-		capConfig.HealthCheckInterval = 500 * time.Millisecond
-		capConfig.MaxConcurrentChecks = 2
-
-		engine := NewEnhancedEngine(testEnv.Client, config, capConfig)
-
-		// Install Ceph CRDs
-		cephCRDs, _ := GetRequiredCRDsForBackend(translation.BackendCeph)
-		for _, crdDef := range cephCRDs {
-			crd := createCapabilityTestCRD(crdDef)
-			err := testEnv.Client.Create(ctx, crd)
-			require.NoError(t, err)
-		}
-
-		// Wait for CRDs to be established
-		time.Sleep(2 * time.Second)
-
-		// Discover backends to populate capabilities
-		_, err := engine.DiscoverBackendsWithCapabilities(ctx)
-		require.NoError(t, err)
-
-		// Start health monitoring
-		err = engine.StartCapabilityMonitoring(ctx)
-		require.NoError(t, err)
-
-		// Wait for a few health check cycles
-		time.Sleep(1500 * time.Millisecond)
-
-		// Get health summary
-		summary := engine.healthMonitor.GetHealthSummary()
-		assert.Equal(t, 1, summary.TotalBackends)
-		assert.Equal(t, 1, summary.HealthyBackends)
-		assert.True(t, summary.IsHealthy())
-
-		// Stop monitoring
-		err = engine.StopCapabilityMonitoring()
-		require.NoError(t, err)
-	})
+	// Background health monitoring test removed
 
 	t.Run("Capability registry operations", func(t *testing.T) {
 		registry := NewInMemoryCapabilityRegistry()

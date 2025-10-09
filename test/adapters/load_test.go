@@ -199,7 +199,7 @@ func TestLoadMemoryUsage(t *testing.T) {
 
 			for i := 0; i < numReplications; i++ {
 				uvr := createValidUVR(fmt.Sprintf("mem-test-%d", i), "default", backend)
-				err := adapter.CreateReplication(ctx, uvr)
+				err := adapter.EnsureReplication(ctx, uvr)
 				if err != nil {
 					t.Logf("Failed to create replication %d: %v", i, err)
 				}
@@ -302,7 +302,7 @@ func runLoadTest(t *testing.T, adapter adapters.ReplicationAdapter, backend tran
 					backend,
 				)
 
-				err := adapter.CreateReplication(ctx, uvr)
+				err := adapter.EnsureReplication(ctx, uvr)
 				opDuration := time.Since(opStart)
 
 				if err == nil {
