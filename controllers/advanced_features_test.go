@@ -296,7 +296,6 @@ func TestReadinessChecker(t *testing.T) {
 	})
 
 	t.Run("NotReadyWhenEnginesMissing", func(t *testing.T) {
-		reconciler.UseIntegratedEngine = true
 		// Engines are nil
 		assert.False(t, rc.Check(ctx))
 	})
@@ -352,7 +351,6 @@ func TestAdvancedReconciliation(t *testing.T) {
 	reconciler.RetryManager = NewRetryManager(nil)
 	reconciler.CircuitBreaker = NewCircuitBreaker(5, 2, 1*time.Minute)
 	reconciler.ReadinessChecker = NewReadinessChecker(reconciler)
-	reconciler.EnableAdvancedFeatures = true
 
 	// Mark as ready
 	reconciler.ReadinessChecker.SetReady(true)
@@ -392,7 +390,6 @@ func TestStateTransitionWithStateMachine(t *testing.T) {
 
 	reconciler := createTestReconciler(fakeClient, s)
 	reconciler.StateMachine = NewStateMachine()
-	reconciler.EnableAdvancedFeatures = true
 
 	// First reconcile - establish initial state
 	req := reconcile.Request{

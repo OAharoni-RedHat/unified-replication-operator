@@ -75,7 +75,6 @@ func TestEngineIntegration_BasicWorkflow(t *testing.T) {
 	reconciler.TranslationEngine = translationEngine
 	reconciler.AdapterRegistry = adapterRegistry
 	reconciler.ControllerEngine = controllerEngine
-	reconciler.UseIntegratedEngine = true
 
 	req := reconcile.Request{
 		NamespacedName: types.NamespacedName{
@@ -118,7 +117,6 @@ func TestEngineIntegration_AdapterSelection(t *testing.T) {
 	reconciler.DiscoveryEngine = discoveryEngine
 	reconciler.TranslationEngine = translationEngine
 	reconciler.AdapterRegistry = adapterRegistry
-	reconciler.UseIntegratedEngine = true
 
 	// Get adapter via integrated engine
 	adapter, err := reconciler.getAdapter(ctx, uvr, reconciler.Log)
@@ -200,7 +198,6 @@ func TestEngineIntegration_ErrorPropagation(t *testing.T) {
 	reconciler.DiscoveryEngine = discoveryEngine
 	reconciler.TranslationEngine = translationEngine
 	reconciler.AdapterRegistry = nil // This will cause error
-	reconciler.UseIntegratedEngine = true
 
 	req := reconcile.Request{
 		NamespacedName: types.NamespacedName{
@@ -383,7 +380,6 @@ func TestEngineIntegration_Performance(t *testing.T) {
 	reconciler.TranslationEngine = translationEngine
 	reconciler.AdapterRegistry = adapterRegistry
 	reconciler.ControllerEngine = controllerEngine
-	reconciler.UseIntegratedEngine = true
 
 	// Measure reconciliation performance
 	start := time.Now()
@@ -438,7 +434,6 @@ func TestEngineIntegration_DiscoveryFallback(t *testing.T) {
 	reconciler.DiscoveryEngine = discoveryEngine
 	reconciler.TranslationEngine = translationEngine
 	reconciler.AdapterRegistry = nil // No registry
-	reconciler.UseIntegratedEngine = true
 
 	// Try to get adapter - should fall back to extension-based
 	adapter, err := reconciler.getAdapter(ctx, uvr, reconciler.Log)
@@ -498,7 +493,6 @@ func TestEngineIntegration_EngineToggle(t *testing.T) {
 	reconciler.TranslationEngine = translation.NewEngine()
 
 	// Test with engine integration OFF (Phase 4.1 mode)
-	reconciler.UseIntegratedEngine = false
 	adapter1, err1 := reconciler.getAdapter(ctx, uvr, reconciler.Log)
 
 	if adapter1 != nil {
@@ -508,7 +502,6 @@ func TestEngineIntegration_EngineToggle(t *testing.T) {
 	}
 
 	// Test with engine integration ON (Phase 4.2 mode)
-	reconciler.UseIntegratedEngine = true
 	reconciler.DiscoveryEngine = discovery.NewEngine(fakeClient, discovery.DefaultDiscoveryConfig())
 	reconciler.AdapterRegistry = adapters.GetGlobalRegistry()
 

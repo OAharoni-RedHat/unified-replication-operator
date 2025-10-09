@@ -71,8 +71,6 @@ type UnifiedVolumeReplicationReconciler struct {
 	// Configuration
 	MaxConcurrentReconciles int
 	ReconcileTimeout        time.Duration
-	UseIntegratedEngine     bool // Enable engine integration (Phase 4.2)
-	EnableAdvancedFeatures  bool // Enable Phase 4.3 features
 }
 
 // SetupWithManager sets up the controller with the Manager.
@@ -146,36 +144,34 @@ func (r *UnifiedVolumeReplicationReconciler) reconcileReplication(ctx context.Co
 		"mode", uvr.Spec.ReplicationMode,
 		"generation", uvr.Generation)
 
-	// Phase 4.3: Validate state transitions using state machine
-	if r.EnableAdvancedFeatures && r.StateMachine != nil {
-		// Get current state from status (if available)
-		currentState := r.getCurrentState(uvr)
-		desiredState := uvr.Spec.ReplicationState
+	// Validate state transitions using state machine
+	// Get current state from status (if available)
+	currentState := r.getCurrentState(uvr)
+	desiredState := uvr.Spec.ReplicationState
 
-		if currentState != "" && currentState != desiredState {
-			if err := r.StateMachine.ValidateTransition(currentState, desiredState); err != nil {
-				log.Error(err, "Invalid state transition",
-					"from", currentState,
-					"to", desiredState)
-				r.updateCondition(uvr, metav1.Condition{
-					Type:               "Ready",
-					Status:             metav1.ConditionFalse,
-					Reason:             "InvalidStateTransition",
-					Message:            fmt.Sprintf("Invalid transition from %s to %s", currentState, desiredState),
-					ObservedGeneration: uvr.Generation,
-				})
+	if currentState != "" && currentState != desiredState {
+		if err := r.StateMachine.ValidateTransition(currentState, desiredState); err != nil {
+			log.Error(err, "Invalid state transition",
+				"from", currentState,
+				"to", desiredState)
+			r.updateCondition(uvr, metav1.Condition{
+				Type:               "Ready",
+				Status:             metav1.ConditionFalse,
+				Reason:             "InvalidStateTransition",
+				Message:            fmt.Sprintf("Invalid transition from %s to %s", currentState, desiredState),
+				ObservedGeneration: uvr.Generation,
+			})
 
-				if err := r.Status().Update(ctx, uvr); err != nil {
-					log.Error(err, "Failed to update status")
-				}
-
-				return ctrl.Result{RequeueAfter: requeueDelayError}, err
+			if err := r.Status().Update(ctx, uvr); err != nil {
+				log.Error(err, "Failed to update status")
 			}
 
-			// Record valid transition
-			r.StateMachine.RecordTransition(currentState, desiredState, "user_requested", "")
-			log.Info("Valid state transition", "from", currentState, "to", desiredState)
+			return ctrl.Result{RequeueAfter: requeueDelayError}, err
 		}
+
+		// Record valid transition
+		r.StateMachine.RecordTransition(currentState, desiredState, "user_requested", "")
+		log.Info("Valid state transition", "from", currentState, "to", desiredState)
 	}
 
 	// Validate the spec
@@ -243,24 +239,9 @@ func (r *UnifiedVolumeReplicationReconciler) reconcileReplication(ctx context.Co
 	// Execute the operation
 	var opErr error
 
-	// Use integrated engine if available (Phase 4.2)
-	if r.UseIntegratedEngine && r.ControllerEngine != nil {
-		log.Info("Using integrated controller engine")
-		opErr = r.ControllerEngine.ProcessReplication(ctx, uvr, operation, log)
-	} else {
-		// Fallback to direct adapter operations (Phase 4.1)
-		log.V(1).Info("Using direct adapter operations")
-		switch operation {
-		case "create":
-			opErr = r.handleCreate(ctx, adapter, uvr, log)
-		case "update":
-			opErr = r.handleUpdate(ctx, adapter, uvr, log)
-		case "sync":
-			opErr = r.handleSync(ctx, adapter, uvr, log)
-		default:
-			log.Info("No operation needed")
-		}
-	}
+	// Use integrated controller engine
+	log.Info("Using integrated controller engine")
+	opErr = r.ControllerEngine.ProcessReplication(ctx, uvr, operation, log)
 
 	if opErr != nil {
 		log.Error(opErr, "Operation failed", "operation", operation)
@@ -280,21 +261,12 @@ func (r *UnifiedVolumeReplicationReconciler) reconcileReplication(ctx context.Co
 		return ctrl.Result{RequeueAfter: requeueDelayError}, opErr
 	}
 
-	// Update status from adapter
-	if r.UseIntegratedEngine && r.ControllerEngine != nil {
-		// Use integrated engine for status with translation
-		status, err := r.ControllerEngine.GetReplicationStatus(ctx, uvr, log)
-		if err != nil {
-			log.Error(err, "Failed to get status from integrated engine")
-		} else if status != nil {
-			r.updateStatusFromEngineStatus(uvr, status, log)
-		}
-	} else if adapter != nil {
-		// Fallback to direct adapter status
-		if err := r.updateStatusFromAdapter(ctx, adapter, uvr, log); err != nil {
-			log.Error(err, "Failed to update status from adapter")
-			// Don't fail reconciliation for status update errors
-		}
+	// Update status from integrated engine
+	status, err := r.ControllerEngine.GetReplicationStatus(ctx, uvr, log)
+	if err != nil {
+		log.Error(err, "Failed to get status from integrated engine")
+	} else if status != nil {
+		r.updateStatusFromEngineStatus(uvr, status, log)
 	}
 
 	// Set ready condition
@@ -314,55 +286,6 @@ func (r *UnifiedVolumeReplicationReconciler) reconcileReplication(ctx context.Co
 
 	log.Info("Reconciliation completed successfully")
 	return ctrl.Result{RequeueAfter: requeueDelaySuccess}, nil
-}
-
-// handleCreate creates a new replication in the backend
-func (r *UnifiedVolumeReplicationReconciler) handleCreate(ctx context.Context, adapter adapters.ReplicationAdapter, uvr *replicationv1alpha1.UnifiedVolumeReplication, log logr.Logger) error {
-	log.Info("Creating replication in backend")
-
-	// Use integrated engine if available (Phase 4.2)
-	if r.UseIntegratedEngine && r.ControllerEngine != nil {
-		log.Info("Using integrated engine for creation")
-		if err := r.ControllerEngine.ProcessReplication(ctx, uvr, "create", log); err != nil {
-			return fmt.Errorf("failed to create replication via engine: %w", err)
-		}
-	} else {
-		// Fallback to direct adapter call (Phase 4.1)
-		if err := adapter.CreateReplication(ctx, uvr); err != nil {
-			return fmt.Errorf("failed to create replication: %w", err)
-		}
-	}
-
-	r.Recorder.Event(uvr, corev1.EventTypeNormal, "Created", "Replication created successfully")
-	return nil
-}
-
-// handleUpdate updates an existing replication in the backend
-func (r *UnifiedVolumeReplicationReconciler) handleUpdate(ctx context.Context, adapter adapters.ReplicationAdapter, uvr *replicationv1alpha1.UnifiedVolumeReplication, log logr.Logger) error {
-	log.Info("Updating replication in backend")
-
-	// Use integrated engine if available (Phase 4.2)
-	if r.UseIntegratedEngine && r.ControllerEngine != nil {
-		log.Info("Using integrated engine for update")
-		if err := r.ControllerEngine.ProcessReplication(ctx, uvr, "update", log); err != nil {
-			return fmt.Errorf("failed to update replication via engine: %w", err)
-		}
-	} else {
-		// Fallback to direct adapter call (Phase 4.1)
-		if err := adapter.UpdateReplication(ctx, uvr); err != nil {
-			return fmt.Errorf("failed to update replication: %w", err)
-		}
-	}
-
-	r.Recorder.Event(uvr, corev1.EventTypeNormal, "Updated", "Replication updated successfully")
-	return nil
-}
-
-// handleSync synchronizes status from the backend
-func (r *UnifiedVolumeReplicationReconciler) handleSync(ctx context.Context, adapter adapters.ReplicationAdapter, uvr *replicationv1alpha1.UnifiedVolumeReplication, log logr.Logger) error {
-	log.V(1).Info("Syncing status from backend")
-	// Status sync happens in updateStatusFromAdapter
-	return nil
 }
 
 // handleDeletion handles resource deletion with finalizer cleanup
@@ -438,34 +361,32 @@ func (r *UnifiedVolumeReplicationReconciler) determineOperation(uvr *replication
 
 // getAdapter retrieves the appropriate adapter for the UVR
 func (r *UnifiedVolumeReplicationReconciler) getAdapter(ctx context.Context, uvr *replicationv1alpha1.UnifiedVolumeReplication, log logr.Logger) (adapters.ReplicationAdapter, error) {
-	// Phase 4.2: Use integrated engine for discovery-based adapter selection
-	if r.UseIntegratedEngine && r.DiscoveryEngine != nil && r.AdapterRegistry != nil {
-		log.V(1).Info("Using integrated engine for adapter selection")
+	// Use integrated engine for discovery-based adapter selection
+	log.V(1).Info("Using integrated engine for adapter selection")
 
-		// Discover available backends
-		backends, err := r.DiscoveryEngine.DiscoverBackends(ctx)
-		if err != nil {
-			log.Error(err, "Discovery failed, falling back to extension-based selection")
-		} else if backends != nil && len(backends.AvailableBackends) > 0 {
-			// Select backend using engine logic
-			backend, err := r.selectBackendViaEngine(ctx, uvr, backends.AvailableBackends, log)
+	// Discover available backends
+	backends, err := r.DiscoveryEngine.DiscoverBackends(ctx)
+	if err != nil {
+		log.Error(err, "Discovery failed, falling back to extension-based selection")
+	} else if backends != nil && len(backends.AvailableBackends) > 0 {
+		// Select backend using engine logic
+		backend, err := r.selectBackendViaEngine(ctx, uvr, backends.AvailableBackends, log)
+		if err == nil {
+			// Get adapter via registry
+			factory, err := r.AdapterRegistry.GetFactory(backend)
 			if err == nil {
-				// Get adapter via registry
-				factory, err := r.AdapterRegistry.GetFactory(backend)
+				adapter, err := factory.CreateAdapter(backend, r.Client, r.TranslationEngine, nil)
 				if err == nil {
-					adapter, err := factory.CreateAdapter(backend, r.Client, r.TranslationEngine, nil)
-					if err == nil {
-						_ = adapter.Initialize(ctx)
-						log.Info("Selected adapter via engine", "backend", backend)
-						return adapter, nil
-					}
+					_ = adapter.Initialize(ctx)
+					log.Info("Selected adapter via engine", "backend", backend)
+					return adapter, nil
 				}
-				log.Error(err, "Failed to get adapter via registry", "backend", backend)
 			}
+			log.Error(err, "Failed to get adapter via registry", "backend", backend)
 		}
 	}
 
-	// Fallback: Phase 4.1 behavior - extension-based selection
+	// Fallback: extension-based selection
 	log.V(1).Info("Using extension-based adapter selection")
 
 	if uvr.Spec.Extensions != nil {
@@ -555,19 +476,11 @@ func (r *UnifiedVolumeReplicationReconciler) updateStatusFromAdapter(ctx context
 	var status *adapters.ReplicationStatus
 	var err error
 
-	// Phase 4.2: Use integrated engine for status retrieval with translation
-	if r.UseIntegratedEngine && r.ControllerEngine != nil {
-		log.V(1).Info("Using integrated engine for status retrieval")
-		status, err = r.ControllerEngine.GetReplicationStatus(ctx, uvr, log)
-		if err != nil {
-			return fmt.Errorf("failed to get replication status via engine: %w", err)
-		}
-	} else {
-		// Fallback: Direct adapter call (Phase 4.1)
-		status, err = adapter.GetReplicationStatus(ctx, uvr)
-		if err != nil {
-			return fmt.Errorf("failed to get replication status: %w", err)
-		}
+	// Use integrated engine for status retrieval with translation
+	log.V(1).Info("Using integrated engine for status retrieval")
+	status, err = r.ControllerEngine.GetReplicationStatus(ctx, uvr, log)
+	if err != nil {
+		return fmt.Errorf("failed to get replication status via engine: %w", err)
 	}
 
 	if status == nil {
