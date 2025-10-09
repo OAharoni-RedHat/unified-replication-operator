@@ -154,9 +154,6 @@ func (psa *PowerStoreAdapter) createPowerStoreReplicationGroup(ctx context.Conte
 		if uvr.Spec.Extensions.Powerstore.RpoSettings != nil {
 			spec["rpoSettings"] = *uvr.Spec.Extensions.Powerstore.RpoSettings
 		}
-		if len(uvr.Spec.Extensions.Powerstore.VolumeGroups) > 0 {
-			spec["volumeGroups"] = uvr.Spec.Extensions.Powerstore.VolumeGroups
-		}
 	}
 
 	if err := unstructured.SetNestedMap(rg.Object, spec, "spec"); err != nil {
@@ -216,9 +213,6 @@ func (psa *PowerStoreAdapter) updatePowerStoreReplicationGroup(ctx context.Conte
 	if uvr.Spec.Extensions != nil && uvr.Spec.Extensions.Powerstore != nil {
 		if uvr.Spec.Extensions.Powerstore.RpoSettings != nil {
 			spec["rpoSettings"] = *uvr.Spec.Extensions.Powerstore.RpoSettings
-		}
-		if len(uvr.Spec.Extensions.Powerstore.VolumeGroups) > 0 {
-			spec["volumeGroups"] = uvr.Spec.Extensions.Powerstore.VolumeGroups
 		}
 	}
 

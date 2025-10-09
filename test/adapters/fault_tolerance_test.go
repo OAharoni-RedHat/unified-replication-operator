@@ -106,12 +106,27 @@ func testUpdateFailure(t *testing.T, backend translation.Backend) {
 
 		uvr := createValidUVR("test-update-fail", "default", backend)
 
-		// First, ensure should succeed (or we override the rate)
-		_ = adapter.EnsureReplication(ctx, uvr)
+		// First, create the replication with a success adapter
+		var createAdapter adapters.ReplicationAdapter
+		switch backend {
+		case translation.BackendTrident:
+			config2 := adapters.DefaultMockTridentConfig()
+			config2.CreateSuccessRate = 1.0 // Allow creation
+			config2.UpdateSuccessRate = 0.0 // Block updates
+			createAdapter = adapters.NewMockTridentAdapter(client, translator, config2)
+		case translation.BackendPowerStore:
+			config2 := adapters.DefaultMockPowerStoreConfig()
+			config2.CreateSuccessRate = 1.0 // Allow creation
+			config2.UpdateSuccessRate = 0.0 // Block updates
+			createAdapter = adapters.NewMockPowerStoreAdapter(client, translator, config2)
+		}
+		_ = createAdapter.Initialize(ctx)
+		_ = createAdapter.EnsureReplication(ctx, uvr)
 
-		// Now ensure with changes should fail
-		err := adapter.EnsureReplication(ctx, uvr)
-		assert.Error(t, err, "EnsureReplication should fail with 0% success rate")
+		// Now change the UVR state and try to update - should fail
+		uvr.Spec.ReplicationState = "promoting"
+		err := createAdapter.EnsureReplication(ctx, uvr)
+		assert.Error(t, err, "EnsureReplication should fail with 0% update success rate")
 	})
 }
 

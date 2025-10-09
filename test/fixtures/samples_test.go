@@ -47,7 +47,6 @@ func TestCephReplicationSpec(t *testing.T) {
 	require.NotNil(t, spec.Extensions)
 	require.NotNil(t, spec.Extensions.Ceph)
 	assert.Equal(t, "journal", *spec.Extensions.Ceph.MirroringMode)
-	assert.NotNil(t, spec.Extensions.Ceph.SchedulingStartTime)
 	assert.Contains(t, spec.SourceEndpoint.StorageClass, "ceph")
 	assert.Contains(t, spec.DestinationEndpoint.StorageClass, "ceph")
 
@@ -79,7 +78,6 @@ func TestPowerStoreReplicationSpec(t *testing.T) {
 	require.NotNil(t, spec.Extensions)
 	require.NotNil(t, spec.Extensions.Powerstore)
 	assert.Equal(t, "Five_Minutes", *spec.Extensions.Powerstore.RpoSettings)
-	assert.Len(t, spec.Extensions.Powerstore.VolumeGroups, 2)
 	assert.Contains(t, spec.SourceEndpoint.StorageClass, "powerstore")
 	assert.Equal(t, replicationv1alpha1.ReplicationModeSynchronous, spec.ReplicationMode)
 

@@ -21,7 +21,7 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"k8s.io/apimachinery/pkg/apis/meta/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 )
 
@@ -52,10 +52,6 @@ func (in *CephExtensions) DeepCopyInto(out *CephExtensions) {
 		in, out := &in.MirroringMode, &out.MirroringMode
 		*out = new(string)
 		**out = **in
-	}
-	if in.SchedulingStartTime != nil {
-		in, out := &in.SchedulingStartTime, &out.SchedulingStartTime
-		*out = (*in).DeepCopy()
 	}
 }
 
@@ -121,11 +117,6 @@ func (in *PowerStoreExtensions) DeepCopyInto(out *PowerStoreExtensions) {
 		in, out := &in.RpoSettings, &out.RpoSettings
 		*out = new(string)
 		**out = **in
-	}
-	if in.VolumeGroups != nil {
-		in, out := &in.VolumeGroups, &out.VolumeGroups
-		*out = make([]string, len(*in))
-		copy(*out, *in)
 	}
 }
 

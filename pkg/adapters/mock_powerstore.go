@@ -170,6 +170,11 @@ func (mpa *MockPowerStoreAdapter) EnsureReplication(ctx context.Context, uvr *re
 
 	// Check if replication exists
 	if mockRepl, exists := mpa.replications[replicationKey]; exists {
+		// Check if we should simulate update failure
+		if !mpa.simulateSuccess(mpa.config.UpdateSuccessRate) {
+			return NewAdapterError(ErrorTypeConnection, translation.BackendPowerStore, "ensure", uvr.Name, "simulated update failure")
+		}
+
 		// Update existing replication
 		psState, _ := mpa.BaseAdapter.TranslateState(string(uvr.Spec.ReplicationState))
 		psMode, _ := mpa.BaseAdapter.TranslateMode(string(uvr.Spec.ReplicationMode))

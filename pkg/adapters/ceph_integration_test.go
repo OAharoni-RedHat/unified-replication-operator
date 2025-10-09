@@ -19,7 +19,6 @@ package adapters
 import (
 	"context"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -273,7 +272,6 @@ func TestCephAdapterIntegration_DISABLED(t *testing.T) {
 		require.NoError(t, err, "Failed to create CephAdapter")
 
 		// Create UVR with Ceph extensions
-		startTime := metav1.NewTime(time.Now())
 		uvr := &replicationv1alpha1.UnifiedVolumeReplication{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "test-extensions-uvr",
@@ -302,8 +300,7 @@ func TestCephAdapterIntegration_DISABLED(t *testing.T) {
 				},
 				Extensions: &replicationv1alpha1.Extensions{
 					Ceph: &replicationv1alpha1.CephExtensions{
-						MirroringMode:       stringPtr("journal"),
-						SchedulingStartTime: &startTime,
+						MirroringMode: stringPtr("journal"),
 					},
 				},
 			},

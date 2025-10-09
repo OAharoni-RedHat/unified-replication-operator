@@ -304,10 +304,18 @@ func createTestAdapter(t *testing.T, backend translation.Backend, c client.Clien
 	case translation.BackendTrident:
 		config := adapters.DefaultMockTridentConfig()
 		config.AutoProgressStates = false // Disable for deterministic tests
+		config.CreateSuccessRate = 1.0    // 100% success for tests
+		config.UpdateSuccessRate = 1.0    // 100% success for tests
+		config.DeleteSuccessRate = 1.0    // 100% success for tests
+		config.StatusSuccessRate = 1.0    // 100% success for tests
 		return adapters.NewMockTridentAdapter(c, translator, config)
 	case translation.BackendPowerStore:
 		config := adapters.DefaultMockPowerStoreConfig()
 		config.AutoProgressStates = false // Disable for deterministic tests
+		config.CreateSuccessRate = 1.0    // 100% success for tests
+		config.UpdateSuccessRate = 1.0    // 100% success for tests
+		config.DeleteSuccessRate = 1.0    // 100% success for tests
+		config.StatusSuccessRate = 1.0    // 100% success for tests
 		return adapters.NewMockPowerStoreAdapter(c, translator, config)
 	default:
 		t.Fatalf("Unknown backend: %s", backend)

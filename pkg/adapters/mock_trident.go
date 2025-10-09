@@ -154,6 +154,11 @@ func (mta *MockTridentAdapter) EnsureReplication(ctx context.Context, uvr *repli
 
 	// Check if replication exists
 	if mockRepl, exists := mta.replications[replicationKey]; exists {
+		// Check if we should simulate update failure
+		if !mta.simulateSuccess(mta.config.UpdateSuccessRate) {
+			return NewAdapterError(ErrorTypeConnection, translation.BackendTrident, "ensure", uvr.Name, "simulated update failure")
+		}
+
 		// Update existing replication
 		tridentState, _ := mta.BaseAdapter.TranslateState(string(uvr.Spec.ReplicationState))
 		tridentMode, _ := mta.BaseAdapter.TranslateMode(string(uvr.Spec.ReplicationMode))

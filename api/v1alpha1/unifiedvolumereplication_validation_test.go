@@ -18,10 +18,8 @@ package v1alpha1
 
 import (
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func TestUnifiedVolumeReplication_ValidateSpec(t *testing.T) {
@@ -371,8 +369,7 @@ func TestValidateExtensions(t *testing.T) {
 			name: "valid powerstore extensions",
 			extensions: &Extensions{
 				Powerstore: &PowerStoreExtensions{
-					RpoSettings:  stringPtr("Five_Minutes"),
-					VolumeGroups: []string{"group1", "group2"},
+					RpoSettings: stringPtr("Five_Minutes"),
 				},
 			},
 			wantErr: false,
@@ -431,17 +428,6 @@ func TestValidateCephExtensions(t *testing.T) {
 			ceph:    &CephExtensions{MirroringMode: stringPtr("invalid")},
 			wantErr: true,
 			errMsg:  "invalid mirroring mode 'invalid'",
-		},
-		{
-			name:    "valid scheduling start time",
-			ceph:    &CephExtensions{SchedulingStartTime: &metav1.Time{Time: time.Now()}},
-			wantErr: false,
-		},
-		{
-			name:    "zero time should fail",
-			ceph:    &CephExtensions{SchedulingStartTime: &metav1.Time{}},
-			wantErr: true,
-			errMsg:  "schedulingStartTime cannot be zero time",
 		},
 	}
 

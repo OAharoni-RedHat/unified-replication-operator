@@ -377,15 +377,6 @@ func (r *InMemoryCapabilityRegistry) validateTridentExtensions(extensions map[st
 
 // validatePowerStoreExtensions validates PowerStore-specific extensions
 func (r *InMemoryCapabilityRegistry) validatePowerStoreExtensions(extensions map[string]interface{}, capabilities *BackendCapabilities) error {
-	if volumeGroups, exists := extensions["volumeGroups"]; exists {
-		if volumeGroups != nil {
-			capInfo, exists := capabilities.Capabilities[CapabilityVolumeGroups]
-			if !exists || capInfo.Level == CapabilityLevelNone {
-				return fmt.Errorf("powerstore backend does not support volume groups")
-			}
-		}
-	}
-
 	return nil
 }
 

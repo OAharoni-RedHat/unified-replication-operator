@@ -93,11 +93,6 @@ spec:
                         - journal
                         - snapshot
                         type: string
-                      schedulingStartTime:
-                        description: SchedulingStartTime specifies when scheduled
-                          replication should start
-                        format: date-time
-                        type: string
                     type: object
                   powerstore:
                     description: PowerStore-specific extensions
@@ -110,11 +105,6 @@ spec:
                         - Thirty_Minutes
                         - One_Hour
                         type: string
-                      volumeGroups:
-                        description: VolumeGroups for consistency group management
-                        items:
-                          type: string
-                        type: array
                     type: object
                   trident:
                     description: Trident-specific extensions

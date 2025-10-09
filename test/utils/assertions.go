@@ -80,10 +80,6 @@ func (h *AssertionHelper) assertExtensions(actual, expected *replicationv1alpha1
 			require.NotNil(h.t, actual.Ceph.MirroringMode, "Ceph mirroring mode should not be nil")
 			assert.Equal(h.t, *expected.Ceph.MirroringMode, *actual.Ceph.MirroringMode, "Ceph mirroring mode should match")
 		}
-		if expected.Ceph.SchedulingStartTime != nil {
-			require.NotNil(h.t, actual.Ceph.SchedulingStartTime, "Ceph scheduling start time should not be nil")
-			assert.True(h.t, expected.Ceph.SchedulingStartTime.Equal(actual.Ceph.SchedulingStartTime), "Ceph scheduling start time should match")
-		}
 	} else {
 		assert.Nil(h.t, actual.Ceph, "Ceph extensions should be nil")
 	}
@@ -103,7 +99,6 @@ func (h *AssertionHelper) assertExtensions(actual, expected *replicationv1alpha1
 			require.NotNil(h.t, actual.Powerstore.RpoSettings, "PowerStore RPO settings should not be nil")
 			assert.Equal(h.t, *expected.Powerstore.RpoSettings, *actual.Powerstore.RpoSettings, "PowerStore RPO settings should match")
 		}
-		assert.Equal(h.t, expected.Powerstore.VolumeGroups, actual.Powerstore.VolumeGroups, "PowerStore volume groups should match")
 	} else {
 		assert.Nil(h.t, actual.Powerstore, "PowerStore extensions should be nil")
 	}

@@ -247,8 +247,7 @@ func TestExtensions_AllVendors(t *testing.T) {
 			},
 		},
 		Powerstore: &PowerStoreExtensions{
-			RpoSettings:  stringPtr("Five_Minutes"),
-			VolumeGroups: []string{"group-1", "group-2"},
+			RpoSettings: stringPtr("Five_Minutes"),
 		},
 	}
 
@@ -260,7 +259,6 @@ func TestExtensions_AllVendors(t *testing.T) {
 	assert.Len(t, extensions.Trident.Actions, 1)
 	assert.Equal(t, "mirror-update", extensions.Trident.Actions[0].Type)
 	assert.Equal(t, "Five_Minutes", *extensions.Powerstore.RpoSettings)
-	assert.Len(t, extensions.Powerstore.VolumeGroups, 2)
 }
 
 func TestBackendInfo_Structure(t *testing.T) {

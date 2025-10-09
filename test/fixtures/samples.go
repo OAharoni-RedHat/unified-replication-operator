@@ -66,8 +66,7 @@ func CephReplicationSpec() replicationv1alpha1.UnifiedVolumeReplicationSpec {
 
 	spec.Extensions = &replicationv1alpha1.Extensions{
 		Ceph: &replicationv1alpha1.CephExtensions{
-			MirroringMode:       stringPtr("journal"),
-			SchedulingStartTime: &metav1.Time{Time: time.Now().Add(1 * time.Hour)},
+			MirroringMode: stringPtr("journal"),
 		},
 	}
 
@@ -108,10 +107,6 @@ func PowerStoreReplicationSpec() replicationv1alpha1.UnifiedVolumeReplicationSpe
 	spec.Extensions = &replicationv1alpha1.Extensions{
 		Powerstore: &replicationv1alpha1.PowerStoreExtensions{
 			RpoSettings: stringPtr("Five_Minutes"),
-			VolumeGroups: []string{
-				"app-consistency-group-1",
-				"database-consistency-group",
-			},
 		},
 	}
 
@@ -132,8 +127,7 @@ func MultiVendorReplicationSpec() replicationv1alpha1.UnifiedVolumeReplicationSp
 			},
 		},
 		Powerstore: &replicationv1alpha1.PowerStoreExtensions{
-			RpoSettings:  stringPtr("Fifteen_Minutes"),
-			VolumeGroups: []string{"consistency-group-1"},
+			RpoSettings: stringPtr("Fifteen_Minutes"),
 		},
 	}
 
@@ -589,8 +583,7 @@ func CrossRegionScenarios() map[string]replicationv1alpha1.UnifiedVolumeReplicat
 			},
 			Extensions: &replicationv1alpha1.Extensions{
 				Powerstore: &replicationv1alpha1.PowerStoreExtensions{
-					RpoSettings:  stringPtr("Five_Minutes"),
-					VolumeGroups: []string{"critical-apps-cg"},
+					RpoSettings: stringPtr("Five_Minutes"),
 				},
 			},
 		},

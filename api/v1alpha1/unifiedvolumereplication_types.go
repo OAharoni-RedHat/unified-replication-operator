@@ -150,10 +150,6 @@ type CephExtensions struct {
 	// +kubebuilder:validation:Enum=journal;snapshot
 	// +optional
 	MirroringMode *string `json:"mirroringMode,omitempty" yaml:"mirroringMode,omitempty"`
-
-	// SchedulingStartTime specifies when scheduled replication should start
-	// +optional
-	SchedulingStartTime *metav1.Time `json:"schedulingStartTime,omitempty" yaml:"schedulingStartTime,omitempty"`
 }
 
 // TridentAction defines an action to be performed on Trident replication
@@ -181,10 +177,6 @@ type PowerStoreExtensions struct {
 	// +kubebuilder:validation:Enum=Five_Minutes;Fifteen_Minutes;Thirty_Minutes;One_Hour
 	// +optional
 	RpoSettings *string `json:"rpoSettings,omitempty" yaml:"rpoSettings,omitempty"`
-
-	// VolumeGroups for consistency group management
-	// +optional
-	VolumeGroups []string `json:"volumeGroups,omitempty" yaml:"volumeGroups,omitempty"`
 }
 
 // Extensions defines vendor-specific extension configurations
@@ -487,14 +479,6 @@ func validateCephExtensions(ceph *CephExtensions) error {
 		}
 	}
 
-	// Validate scheduling start time format if provided
-	if ceph.SchedulingStartTime != nil {
-		// Time validation is handled by metav1.Time marshaling/unmarshaling
-		if ceph.SchedulingStartTime.IsZero() {
-			return fmt.Errorf("schedulingStartTime cannot be zero time")
-		}
-	}
-
 	return nil
 }
 
@@ -535,15 +519,6 @@ func validatePowerStoreExtensions(powerstore *PowerStoreExtensions) error {
 		validRPOs := []string{"Five_Minutes", "Fifteen_Minutes", "Thirty_Minutes", "One_Hour"}
 		if !contains(validRPOs, *powerstore.RpoSettings) {
 			return fmt.Errorf("invalid RPO setting '%s', must be one of: %s", *powerstore.RpoSettings, strings.Join(validRPOs, ", "))
-		}
-	}
-
-	// Validate volume groups
-	if len(powerstore.VolumeGroups) > 0 {
-		for i, group := range powerstore.VolumeGroups {
-			if strings.TrimSpace(group) == "" {
-				return fmt.Errorf("volumeGroups[%d] cannot be empty", i)
-			}
 		}
 	}
 

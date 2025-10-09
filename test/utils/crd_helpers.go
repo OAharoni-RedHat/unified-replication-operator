@@ -178,8 +178,7 @@ func (b *CRDBuilder) WithCephExtensions(mirroringMode string, startTime *metav1.
 		b.uvr.Spec.Extensions = &replicationv1alpha1.Extensions{}
 	}
 	b.uvr.Spec.Extensions.Ceph = &replicationv1alpha1.CephExtensions{
-		MirroringMode:       &mirroringMode,
-		SchedulingStartTime: startTime,
+		MirroringMode: &mirroringMode,
 	}
 	return b
 }
@@ -201,8 +200,7 @@ func (b *CRDBuilder) WithPowerStoreExtensions(rpoSettings string, volumeGroups [
 		b.uvr.Spec.Extensions = &replicationv1alpha1.Extensions{}
 	}
 	b.uvr.Spec.Extensions.Powerstore = &replicationv1alpha1.PowerStoreExtensions{
-		RpoSettings:  &rpoSettings,
-		VolumeGroups: volumeGroups,
+		RpoSettings: &rpoSettings,
 	}
 	return b
 }

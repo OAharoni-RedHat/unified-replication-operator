@@ -291,8 +291,7 @@ func TestValidationPerformance(t *testing.T) {
 			},
 			Extensions: &replicationv1alpha1.Extensions{
 				Ceph: &replicationv1alpha1.CephExtensions{
-					MirroringMode:       stringPtr("journal"),
-					SchedulingStartTime: &metav1.Time{Time: time.Now()},
+					MirroringMode: stringPtr("journal"),
 				},
 				Trident: &replicationv1alpha1.TridentExtensions{
 					Actions: []replicationv1alpha1.TridentAction{
@@ -301,8 +300,7 @@ func TestValidationPerformance(t *testing.T) {
 					},
 				},
 				Powerstore: &replicationv1alpha1.PowerStoreExtensions{
-					RpoSettings:  stringPtr("Five_Minutes"),
-					VolumeGroups: []string{"group1", "group2", "group3"},
+					RpoSettings: stringPtr("Five_Minutes"),
 				},
 			},
 		},

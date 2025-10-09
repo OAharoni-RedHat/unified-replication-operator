@@ -83,10 +83,8 @@ func TestCRDBuilder(t *testing.T) {
 		require.NotNil(t, uvr.Spec.Extensions.Powerstore)
 
 		assert.Equal(t, "journal", *uvr.Spec.Extensions.Ceph.MirroringMode)
-		assert.Equal(t, startTime, *uvr.Spec.Extensions.Ceph.SchedulingStartTime)
 		assert.Equal(t, actions, uvr.Spec.Extensions.Trident.Actions)
 		assert.Equal(t, "Five_Minutes", *uvr.Spec.Extensions.Powerstore.RpoSettings)
-		assert.Equal(t, []string{"group1"}, uvr.Spec.Extensions.Powerstore.VolumeGroups)
 	})
 
 	t.Run("with labels and annotations", func(t *testing.T) {
