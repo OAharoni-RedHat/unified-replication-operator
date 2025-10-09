@@ -18,11 +18,6 @@ Webhook is enabled. Verify it's configured:
 
 {{- end }}
 
-{{- if .Values.monitoring.serviceMonitor.enabled }}
-
-Prometheus ServiceMonitor is enabled for metrics collection.
-
-{{- end }}
 
 To create a replication, apply a UnifiedVolumeReplication resource:
 

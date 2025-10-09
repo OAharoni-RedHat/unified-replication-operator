@@ -24,10 +24,6 @@ type UnifiedVolumeReplicationReconciler struct {
     Recorder        record.EventRecorder
     AdapterRegistry adapters.Registry
     
-    // Metrics
-    ReconcileCount     int64
-    ReconcileErrors    int64
-    LastReconcileTime  time.Time
     
     // Configuration
     MaxConcurrentReconciles int
@@ -81,7 +77,7 @@ The controller determines the required operation based on resource state:
 The controller maintains the following status conditions:
 
 ### Ready Condition
-Indicates overall health of the replication relationship.
+Indicates overall status of the replication relationship.
 
 **States:**
 - `True` - Replication is operating normally
@@ -143,18 +139,6 @@ reconciler := &UnifiedVolumeReplicationReconciler{
 }
 ```
 
-## Metrics
-
-The controller tracks the following metrics:
-
-- `ReconcileCount` - Total number of reconciliations
-- `ReconcileErrors` - Number of reconciliation errors
-- `LastReconcileTime` - Timestamp of last reconciliation
-
-Access metrics via:
-```go
-metrics := reconciler.GetMetrics()
-```
 
 ## RBAC Permissions
 
@@ -316,7 +300,7 @@ kubectl logs -n <operator-namespace> deployment/unified-replication-operator -f
 ### Status Not Updating
 - **Symptom**: Status conditions outdated
 - **Cause**: Adapter status retrieval failing
-- **Solution**: Check adapter health, verify backend connectivity
+- **Solution**: Check adapter status, verify backend connectivity
 
 ### Rapid Reconciliations
 - **Symptom**: High reconciliation frequency
@@ -328,7 +312,7 @@ kubectl logs -n <operator-namespace> deployment/unified-replication-operator -f
 This controller foundation will be enhanced in subsequent prompts:
 
 - **Prompt 4.2**: Integration with discovery and translation engines
-- **Prompt 4.3**: Advanced features (retry logic, circuit breakers, metrics)
+- **Prompt 4.3**: Advanced features (retry logic, circuit breakers)
 - **Prompt 5.1**: Security hardening and admission webhooks
 
 ## Files

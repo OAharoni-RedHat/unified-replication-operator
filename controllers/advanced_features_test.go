@@ -30,7 +30,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	replicationv1alpha1 "github.com/unified-replication/operator/api/v1alpha1"
-	"github.com/unified-replication/operator/pkg/adapters"
 )
 
 // TestStateMachine tests the state machine implementation
@@ -274,71 +273,6 @@ func TestCircuitBreaker(t *testing.T) {
 		assert.Equal(t, StateClosed, cb.GetState())
 	})
 
-	t.Run("Metrics", func(t *testing.T) {
-		cb := NewCircuitBreaker(3, 2, 1*time.Second)
-
-		_ = cb.Call(func() error { return errors.New("failure") })
-
-		metrics := cb.GetMetrics()
-		assert.Contains(t, metrics, "state")
-		assert.Contains(t, metrics, "failure_count")
-		assert.Equal(t, "closed", metrics["state"])
-		assert.Equal(t, 1, metrics["failure_count"])
-	})
-}
-
-// TestHealthChecker tests health checking
-func TestHealthChecker(t *testing.T) {
-	adapterRegistry := adapters.GetGlobalRegistry()
-
-	reconciler := &UnifiedVolumeReplicationReconciler{
-		Log:               ctrl.Log.WithName("test"),
-		ReconcileCount:    100,
-		ReconcileErrors:   10,
-		LastReconcileTime: time.Now(),
-		AdapterRegistry:   adapterRegistry,
-	}
-
-	hc := NewHealthChecker(reconciler)
-	ctx := context.Background()
-
-	t.Run("HealthyController", func(t *testing.T) {
-		status := hc.Check(ctx, reconciler.Log)
-		assert.NotNil(t, status)
-		assert.True(t, status.Healthy)
-		assert.Equal(t, "All systems operational", status.Message)
-		assert.Less(t, status.ErrorRate, 0.5)
-	})
-
-	t.Run("UnhealthyErrorRate", func(t *testing.T) {
-		unhealthyReconciler := &UnifiedVolumeReplicationReconciler{
-			Log:               ctrl.Log.WithName("test"),
-			ReconcileCount:    100,
-			ReconcileErrors:   60, // 60% error rate
-			LastReconcileTime: time.Now(),
-			AdapterRegistry:   adapterRegistry,
-		}
-
-		hc2 := NewHealthChecker(unhealthyReconciler)
-		status := hc2.Check(ctx, unhealthyReconciler.Log)
-		assert.False(t, status.Healthy)
-		assert.Contains(t, status.Message, "High error rate")
-	})
-
-	t.Run("UnhealthyNoReconcile", func(t *testing.T) {
-		staleReconciler := &UnifiedVolumeReplicationReconciler{
-			Log:               ctrl.Log.WithName("test"),
-			ReconcileCount:    10,
-			ReconcileErrors:   0,
-			LastReconcileTime: time.Now().Add(-15 * time.Minute),
-			AdapterRegistry:   adapterRegistry,
-		}
-
-		hc3 := NewHealthChecker(staleReconciler)
-		status := hc3.Check(ctx, staleReconciler.Log)
-		assert.False(t, status.Healthy)
-		assert.Contains(t, status.Message, "No reconciliation")
-	})
 }
 
 // TestReadinessChecker tests readiness checking
@@ -396,41 +330,6 @@ func TestCorrelationID(t *testing.T) {
 	})
 }
 
-// TestMetricsRecorder tests metrics recording
-func TestMetricsRecorder(t *testing.T) {
-	mr := NewMetricsRecorder()
-	assert.NotNil(t, mr)
-
-	t.Run("RecordReconcile", func(t *testing.T) {
-		mr.RecordReconcile("default", "test", "success", 100*time.Millisecond)
-		// Metrics are recorded to Prometheus, no return value to test
-		// In production, would verify via Prometheus registry
-	})
-
-	t.Run("RecordStateTransition", func(t *testing.T) {
-		mr.RecordStateTransition("replica", "promoting", "ceph", 500*time.Millisecond)
-	})
-
-	t.Run("RecordBackendOperation", func(t *testing.T) {
-		mr.RecordBackendOperation("trident", "create", "success", 200*time.Millisecond)
-	})
-
-	t.Run("SetReplicationHealth", func(t *testing.T) {
-		mr.SetReplicationHealth("default", "test", true)
-		mr.SetReplicationHealth("default", "test", false)
-	})
-
-	t.Run("RecordRetryAttempt", func(t *testing.T) {
-		mr.RecordRetryAttempt("default", "test")
-	})
-
-	t.Run("SetCircuitBreakerState", func(t *testing.T) {
-		mr.SetCircuitBreakerState("create", StateClosed)
-		mr.SetCircuitBreakerState("create", StateOpen)
-		mr.SetCircuitBreakerState("create", StateHalfOpen)
-	})
-}
-
 // TestAdvancedReconciliation tests reconciliation with advanced features
 func TestAdvancedReconciliation(t *testing.T) {
 	if testing.Short() {
@@ -452,8 +351,6 @@ func TestAdvancedReconciliation(t *testing.T) {
 	reconciler.StateMachine = NewStateMachine()
 	reconciler.RetryManager = NewRetryManager(nil)
 	reconciler.CircuitBreaker = NewCircuitBreaker(5, 2, 1*time.Minute)
-	reconciler.MetricsRecorder = NewMetricsRecorder()
-	reconciler.HealthChecker = NewHealthChecker(reconciler)
 	reconciler.ReadinessChecker = NewReadinessChecker(reconciler)
 	reconciler.EnableAdvancedFeatures = true
 
@@ -471,11 +368,6 @@ func TestAdvancedReconciliation(t *testing.T) {
 	result, err := reconciler.Reconcile(ctx, req)
 	t.Logf("Reconcile result: RequeueAfter=%v, Error=%v",
 		result.RequeueAfter, err)
-
-	// Check health
-	healthStatus := reconciler.HealthChecker.Check(ctx, reconciler.Log)
-	assert.NotNil(t, healthStatus)
-	t.Logf("Health: %v, Message: %s", healthStatus.Healthy, healthStatus.Message)
 
 	// Check readiness
 	ready := reconciler.ReadinessChecker.Check(ctx)

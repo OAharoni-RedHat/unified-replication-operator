@@ -50,41 +50,17 @@ spec:
         - --use-integrated-engine={{ .Values.controller.useIntegratedEngine }}
         - --enable-advanced-features={{ .Values.controller.enableAdvancedFeatures }}
         - --log-level={{ .Values.controller.logLevel }}
-        - --health-probe-bind-address=:{{ .Values.service.healthPort }}
-        - --metrics-bind-address=:{{ .Values.service.metricsPort }}
         {{- if .Values.webhook.enabled }}
         - --webhook-port={{ .Values.webhook.port }}
         {{- end }}
         securityContext:
           {{- toYaml .Values.securityContext | nindent 12 }}
         ports:
-        - name: metrics
-          containerPort: {{ .Values.service.metricsPort }}
-          protocol: TCP
-        - name: health
-          containerPort: {{ .Values.service.healthPort }}
-          protocol: TCP
         {{- if .Values.webhook.enabled }}
         - name: webhook
           containerPort: {{ .Values.webhook.port }}
           protocol: TCP
         {{- end }}
-        livenessProbe:
-          httpGet:
-            path: /healthz
-            port: health
-          initialDelaySeconds: {{ .Values.advancedFeatures.healthChecks.livenessProbe.initialDelaySeconds }}
-          periodSeconds: {{ .Values.advancedFeatures.healthChecks.livenessProbe.periodSeconds }}
-          timeoutSeconds: {{ .Values.advancedFeatures.healthChecks.livenessProbe.timeoutSeconds }}
-          failureThreshold: {{ .Values.advancedFeatures.healthChecks.livenessProbe.failureThreshold }}
-        readinessProbe:
-          httpGet:
-            path: /readyz
-            port: health
-          initialDelaySeconds: {{ .Values.advancedFeatures.healthChecks.readinessProbe.initialDelaySeconds }}
-          periodSeconds: {{ .Values.advancedFeatures.healthChecks.readinessProbe.periodSeconds }}
-          timeoutSeconds: {{ .Values.advancedFeatures.healthChecks.readinessProbe.timeoutSeconds }}
-          failureThreshold: {{ .Values.advancedFeatures.healthChecks.readinessProbe.failureThreshold }}
         resources:
           {{- toYaml .Values.resources | nindent 12 }}
         volumeMounts:

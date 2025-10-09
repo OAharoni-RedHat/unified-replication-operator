@@ -89,11 +89,6 @@ func TestEngineIntegration_BasicWorkflow(t *testing.T) {
 	// May error if discovery doesn't find backends, but should not panic
 	t.Logf("Reconcile with engine result: RequeueAfter=%v, Error=%v", result.RequeueAfter, err)
 
-	// Verify engine metrics are available
-	metrics := reconciler.GetMetrics()
-	assert.Contains(t, metrics, "reconcile_count")
-	assert.Contains(t, metrics, "engine_operation_count")
-
 	t.Log("Engine integration basic workflow test completed")
 }
 
@@ -526,47 +521,6 @@ func TestEngineIntegration_EngineToggle(t *testing.T) {
 	}
 
 	t.Log("Engine toggle test completed")
-}
-
-// TestEngineIntegration_MetricsCollection tests metrics from all engines
-func TestEngineIntegration_MetricsCollection(t *testing.T) {
-	fakeClient := fake.NewClientBuilder().Build()
-
-	discoveryEngine := discovery.NewEngine(fakeClient, discovery.DefaultDiscoveryConfig())
-	translationEngine := translation.NewEngine()
-	adapterRegistry := adapters.GetGlobalRegistry()
-	controllerEngine := pkg.NewControllerEngine(
-		fakeClient,
-		discoveryEngine,
-		translationEngine,
-		adapterRegistry,
-		pkg.DefaultControllerEngineConfig(),
-	)
-
-	// Create reconciler with engine
-	s := createTestScheme(t)
-	reconciler := createTestReconciler(fakeClient, s)
-	reconciler.ControllerEngine = controllerEngine
-	reconciler.UseIntegratedEngine = true
-
-	// Simulate some operations
-	reconciler.ReconcileCount++
-	reconciler.ReconcileErrors++
-
-	// Get combined metrics
-	metrics := reconciler.GetMetrics()
-
-	// Should have controller metrics
-	assert.Contains(t, metrics, "reconcile_count")
-	assert.Contains(t, metrics, "reconcile_errors")
-
-	// Should have engine metrics
-	assert.Contains(t, metrics, "engine_operation_count")
-	assert.Contains(t, metrics, "engine_cache_hits")
-	assert.Contains(t, metrics, "engine_cache_misses")
-
-	t.Logf("Collected metrics: %v", metrics)
-	t.Log("Metrics collection test completed")
 }
 
 // Helper function for use across tests - creating reconciler is defined in controller_unit_test.go

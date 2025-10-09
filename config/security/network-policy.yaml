@@ -24,22 +24,6 @@ spec:
     - protocol: TCP
       port: 9443  # Webhook port
   
-  # Allow metrics scraping from Prometheus
-  - from:
-    - namespaceSelector:
-        matchLabels:
-          name: monitoring
-    ports:
-    - protocol: TCP
-      port: 8080  # Metrics port
-  
-  # Allow health checks
-  - from:
-    - namespaceSelector: {}
-    ports:
-    - protocol: TCP
-      port: 8081  # Health check port
-  
   egress:
   # Allow DNS
   - to:

@@ -84,8 +84,6 @@ The Unified Replication Operator follows security best practices and implements 
 
 **Ingress Rules:**
 - Webhook traffic from API server only
-- Metrics scraping from Prometheus namespace
-- Health checks from any namespace
 
 **Egress Rules:**
 - DNS resolution (kube-system)

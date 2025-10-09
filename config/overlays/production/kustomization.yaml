@@ -49,7 +49,6 @@ configMapGenerator:
 - name: operator-config
   literals:
   - LOG_LEVEL=info
-  - ENABLE_METRICS=true
   - ENABLE_AUDIT=true
   - CACHE_EXPIRY=5m
   - RECONCILE_TIMEOUT=5m

@@ -355,29 +355,6 @@ var _ = Describe("UnifiedVolumeReplicationController", func() {
 		})
 	})
 
-	Context("Metrics", func() {
-		It("should track reconciliation metrics", func() {
-			reconciler := &UnifiedVolumeReplicationReconciler{
-				Log: ctrl.Log.WithName("test"),
-			}
-
-			initialCount := reconciler.ReconcileCount
-			initialTime := reconciler.LastReconcileTime
-
-			// Simulate reconciliation
-			reconciler.ReconcileCount++
-			reconciler.LastReconcileTime = time.Now()
-
-			Expect(reconciler.ReconcileCount).To(Equal(initialCount + 1))
-			Expect(reconciler.LastReconcileTime).To(BeTemporally(">", initialTime))
-
-			metrics := reconciler.GetMetrics()
-			Expect(metrics).To(HaveKey("reconcile_count"))
-			Expect(metrics).To(HaveKey("reconcile_errors"))
-			Expect(metrics).To(HaveKey("last_reconcile_time"))
-		})
-	})
-
 	Context("Adapter selection", func() {
 		var (
 			reconciler *UnifiedVolumeReplicationReconciler

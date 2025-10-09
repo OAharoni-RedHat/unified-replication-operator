@@ -310,21 +310,6 @@ func (cb *CircuitBreaker) Reset() {
 	cb.successCount = 0
 }
 
-// GetMetrics returns circuit breaker metrics
-func (cb *CircuitBreaker) GetMetrics() map[string]interface{} {
-	cb.stateMutex.RLock()
-	defer cb.stateMutex.RUnlock()
-
-	return map[string]interface{}{
-		"state":         string(cb.state),
-		"failure_count": cb.failureCount,
-		"success_count": cb.successCount,
-		"last_failure":  cb.lastFailure,
-		"last_success":  cb.lastSuccess,
-		"opened_at":     cb.openedAt,
-	}
-}
-
 // Helper functions
 
 func pow(base, exp float64) float64 {

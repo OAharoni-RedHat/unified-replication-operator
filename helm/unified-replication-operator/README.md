@@ -59,7 +59,7 @@ controller:
   maxConcurrentReconciles: 3     # Concurrent reconciliation limit
   reconcileTimeout: "5m"          # Timeout for reconciliation
   useIntegratedEngine: true       # Enable discovery/translation engines
-  enableAdvancedFeatures: true    # Enable retry/circuit breaker/metrics
+  enableAdvancedFeatures: true    # Enable retry/circuit breaker
   logLevel: info                  # Logging level (debug, info, warn, error)
 ```
 
@@ -107,7 +107,6 @@ backends:
 ```yaml
 monitoring:
   serviceMonitor:
-    enabled: true                 # Create Prometheus ServiceMonitor
     interval: 30s                 # Scrape interval
   grafanaDashboard:
     enabled: true                 # Create Grafana dashboard
@@ -324,7 +323,6 @@ kubectl apply -k config/overlays/staging
 - 2 replicas
 - Medium resource limits
 - Info logging
-- Metrics enabled
 
 ### Production
 ```bash
@@ -335,40 +333,11 @@ kubectl apply -k config/overlays/production
 - 3 replicas with anti-affinity
 - High resource limits
 - Info logging
-- Audit + Metrics enabled
+- Audit enabled
 - Network policies enforced
 
-## Monitoring
 
-### Prometheus Metrics
 
-The operator exposes metrics on port 8080 at `/metrics`:
-
-```bash
-# Port-forward to access metrics
-kubectl port-forward -n unified-replication-system \
-  svc/unified-replication-operator-metrics 8080:8080
-
-# View metrics
-curl http://localhost:8080/metrics
-```
-
-### Key Metrics
-
-- `unified_replication_reconcile_total` - Total reconciliations
-- `unified_replication_reconcile_duration_seconds` - Reconciliation latency
-- `unified_replication_state_transitions_total` - State transitions
-- `unified_replication_backend_operations_total` - Backend operations
-- `unified_replication_circuit_breaker_state` - Circuit breaker status
-
-### Grafana Dashboard
-
-If enabled, a ConfigMap with Grafana dashboard JSON is created:
-
-```bash
-kubectl get configmap -n unified-replication-system \
-  unified-replication-operator-grafana-dashboard -o yaml
-```
 
 ## Troubleshooting
 

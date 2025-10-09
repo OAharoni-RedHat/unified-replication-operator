@@ -64,17 +64,9 @@ type UnifiedVolumeReplicationReconciler struct {
 	ControllerEngine  *pkg.ControllerEngine
 
 	// Advanced features (Phase 4.3)
-	StateMachine     *StateMachine
-	RetryManager     *RetryManager
-	CircuitBreaker   *CircuitBreaker
-	MetricsRecorder  *MetricsRecorder
-	HealthChecker    *HealthChecker
-	ReadinessChecker *ReadinessChecker
-
-	// Metrics
-	ReconcileCount    int64
-	ReconcileErrors   int64
-	LastReconcileTime time.Time
+	StateMachine   *StateMachine
+	RetryManager   *RetryManager
+	CircuitBreaker *CircuitBreaker
 
 	// Configuration
 	MaxConcurrentReconciles int
@@ -101,37 +93,14 @@ func (r *UnifiedVolumeReplicationReconciler) SetupWithManager(mgr ctrl.Manager) 
 
 // Reconcile implements the reconciliation loop for UnifiedVolumeReplication
 func (r *UnifiedVolumeReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	startTime := time.Now()
-
-	// Phase 4.3: Add correlation ID for request tracking
-	correlationID := GenerateCorrelationID(req.Namespace, req.Name)
-	ctx = WithCorrelationID(ctx, correlationID)
-
 	log := r.Log.WithValues(
 		"unifiedvolumereplication", req.NamespacedName,
-		"correlationID", correlationID,
 	)
 	log.Info("Starting reconciliation")
-
-	// Update metrics
-	r.ReconcileCount++
-	r.LastReconcileTime = time.Now()
 
 	// Create context with timeout
 	reconcileCtx, cancel := context.WithTimeout(ctx, r.getReconcileTimeout())
 	defer cancel()
-
-	// Defer metrics recording
-	defer func() {
-		duration := time.Since(startTime)
-		if r.EnableAdvancedFeatures && r.MetricsRecorder != nil {
-			result := "success"
-			if r.ReconcileErrors > 0 {
-				result = "error"
-			}
-			r.MetricsRecorder.RecordReconcile(req.Namespace, req.Name, result, duration)
-		}
-	}()
 
 	// Fetch the UnifiedVolumeReplication instance
 	uvr := &replicationv1alpha1.UnifiedVolumeReplication{}
@@ -141,7 +110,6 @@ func (r *UnifiedVolumeReplicationReconciler) Reconcile(ctx context.Context, req 
 			return ctrl.Result{}, nil
 		}
 		log.Error(err, "Failed to get UnifiedVolumeReplication")
-		r.ReconcileErrors++
 		return ctrl.Result{}, err
 	}
 
@@ -161,7 +129,6 @@ func (r *UnifiedVolumeReplicationReconciler) Reconcile(ctx context.Context, req 
 		controllerutil.AddFinalizer(uvr, unifiedReplicationFinalizer)
 		if err := r.Update(reconcileCtx, uvr); err != nil {
 			log.Error(err, "Failed to add finalizer")
-			r.ReconcileErrors++
 			return ctrl.Result{}, err
 		}
 		// Requeue to continue with reconciliation
@@ -198,10 +165,6 @@ func (r *UnifiedVolumeReplicationReconciler) reconcileReplication(ctx context.Co
 					ObservedGeneration: uvr.Generation,
 				})
 
-				if r.MetricsRecorder != nil {
-					r.MetricsRecorder.RecordReconcileError(uvr.Namespace, uvr.Name, "invalid_state_transition")
-				}
-
 				if err := r.Status().Update(ctx, uvr); err != nil {
 					log.Error(err, "Failed to update status")
 				}
@@ -210,7 +173,7 @@ func (r *UnifiedVolumeReplicationReconciler) reconcileReplication(ctx context.Co
 			}
 
 			// Record valid transition
-			r.StateMachine.RecordTransition(currentState, desiredState, "user_requested", GetCorrelationID(ctx))
+			r.StateMachine.RecordTransition(currentState, desiredState, "user_requested", "")
 			log.Info("Valid state transition", "from", currentState, "to", desiredState)
 		}
 	}
@@ -226,11 +189,6 @@ func (r *UnifiedVolumeReplicationReconciler) reconcileReplication(ctx context.Co
 			ObservedGeneration: uvr.Generation,
 		})
 		r.Recorder.Event(uvr, corev1.EventTypeWarning, "ValidationFailed", err.Error())
-
-		// Phase 4.3: Record metrics
-		if r.EnableAdvancedFeatures && r.MetricsRecorder != nil {
-			r.MetricsRecorder.RecordReconcileError(uvr.Namespace, uvr.Name, "validation_failed")
-		}
 
 		if err := r.Status().Update(ctx, uvr); err != nil {
 			log.Error(err, "Failed to update status")
@@ -625,15 +583,14 @@ func (r *UnifiedVolumeReplicationReconciler) updateStatusFromAdapter(ctx context
 			Type:               "Synced",
 			Status:             metav1.ConditionTrue,
 			Reason:             "StatusUpdated",
-			Message:            fmt.Sprintf("Current state: %s, mode: %s, health: %s", status.State, status.Mode, status.Health),
+			Message:            fmt.Sprintf("Current state: %s, mode: %s", status.State, status.Mode),
 			ObservedGeneration: uvr.Generation,
 		})
 	}
 
 	log.V(1).Info("Updated status from adapter",
 		"state", status.State,
-		"mode", status.Mode,
-		"health", status.Health)
+		"mode", status.Mode)
 	return nil
 }
 
@@ -648,15 +605,14 @@ func (r *UnifiedVolumeReplicationReconciler) updateStatusFromEngineStatus(uvr *r
 			Type:               "Synced",
 			Status:             metav1.ConditionTrue,
 			Reason:             "StatusUpdated",
-			Message:            fmt.Sprintf("Current state: %s, mode: %s, health: %s (via integrated engine)", status.State, status.Mode, status.Health),
+			Message:            fmt.Sprintf("Current state: %s, mode: %s (via integrated engine)", status.State, status.Mode),
 			ObservedGeneration: uvr.Generation,
 		})
 	}
 
 	log.V(1).Info("Updated status from integrated engine",
 		"state", status.State,
-		"mode", status.Mode,
-		"health", status.Health)
+		"mode", status.Mode)
 }
 
 // updateCondition updates or adds a condition to the status
@@ -707,25 +663,6 @@ func (r *UnifiedVolumeReplicationReconciler) getReconcileTimeout() time.Duration
 		return r.ReconcileTimeout
 	}
 	return 5 * time.Minute // Default timeout
-}
-
-// GetMetrics returns current controller metrics
-func (r *UnifiedVolumeReplicationReconciler) GetMetrics() map[string]interface{} {
-	metrics := map[string]interface{}{
-		"reconcile_count":     r.ReconcileCount,
-		"reconcile_errors":    r.ReconcileErrors,
-		"last_reconcile_time": r.LastReconcileTime,
-	}
-
-	// Add engine metrics if available
-	if r.ControllerEngine != nil {
-		engineMetrics := r.ControllerEngine.GetMetrics()
-		for k, v := range engineMetrics {
-			metrics["engine_"+k] = v
-		}
-	}
-
-	return metrics
 }
 
 // getCurrentState extracts the current state from the UVR status

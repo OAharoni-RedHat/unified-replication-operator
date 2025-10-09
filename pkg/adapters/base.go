@@ -39,13 +39,7 @@ type BaseAdapter struct {
 
 	// Runtime state
 	initialized bool
-	healthy     bool
-	metrics     AdapterMetrics
 	mu          sync.RWMutex
-
-	// Health monitoring
-	healthStopCh chan struct{}
-	healthWG     sync.WaitGroup
 
 	// Adapter info
 	info         AdapterInfo
@@ -59,11 +53,10 @@ func NewBaseAdapter(backend translation.Backend, client client.Client, translato
 	}
 
 	return &BaseAdapter{
-		backend:      backend,
-		client:       client,
-		config:       config,
-		translator:   translator,
-		healthStopCh: make(chan struct{}),
+		backend:    backend,
+		client:     client,
+		config:     config,
+		translator: translator,
 		info: AdapterInfo{
 			Backend: backend,
 			Version: "1.0.0",
@@ -101,7 +94,7 @@ func (ba *BaseAdapter) GetVersion() string {
 func (ba *BaseAdapter) IsHealthy() bool {
 	ba.mu.RLock()
 	defer ba.mu.RUnlock()
-	return ba.healthy && ba.metrics.IsHealthy()
+	return ba.initialized
 }
 
 // Initialize initializes the adapter
@@ -121,18 +114,7 @@ func (ba *BaseAdapter) Initialize(ctx context.Context) error {
 		return NewAdapterErrorWithCause(ErrorTypeConfiguration, ba.backend, "initialize", "", "configuration validation failed", err)
 	}
 
-	// Initialize metrics
-	ba.metrics = AdapterMetrics{
-		LastOperationTime: time.Now(),
-	}
-
-	// Start health monitoring if enabled
-	if ba.config.HealthCheckEnabled {
-		ba.startHealthMonitoring(ctx)
-	}
-
 	ba.initialized = true
-	ba.healthy = true
 
 	logger.Info("Adapter initialized successfully")
 	return nil
@@ -150,12 +132,7 @@ func (ba *BaseAdapter) Cleanup(ctx context.Context) error {
 	logger := log.FromContext(ctx).WithName("base-adapter").WithValues("backend", ba.backend)
 	logger.Info("Cleaning up adapter")
 
-	// Stop health monitoring
-	close(ba.healthStopCh)
-	ba.healthWG.Wait()
-
 	ba.initialized = false
-	ba.healthy = false
 
 	logger.Info("Adapter cleanup completed")
 	return nil
@@ -210,9 +187,6 @@ func (ba *BaseAdapter) Reconcile(ctx context.Context, uvr *replicationv1alpha1.U
 	if err := ba.ValidateConfiguration(uvr); err != nil {
 		return err
 	}
-
-	// Update metrics
-	ba.updateMetrics("reconcile", true, time.Now())
 
 	logger.V(1).Info("Base reconciliation completed")
 	return nil
@@ -316,35 +290,6 @@ func (ba *BaseAdapter) FailbackReplication(ctx context.Context, uvr *replication
 	return ba.NotImplementedError("FailbackReplication")
 }
 
-// GetMetrics returns the current adapter metrics
-func (ba *BaseAdapter) GetMetrics() AdapterMetrics {
-	ba.mu.RLock()
-	defer ba.mu.RUnlock()
-	return ba.metrics
-}
-
-// GetStats returns comprehensive adapter statistics
-func (ba *BaseAdapter) GetStats() AdapterStats {
-	ba.mu.RLock()
-	defer ba.mu.RUnlock()
-
-	uptime := time.Since(ba.metrics.LastOperationTime)
-	if ba.metrics.TotalOperations == 0 {
-		uptime = 0
-	}
-
-	return AdapterStats{
-		Backend:            ba.backend,
-		Uptime:             uptime,
-		ActiveReplications: 0, // This should be overridden by specific adapters
-		TotalReplications:  int(ba.metrics.TotalOperations),
-		Metrics:            ba.metrics,
-		LastHealthCheck:    ba.metrics.LastOperationTime,
-		SupportedFeatures:  ba.capabilities.Features,
-		Version:            ba.info.Version,
-	}
-}
-
 // GetCapabilities returns the adapter capabilities
 func (ba *BaseAdapter) GetCapabilities() AdapterCapabilities {
 	ba.mu.RLock()
@@ -439,32 +384,6 @@ func (ba *BaseAdapter) CreateCondition(condType, status, reason, message string)
 	}
 }
 
-// updateMetrics updates adapter metrics
-func (ba *BaseAdapter) updateMetrics(operation string, success bool, startTime time.Time) {
-	ba.mu.Lock()
-	defer ba.mu.Unlock()
-
-	duration := time.Since(startTime)
-
-	ba.metrics.TotalOperations++
-	if success {
-		ba.metrics.SuccessfulOps++
-	} else {
-		ba.metrics.FailedOps++
-	}
-
-	// Update average latency
-	if ba.metrics.TotalOperations == 1 {
-		ba.metrics.AverageLatency = duration
-	} else {
-		ba.metrics.AverageLatency = time.Duration(
-			(int64(ba.metrics.AverageLatency)*(ba.metrics.TotalOperations-1) + int64(duration)) / ba.metrics.TotalOperations,
-		)
-	}
-
-	ba.metrics.LastOperationTime = time.Now()
-}
-
 // validateConfig validates the adapter configuration
 func (ba *BaseAdapter) validateConfig() error {
 	if ba.config == nil {
@@ -496,49 +415,6 @@ func (ba *BaseAdapter) validateBackendConfig(uvr *replicationv1alpha1.UnifiedVol
 	return nil
 }
 
-// startHealthMonitoring starts the health monitoring goroutine
-func (ba *BaseAdapter) startHealthMonitoring(ctx context.Context) {
-	ba.healthWG.Add(1)
-	go ba.healthCheckLoop(ctx)
-}
-
-// healthCheckLoop performs periodic health checks
-func (ba *BaseAdapter) healthCheckLoop(ctx context.Context) {
-	defer ba.healthWG.Done()
-
-	logger := log.FromContext(ctx).WithName("health-monitor").WithValues("backend", ba.backend)
-	ticker := time.NewTicker(ba.config.HealthCheckInterval)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-ba.healthStopCh:
-			logger.V(1).Info("Health monitoring stopped")
-			return
-		case <-ticker.C:
-			ba.performHealthCheck(ctx)
-		}
-	}
-}
-
-// performHealthCheck performs a single health check
-func (ba *BaseAdapter) performHealthCheck(ctx context.Context) {
-	ba.mu.Lock()
-	ba.metrics.HealthCheckCount++
-
-	// Basic health check - can be overridden by specific adapters
-	healthy := ba.initialized && ba.client != nil && ba.translator != nil
-
-	if !healthy {
-		ba.metrics.HealthCheckFailures++
-		ba.healthy = false
-	} else {
-		ba.healthy = true
-	}
-
-	ba.mu.Unlock()
-}
-
 // NotImplementedError returns an error for operations not implemented by the specific adapter
 func (ba *BaseAdapter) NotImplementedError(operation string) error {
 	return NewAdapterError(ErrorTypeOperation, ba.backend, operation, "",
@@ -557,19 +433,11 @@ func (ba *BaseAdapter) ConfigurationError(message string) error {
 
 // ConnectionError returns a connection error
 func (ba *BaseAdapter) ConnectionError(message string, cause error) error {
-	ba.mu.Lock()
-	ba.metrics.ConnectionErrors++
-	ba.mu.Unlock()
-
 	return NewAdapterErrorWithCause(ErrorTypeConnection, ba.backend, "connect", "", message, cause)
 }
 
 // TimeoutError returns a timeout error
 func (ba *BaseAdapter) TimeoutError(operation string, timeout time.Duration) error {
-	ba.mu.Lock()
-	ba.metrics.TimeoutErrors++
-	ba.mu.Unlock()
-
 	return NewAdapterError(ErrorTypeTimeout, ba.backend, operation, "",
 		fmt.Sprintf("operation timed out after %s", timeout))
 }

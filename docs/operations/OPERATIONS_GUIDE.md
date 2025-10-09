@@ -4,77 +4,14 @@
 
 This guide covers operational procedures for running the Unified Replication Operator in production.
 
-## Health Monitoring
+## Monitoring
 
-### Health Check Endpoints
+### Basic Monitoring
 
-**Liveness Probe:** `/healthz` on port 8081
-- Verifies operator is running
-- Checks recent reconciliation activity
-- Validates error rate < 50%
-
-**Readiness Probe:** `/readyz` on port 8081
-- Verifies operator is ready to handle requests
-- Checks all engines initialized
-- Validates dependencies available
-
-### Prometheus Metrics
-
-**Key Metrics to Monitor:**
-
-```prometheus
-# Reconciliation success rate (should be > 95%)
-sum(rate(unified_replication_reconcile_total{result="success"}[5m])) /
-sum(rate(unified_replication_reconcile_total[5m]))
-
-# P95 reconciliation latency (should be < 1s)
-histogram_quantile(0.95, 
-  sum(rate(unified_replication_reconcile_duration_seconds_bucket[5m])) by (le))
-
-# Error rate (should be < 5%)
-sum(rate(unified_replication_reconcile_errors_total[5m]))
-
-# Circuit breaker state (alert when open)
-unified_replication_circuit_breaker_state > 0
-
-# Active replications
-unified_replication_active_total
-
-# Discovery cache hit rate (should be > 80%)
-unified_replication_discovery_cache_hits_total /
-(unified_replication_discovery_cache_hits_total + unified_replication_discovery_cache_misses_total)
-```
-
-### Alerting Rules
-
-```yaml
-groups:
-- name: unified-replication
-  rules:
-  - alert: HighReconciliationErrorRate
-    expr: rate(unified_replication_reconcile_errors_total[5m]) > 0.1
-    for: 5m
-    annotations:
-      summary: "High error rate in reconciliations"
-      
-  - alert: CircuitBreakerOpen
-    expr: unified_replication_circuit_breaker_state == 1
-    for: 1m
-    annotations:
-      summary: "Circuit breaker is open"
-      
-  - alert: HighReconciliationLatency
-    expr: histogram_quantile(0.95, unified_replication_reconcile_duration_seconds) > 5
-    for: 5m
-    annotations:
-      summary: "P95 latency above 5 seconds"
-      
-  - alert: OperatorDown
-    expr: up{job="unified-replication-operator"} == 0
-    for: 5m
-    annotations:
-      summary: "Operator is down"
-```
+The operator provides basic logging and status information through:
+- Kubernetes events
+- Status conditions on resources
+- Standard Kubernetes logging
 
 ## Capacity Planning
 

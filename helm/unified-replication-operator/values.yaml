@@ -27,9 +27,6 @@ serviceAccount:
 
 # Pod annotations
 podAnnotations:
-  prometheus.io/scrape: "true"
-  prometheus.io/port: "8080"
-  prometheus.io/path: "/metrics"
 
 # Pod security context
 podSecurityContext:
@@ -53,8 +50,6 @@ securityContext:
 service:
   type: ClusterIP
   port: 443
-  metricsPort: 8080
-  healthPort: 8081
 
 # Webhook configuration
 webhook:
@@ -151,25 +146,6 @@ advancedFeatures:
     failureThreshold: 5
     successThreshold: 2
     timeout: "1m"
-  
-  # Metrics
-  metrics:
-    enabled: true
-    port: 8080
-  
-  # Health checks
-  healthChecks:
-    enabled: true
-    livenessProbe:
-      initialDelaySeconds: 15
-      periodSeconds: 20
-      timeoutSeconds: 5
-      failureThreshold: 3
-    readinessProbe:
-      initialDelaySeconds: 5
-      periodSeconds: 10
-      timeoutSeconds: 5
-      failureThreshold: 3
 
 # Security configuration (Phase 5.1)
 security:
@@ -219,12 +195,6 @@ backends:
   mock:
     enabled: false
 
-# Monitoring
-monitoring:
-  # ServiceMonitor for Prometheus Operator
-  serviceMonitor:
-    enabled: false
-    interval: 30s
     scrapeTimeout: 10s
     labels: {}
   

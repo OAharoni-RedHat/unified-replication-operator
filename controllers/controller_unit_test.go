@@ -324,36 +324,6 @@ func TestReconciler_ErrorHandling(t *testing.T) {
 	t.Log("Error handling test passed")
 }
 
-func TestReconciler_Metrics(t *testing.T) {
-	reconciler := &UnifiedVolumeReplicationReconciler{
-		Log: ctrl.Log.WithName("test"),
-	}
-
-	initialCount := reconciler.ReconcileCount
-	initialErrors := reconciler.ReconcileErrors
-
-	// Simulate successful reconciliation
-	reconciler.ReconcileCount++
-	reconciler.LastReconcileTime = time.Now()
-
-	assert.Equal(t, initialCount+1, reconciler.ReconcileCount)
-	assert.NotZero(t, reconciler.LastReconcileTime)
-
-	// Simulate error
-	reconciler.ReconcileErrors++
-	assert.Equal(t, initialErrors+1, reconciler.ReconcileErrors)
-
-	// Get metrics
-	metrics := reconciler.GetMetrics()
-	assert.Contains(t, metrics, "reconcile_count")
-	assert.Contains(t, metrics, "reconcile_errors")
-	assert.Contains(t, metrics, "last_reconcile_time")
-	assert.Equal(t, reconciler.ReconcileCount, metrics["reconcile_count"])
-	assert.Equal(t, reconciler.ReconcileErrors, metrics["reconcile_errors"])
-
-	t.Log("Metrics test passed")
-}
-
 func TestReconciler_ConcurrentReconciles(t *testing.T) {
 	reconciler := &UnifiedVolumeReplicationReconciler{
 		Log:                     ctrl.Log.WithName("test"),
