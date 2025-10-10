@@ -61,8 +61,6 @@ func TestTridentReplicationSpec(t *testing.T) {
 
 	require.NotNil(t, spec.Extensions)
 	require.NotNil(t, spec.Extensions.Trident)
-	assert.Len(t, spec.Extensions.Trident.Actions, 2)
-	assert.Equal(t, "mirror-update", spec.Extensions.Trident.Actions[0].Type)
 	assert.Contains(t, spec.SourceEndpoint.StorageClass, "trident")
 	assert.Contains(t, spec.DestinationEndpoint.StorageClass, "trident")
 
@@ -77,7 +75,6 @@ func TestPowerStoreReplicationSpec(t *testing.T) {
 
 	require.NotNil(t, spec.Extensions)
 	require.NotNil(t, spec.Extensions.Powerstore)
-	assert.Equal(t, "Five_Minutes", *spec.Extensions.Powerstore.RpoSettings)
 	assert.Contains(t, spec.SourceEndpoint.StorageClass, "powerstore")
 	assert.Equal(t, replicationv1alpha1.ReplicationModeSynchronous, spec.ReplicationMode)
 
@@ -96,8 +93,6 @@ func TestMultiVendorReplicationSpec(t *testing.T) {
 	require.NotNil(t, spec.Extensions.Powerstore)
 
 	assert.Equal(t, "snapshot", *spec.Extensions.Ceph.MirroringMode)
-	assert.Len(t, spec.Extensions.Trident.Actions, 1)
-	assert.Equal(t, "Fifteen_Minutes", *spec.Extensions.Powerstore.RpoSettings)
 
 	// Validate the spec
 	uvr := &replicationv1alpha1.UnifiedVolumeReplication{Spec: spec}

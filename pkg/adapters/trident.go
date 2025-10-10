@@ -149,19 +149,7 @@ func (ta *TridentAdapter) createTridentMirrorRelationship(ctx context.Context, u
 		"replicationSchedule": uvr.Spec.Schedule.Rpo,
 	}
 
-	// Add Trident-specific extensions if provided
-	if uvr.Spec.Extensions != nil && uvr.Spec.Extensions.Trident != nil {
-		if len(uvr.Spec.Extensions.Trident.Actions) > 0 {
-			actions := make([]interface{}, 0, len(uvr.Spec.Extensions.Trident.Actions))
-			for _, action := range uvr.Spec.Extensions.Trident.Actions {
-				actions = append(actions, map[string]interface{}{
-					"type":           action.Type,
-					"snapshotHandle": action.SnapshotHandle,
-				})
-			}
-			spec["pendingActions"] = actions
-		}
-	}
+	// Trident-specific extensions removed - struct reserved for future use
 
 	if err := unstructured.SetNestedMap(tmr.Object, spec, "spec"); err != nil {
 		ta.updateMetrics("create", false, startTime)
@@ -209,19 +197,7 @@ func (ta *TridentAdapter) updateTridentMirrorRelationship(ctx context.Context, u
 		"replicationSchedule": uvr.Spec.Schedule.Rpo,
 	}
 
-	// Add Trident-specific extensions if provided
-	if uvr.Spec.Extensions != nil && uvr.Spec.Extensions.Trident != nil {
-		if len(uvr.Spec.Extensions.Trident.Actions) > 0 {
-			actions := make([]interface{}, 0, len(uvr.Spec.Extensions.Trident.Actions))
-			for _, action := range uvr.Spec.Extensions.Trident.Actions {
-				actions = append(actions, map[string]interface{}{
-					"type":           action.Type,
-					"snapshotHandle": action.SnapshotHandle,
-				})
-			}
-			spec["pendingActions"] = actions
-		}
-	}
+	// Trident-specific extensions removed - struct reserved for future use
 
 	if err := unstructured.SetNestedMap(existing.Object, spec, "spec"); err != nil {
 		ta.updateMetrics("update", false, startTime)

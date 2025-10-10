@@ -208,10 +208,7 @@ spec:
     storageClass: powerstore-block
   # ...
   extensions:
-    powerstore:
-      rpoSettings: Five_Minutes
-      volumeGroups:
-      - production-vg
+    powerstore: {}  # Reserved for future use
 ```
 
 ## Monitoring

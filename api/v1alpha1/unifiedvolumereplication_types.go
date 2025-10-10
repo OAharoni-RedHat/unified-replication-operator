@@ -152,31 +152,14 @@ type CephExtensions struct {
 	MirroringMode *string `json:"mirroringMode,omitempty" yaml:"mirroringMode,omitempty"`
 }
 
-// TridentAction defines an action to be performed on Trident replication
-type TridentAction struct {
-	// Type of action to perform
-	// +kubebuilder:validation:Enum=mirror-update
-	// +kubebuilder:validation:Required
-	Type string `json:"type" yaml:"type"`
-
-	// SnapshotHandle for the action
-	// +optional
-	SnapshotHandle string `json:"snapshotHandle,omitempty" yaml:"snapshotHandle,omitempty"`
-}
-
 // TridentExtensions defines Trident-specific configuration
+// Currently empty but reserved for future Trident-specific settings
 type TridentExtensions struct {
-	// Actions to perform on the Trident replication
-	// +optional
-	Actions []TridentAction `json:"actions,omitempty" yaml:"actions,omitempty"`
 }
 
 // PowerStoreExtensions defines PowerStore-specific configuration
+// Currently empty but reserved for future PowerStore-specific settings
 type PowerStoreExtensions struct {
-	// RPO settings for PowerStore replication
-	// +kubebuilder:validation:Enum=Five_Minutes;Fifteen_Minutes;Thirty_Minutes;One_Hour
-	// +optional
-	RpoSettings *string `json:"rpoSettings,omitempty" yaml:"rpoSettings,omitempty"`
 }
 
 // Extensions defines vendor-specific extension configurations
@@ -484,44 +467,13 @@ func validateCephExtensions(ceph *CephExtensions) error {
 
 // validateTridentExtensions validates Trident-specific configuration
 func validateTridentExtensions(trident *TridentExtensions) error {
-	if len(trident.Actions) > 0 {
-		for i, action := range trident.Actions {
-			if err := validateTridentAction(action, i); err != nil {
-				return err
-			}
-		}
-	}
-
-	return nil
-}
-
-// validateTridentAction validates a single Trident action
-func validateTridentAction(action TridentAction, index int) error {
-	validTypes := []string{"mirror-update"}
-	if !contains(validTypes, action.Type) {
-		return fmt.Errorf("action[%d] has invalid type '%s', must be one of: %s", index, action.Type, strings.Join(validTypes, ", "))
-	}
-
-	// For mirror-update actions, snapshotHandle should be provided but we make it optional
-	// as it might be auto-generated in some scenarios
-	if action.Type == "mirror-update" && action.SnapshotHandle != "" {
-		if strings.TrimSpace(action.SnapshotHandle) == "" {
-			return fmt.Errorf("action[%d] snapshotHandle cannot be empty string", index)
-		}
-	}
-
+	// No validation needed - struct is empty but reserved for future use
 	return nil
 }
 
 // validatePowerStoreExtensions validates PowerStore-specific configuration
 func validatePowerStoreExtensions(powerstore *PowerStoreExtensions) error {
-	if powerstore.RpoSettings != nil {
-		validRPOs := []string{"Five_Minutes", "Fifteen_Minutes", "Thirty_Minutes", "One_Hour"}
-		if !contains(validRPOs, *powerstore.RpoSettings) {
-			return fmt.Errorf("invalid RPO setting '%s', must be one of: %s", *powerstore.RpoSettings, strings.Join(validRPOs, ", "))
-		}
-	}
-
+	// No validation needed - struct is empty but reserved for future use
 	return nil
 }
 

@@ -182,14 +182,7 @@ func createTestUVRForTrident(name, namespace string) *replicationv1alpha1.Unifie
 				Rto:  "5m",
 			},
 			Extensions: &replicationv1alpha1.Extensions{
-				Trident: &replicationv1alpha1.TridentExtensions{
-					Actions: []replicationv1alpha1.TridentAction{
-						{
-							Type:           "mirror-update",
-							SnapshotHandle: "snap-123",
-						},
-					},
-				},
+				Trident: &replicationv1alpha1.TridentExtensions{},
 			},
 		},
 	}

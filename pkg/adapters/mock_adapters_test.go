@@ -171,7 +171,15 @@ func TestMockTridentAdapter(t *testing.T) {
 	})
 
 	t.Run("GetReplicationStatus", func(t *testing.T) {
-		config := DefaultMockTridentConfig()
+		// Use 100% success rate config to ensure deterministic test behavior
+		config := &MockTridentConfig{
+			CreateSuccessRate: 1.0,
+			UpdateSuccessRate: 1.0,
+			DeleteSuccessRate: 1.0,
+			StatusSuccessRate: 1.0, // Changed from 0.99 to prevent random failures
+			MinLatency:        0,
+			MaxLatency:        0,
+		}
 		adapter := NewMockTridentAdapter(client, translator, config)
 
 		ctx := context.Background()
@@ -493,9 +501,7 @@ func TestMockPowerStoreAdapter(t *testing.T) {
 		ctx := context.Background()
 		uvr := createTestUnifiedVolumeReplication("test-metro", "default")
 		uvr.Spec.ReplicationMode = replicationv1alpha1.ReplicationModeSynchronous
-		uvr.Spec.Extensions.Powerstore = &replicationv1alpha1.PowerStoreExtensions{
-			RpoSettings: &[]string{"Five_Minutes"}[0], // Metro with short RPO
-		}
+		uvr.Spec.Extensions.Powerstore = &replicationv1alpha1.PowerStoreExtensions{}
 
 		err := adapter.EnsureReplication(ctx, uvr)
 		require.NoError(t, err)

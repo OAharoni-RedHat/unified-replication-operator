@@ -87,7 +87,6 @@ func (h *AssertionHelper) assertExtensions(actual, expected *replicationv1alpha1
 	// Assert Trident extensions
 	if expected.Trident != nil {
 		require.NotNil(h.t, actual.Trident, "Trident extensions should not be nil")
-		assert.Equal(h.t, expected.Trident.Actions, actual.Trident.Actions, "Trident actions should match")
 	} else {
 		assert.Nil(h.t, actual.Trident, "Trident extensions should be nil")
 	}
@@ -95,10 +94,6 @@ func (h *AssertionHelper) assertExtensions(actual, expected *replicationv1alpha1
 	// Assert PowerStore extensions
 	if expected.Powerstore != nil {
 		require.NotNil(h.t, actual.Powerstore, "PowerStore extensions should not be nil")
-		if expected.Powerstore.RpoSettings != nil {
-			require.NotNil(h.t, actual.Powerstore.RpoSettings, "PowerStore RPO settings should not be nil")
-			assert.Equal(h.t, *expected.Powerstore.RpoSettings, *actual.Powerstore.RpoSettings, "PowerStore RPO settings should match")
-		}
 	} else {
 		assert.Nil(h.t, actual.Powerstore, "PowerStore extensions should be nil")
 	}

@@ -67,13 +67,10 @@ func TestCRDBuilder(t *testing.T) {
 
 	t.Run("with extensions", func(t *testing.T) {
 		startTime := metav1.Time{Time: time.Now()}
-		actions := []replicationv1alpha1.TridentAction{
-			{Type: "mirror-update", SnapshotHandle: "snap-123"},
-		}
 
 		uvr := NewCRDBuilder().
 			WithCephExtensions("journal", &startTime).
-			WithTridentExtensions(actions).
+			WithTridentExtensions().
 			WithPowerStoreExtensions("Five_Minutes", []string{"group1"}).
 			Build()
 
@@ -83,8 +80,6 @@ func TestCRDBuilder(t *testing.T) {
 		require.NotNil(t, uvr.Spec.Extensions.Powerstore)
 
 		assert.Equal(t, "journal", *uvr.Spec.Extensions.Ceph.MirroringMode)
-		assert.Equal(t, actions, uvr.Spec.Extensions.Trident.Actions)
-		assert.Equal(t, "Five_Minutes", *uvr.Spec.Extensions.Powerstore.RpoSettings)
 	})
 
 	t.Run("with labels and annotations", func(t *testing.T) {

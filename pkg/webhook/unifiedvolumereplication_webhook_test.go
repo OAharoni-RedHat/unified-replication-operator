@@ -293,15 +293,8 @@ func TestValidationPerformance(t *testing.T) {
 				Ceph: &replicationv1alpha1.CephExtensions{
 					MirroringMode: stringPtr("journal"),
 				},
-				Trident: &replicationv1alpha1.TridentExtensions{
-					Actions: []replicationv1alpha1.TridentAction{
-						{Type: "mirror-update", SnapshotHandle: "snap-123"},
-						{Type: "mirror-update", SnapshotHandle: "snap-124"},
-					},
-				},
-				Powerstore: &replicationv1alpha1.PowerStoreExtensions{
-					RpoSettings: stringPtr("Five_Minutes"),
-				},
+				Trident:    &replicationv1alpha1.TridentExtensions{},
+				Powerstore: &replicationv1alpha1.PowerStoreExtensions{},
 			},
 		},
 	}

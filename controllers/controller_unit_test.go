@@ -353,9 +353,7 @@ func createTestUVR(name, namespace string) *replicationv1alpha1.UnifiedVolumeRep
 				Rto:  "5m",
 			},
 			Extensions: &replicationv1alpha1.Extensions{
-				Trident: &replicationv1alpha1.TridentExtensions{
-					Actions: []replicationv1alpha1.TridentAction{},
-				},
+				Trident: &replicationv1alpha1.TridentExtensions{},
 			},
 		},
 	}

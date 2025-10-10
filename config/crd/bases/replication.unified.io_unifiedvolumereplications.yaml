@@ -95,38 +95,12 @@ spec:
                         type: string
                     type: object
                   powerstore:
-                    description: PowerStore-specific extensions
-                    properties:
-                      rpoSettings:
-                        description: RPO settings for PowerStore replication
-                        enum:
-                        - Five_Minutes
-                        - Fifteen_Minutes
-                        - Thirty_Minutes
-                        - One_Hour
-                        type: string
+                    description: PowerStore-specific extensions (reserved for future
+                      use)
                     type: object
                   trident:
-                    description: Trident-specific extensions
-                    properties:
-                      actions:
-                        description: Actions to perform on the Trident replication
-                        items:
-                          description: TridentAction defines an action to be performed
-                            on Trident replication
-                          properties:
-                            snapshotHandle:
-                              description: SnapshotHandle for the action
-                              type: string
-                            type:
-                              description: Type of action to perform
-                              enum:
-                              - mirror-update
-                              type: string
-                          required:
-                          - type
-                          type: object
-                        type: array
+                    description: Trident-specific extensions (reserved for future
+                      use)
                     type: object
                 type: object
               replicationMode:

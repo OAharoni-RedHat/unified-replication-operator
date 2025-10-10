@@ -96,20 +96,13 @@ extensions:
 #### Trident Extensions
 ```yaml
 extensions:
-  trident:
-    actions:
-    - type: mirror-update
-      snapshotHandle: snap-123
+  trident: {}  # Reserved for future Trident-specific settings
 ```
 
 #### PowerStore Extensions
 ```yaml
 extensions:
-  powerstore:
-    rpoSettings: Five_Minutes|Fifteen_Minutes|Thirty_Minutes|One_Hour
-    volumeGroups:
-    - vg-1
-    - vg-2
+  powerstore: {}  # Reserved for future PowerStore-specific settings
 ```
 
 ---
@@ -246,10 +239,7 @@ spec:
     rpo: "0s"  # Synchronous
     rto: "1m"
   extensions:
-    powerstore:
-      rpoSettings: Five_Minutes
-      volumeGroups:
-      - critical-vg
+    powerstore: {}  # Reserved for future use
 ```
 
 ---

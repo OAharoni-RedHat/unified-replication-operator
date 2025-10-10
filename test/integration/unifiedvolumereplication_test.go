@@ -186,14 +186,7 @@ func TestUnifiedVolumeReplication_CreateWithExtensions(t *testing.T) {
 				Ceph: &replicationv1alpha1.CephExtensions{
 					MirroringMode: stringPtr("journal"),
 				},
-				Trident: &replicationv1alpha1.TridentExtensions{
-					Actions: []replicationv1alpha1.TridentAction{
-						{
-							Type:           "mirror-update",
-							SnapshotHandle: "snap-123",
-						},
-					},
-				},
+				Trident: &replicationv1alpha1.TridentExtensions{},
 			},
 		},
 	}
@@ -212,9 +205,8 @@ func TestUnifiedVolumeReplication_CreateWithExtensions(t *testing.T) {
 	require.NotNil(t, createdUVR.Spec.Extensions.Ceph)
 	assert.Equal(t, "journal", *createdUVR.Spec.Extensions.Ceph.MirroringMode)
 
+	// Verify Trident extension exists (currently empty struct, reserved for future use)
 	require.NotNil(t, createdUVR.Spec.Extensions.Trident)
-	require.Len(t, createdUVR.Spec.Extensions.Trident.Actions, 1)
-	assert.Equal(t, "mirror-update", createdUVR.Spec.Extensions.Trident.Actions[0].Type)
 
 	// Cleanup
 	err = k8sClient.Delete(ctx, uvr)

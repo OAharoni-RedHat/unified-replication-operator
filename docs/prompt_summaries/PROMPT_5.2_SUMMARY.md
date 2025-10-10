@@ -322,10 +322,7 @@ err = powerstoreAdapter.Initialize(ctx)
 
 // Create replication
 uvr := &replicationv1alpha1.UnifiedVolumeReplication{...}
-uvr.Spec.Extensions.Powerstore = &replicationv1alpha1.PowerStoreExtensions{
-    RpoSettings:  &"Five_Minutes",
-    VolumeGroups: []string{"vg-1"},
-}
+uvr.Spec.Extensions.Powerstore = &replicationv1alpha1.PowerStoreExtensions{}
 err = powerstoreAdapter.CreateReplication(ctx, uvr)
 
 // Get status with sync progress
@@ -392,10 +389,7 @@ extensions:
 **RPO Settings:**
 ```yaml
 extensions:
-  powerstore:
-    rpoSettings: Five_Minutes  # or Fifteen_Minutes, Thirty_Minutes, One_Hour
-    volumeGroups:
-    - vg-1
+  powerstore: {}  # Reserved for future use
     - vg-2
 ```
 
@@ -743,10 +737,7 @@ spec:
     storageClass: powerstore-block
   # ...
   extensions:
-    powerstore:
-      rpoSettings: Five_Minutes
-      volumeGroups:
-      - production-vg
+    powerstore: {}  # Reserved for future use
 ```
 
 ## Next Steps

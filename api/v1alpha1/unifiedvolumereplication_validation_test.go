@@ -345,44 +345,16 @@ func TestValidateExtensions(t *testing.T) {
 		{
 			name: "valid trident extensions",
 			extensions: &Extensions{
-				Trident: &TridentExtensions{
-					Actions: []TridentAction{
-						{Type: "mirror-update", SnapshotHandle: "snap-123"},
-					},
-				},
+				Trident: &TridentExtensions{},
 			},
 			wantErr: false,
-		},
-		{
-			name: "invalid trident action type",
-			extensions: &Extensions{
-				Trident: &TridentExtensions{
-					Actions: []TridentAction{
-						{Type: "invalid-action"},
-					},
-				},
-			},
-			wantErr: true,
-			errMsg:  "invalid type",
 		},
 		{
 			name: "valid powerstore extensions",
 			extensions: &Extensions{
-				Powerstore: &PowerStoreExtensions{
-					RpoSettings: stringPtr("Five_Minutes"),
-				},
+				Powerstore: &PowerStoreExtensions{},
 			},
 			wantErr: false,
-		},
-		{
-			name: "invalid powerstore RPO",
-			extensions: &Extensions{
-				Powerstore: &PowerStoreExtensions{
-					RpoSettings: stringPtr("Invalid_RPO"),
-				},
-			},
-			wantErr: true,
-			errMsg:  "invalid RPO setting",
 		},
 	}
 

@@ -238,17 +238,8 @@ func TestExtensions_AllVendors(t *testing.T) {
 		Ceph: &CephExtensions{
 			MirroringMode: stringPtr("journal"),
 		},
-		Trident: &TridentExtensions{
-			Actions: []TridentAction{
-				{
-					Type:           "mirror-update",
-					SnapshotHandle: "snap-123",
-				},
-			},
-		},
-		Powerstore: &PowerStoreExtensions{
-			RpoSettings: stringPtr("Five_Minutes"),
-		},
+		Trident:    &TridentExtensions{},
+		Powerstore: &PowerStoreExtensions{},
 	}
 
 	assert.NotNil(t, extensions.Ceph)
@@ -256,9 +247,6 @@ func TestExtensions_AllVendors(t *testing.T) {
 	assert.NotNil(t, extensions.Powerstore)
 
 	assert.Equal(t, "journal", *extensions.Ceph.MirroringMode)
-	assert.Len(t, extensions.Trident.Actions, 1)
-	assert.Equal(t, "mirror-update", extensions.Trident.Actions[0].Type)
-	assert.Equal(t, "Five_Minutes", *extensions.Powerstore.RpoSettings)
 }
 
 func TestBackendInfo_Structure(t *testing.T) {

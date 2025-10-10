@@ -34,7 +34,4 @@ spec:
       # Invalid: action type not in allowed enum
       - type: "invalid-action"
         snapshotHandle: "snap-123"
-    powerstore:
-      # Invalid: RPO setting not in allowed enum
-      rpoSettings: "Invalid_RPO"
-      volumeGroups: ["group-1", ""]  # Invalid: empty volume group name
+    powerstore: {}  # Empty - reserved for future use

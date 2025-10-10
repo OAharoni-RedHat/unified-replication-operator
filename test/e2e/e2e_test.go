@@ -134,18 +134,14 @@ func TestE2E_MultiBackend(t *testing.T) {
 			name:         "trident",
 			storageClass: "trident-nas",
 			extensions: &replicationv1alpha1.Extensions{
-				Trident: &replicationv1alpha1.TridentExtensions{
-					Actions: []replicationv1alpha1.TridentAction{},
-				},
+				Trident: &replicationv1alpha1.TridentExtensions{},
 			},
 		},
 		{
 			name:         "powerstore",
 			storageClass: "powerstore-block",
 			extensions: &replicationv1alpha1.Extensions{
-				Powerstore: &replicationv1alpha1.PowerStoreExtensions{
-					RpoSettings: stringPtr("Five_Minutes"),
-				},
+				Powerstore: &replicationv1alpha1.PowerStoreExtensions{},
 			},
 		},
 	}

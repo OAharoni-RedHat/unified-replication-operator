@@ -80,18 +80,7 @@ func TridentReplicationSpec() replicationv1alpha1.UnifiedVolumeReplicationSpec {
 	spec.DestinationEndpoint.StorageClass = "trident-nas-backup"
 
 	spec.Extensions = &replicationv1alpha1.Extensions{
-		Trident: &replicationv1alpha1.TridentExtensions{
-			Actions: []replicationv1alpha1.TridentAction{
-				{
-					Type:           "mirror-update",
-					SnapshotHandle: "snapshot-daily-001",
-				},
-				{
-					Type:           "mirror-update",
-					SnapshotHandle: "snapshot-hourly-12",
-				},
-			},
-		},
+		Trident: &replicationv1alpha1.TridentExtensions{},
 	}
 
 	return spec
@@ -105,9 +94,7 @@ func PowerStoreReplicationSpec() replicationv1alpha1.UnifiedVolumeReplicationSpe
 	spec.ReplicationMode = replicationv1alpha1.ReplicationModeSynchronous
 
 	spec.Extensions = &replicationv1alpha1.Extensions{
-		Powerstore: &replicationv1alpha1.PowerStoreExtensions{
-			RpoSettings: stringPtr("Five_Minutes"),
-		},
+		Powerstore: &replicationv1alpha1.PowerStoreExtensions{},
 	}
 
 	return spec
@@ -121,14 +108,8 @@ func MultiVendorReplicationSpec() replicationv1alpha1.UnifiedVolumeReplicationSp
 		Ceph: &replicationv1alpha1.CephExtensions{
 			MirroringMode: stringPtr("snapshot"),
 		},
-		Trident: &replicationv1alpha1.TridentExtensions{
-			Actions: []replicationv1alpha1.TridentAction{
-				{Type: "mirror-update", SnapshotHandle: "snap-001"},
-			},
-		},
-		Powerstore: &replicationv1alpha1.PowerStoreExtensions{
-			RpoSettings: stringPtr("Fifteen_Minutes"),
-		},
+		Trident:    &replicationv1alpha1.TridentExtensions{},
+		Powerstore: &replicationv1alpha1.PowerStoreExtensions{},
 	}
 
 	return spec
@@ -219,7 +200,7 @@ func FailureConditions() []metav1.Condition {
 			Type:               "Synced",
 			Status:             metav1.ConditionFalse,
 			Reason:             "OutOfSync",
-			Message:            "Source and destination are out of sync",
+			Message:            "Synchronization failed - source and destination are out of sync",
 			LastTransitionTime: metav1.NewTime(time.Now().Add(-2 * time.Minute)),
 		},
 	}
@@ -461,13 +442,13 @@ func StateTransitionScenarios() map[string]struct {
 			From:   replicationv1alpha1.ReplicationStatePromoting,
 			To:     replicationv1alpha1.ReplicationStateSource,
 			Valid:  true,
-			Reason: "Promotion completes to source state",
+			Reason: "Promotion can complete to source state",
 		},
 		"demoting-to-replica": {
 			From:   replicationv1alpha1.ReplicationStateDemoting,
 			To:     replicationv1alpha1.ReplicationStateReplica,
 			Valid:  true,
-			Reason: "Demotion completes to replica state",
+			Reason: "Demotion can complete to replica state",
 		},
 		"source-to-promoting": {
 			From:   replicationv1alpha1.ReplicationStateSource,
@@ -485,7 +466,7 @@ func StateTransitionScenarios() map[string]struct {
 			From:   replicationv1alpha1.ReplicationStatePromoting,
 			To:     replicationv1alpha1.ReplicationStateReplica,
 			Valid:  false,
-			Reason: "Cannot go from promoting directly to replica",
+			Reason: "cannot go from promoting directly to replica",
 		},
 		"failed-to-syncing": {
 			From:   replicationv1alpha1.ReplicationStateFailed,
@@ -582,9 +563,7 @@ func CrossRegionScenarios() map[string]replicationv1alpha1.UnifiedVolumeReplicat
 				Rto:  "1m",
 			},
 			Extensions: &replicationv1alpha1.Extensions{
-				Powerstore: &replicationv1alpha1.PowerStoreExtensions{
-					RpoSettings: stringPtr("Five_Minutes"),
-				},
+				Powerstore: &replicationv1alpha1.PowerStoreExtensions{},
 			},
 		},
 	}

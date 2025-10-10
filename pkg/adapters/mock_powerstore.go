@@ -677,10 +677,7 @@ func (mpa *MockPowerStoreAdapter) isPowerStoreMetro(uvr *replicationv1alpha1.Uni
 }
 
 func (mpa *MockPowerStoreAdapter) getPowerStoreProtectionPolicy(uvr *replicationv1alpha1.UnifiedVolumeReplication) string {
-	// Use RPO settings if available
-	if uvr.Spec.Extensions.Powerstore != nil && uvr.Spec.Extensions.Powerstore.RpoSettings != nil {
-		return *uvr.Spec.Extensions.Powerstore.RpoSettings
-	}
+	// Return default protection policy (RPO settings removed)
 	return "default-protection-policy"
 }
 

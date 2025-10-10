@@ -149,12 +149,7 @@ func (psa *PowerStoreAdapter) createPowerStoreReplicationGroup(ctx context.Conte
 		"syncSchedule": uvr.Spec.Schedule.Rpo,
 	}
 
-	// Add PowerStore-specific extensions if provided
-	if uvr.Spec.Extensions != nil && uvr.Spec.Extensions.Powerstore != nil {
-		if uvr.Spec.Extensions.Powerstore.RpoSettings != nil {
-			spec["rpoSettings"] = *uvr.Spec.Extensions.Powerstore.RpoSettings
-		}
-	}
+	// PowerStore-specific extensions removed - struct reserved for future use
 
 	if err := unstructured.SetNestedMap(rg.Object, spec, "spec"); err != nil {
 		psa.updateMetrics("create", false, startTime)
@@ -209,12 +204,7 @@ func (psa *PowerStoreAdapter) updatePowerStoreReplicationGroup(ctx context.Conte
 		"syncSchedule": uvr.Spec.Schedule.Rpo,
 	}
 
-	// Add PowerStore-specific extensions if provided
-	if uvr.Spec.Extensions != nil && uvr.Spec.Extensions.Powerstore != nil {
-		if uvr.Spec.Extensions.Powerstore.RpoSettings != nil {
-			spec["rpoSettings"] = *uvr.Spec.Extensions.Powerstore.RpoSettings
-		}
-	}
+	// PowerStore-specific extensions removed - struct reserved for future use
 
 	if err := unstructured.SetNestedMap(existing.Object, spec, "spec"); err != nil {
 		psa.updateMetrics("update", false, startTime)

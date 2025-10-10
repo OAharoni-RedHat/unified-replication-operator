@@ -374,13 +374,9 @@ func createValidUVR(name, namespace string, backend translation.Backend) *replic
 			MirroringMode: stringPtr("journal"),
 		}
 	case translation.BackendTrident:
-		uvr.Spec.Extensions.Trident = &replicationv1alpha1.TridentExtensions{
-			Actions: []replicationv1alpha1.TridentAction{},
-		}
+		uvr.Spec.Extensions.Trident = &replicationv1alpha1.TridentExtensions{}
 	case translation.BackendPowerStore:
-		uvr.Spec.Extensions.Powerstore = &replicationv1alpha1.PowerStoreExtensions{
-			RpoSettings: stringPtr("Five_Minutes"),
-		}
+		uvr.Spec.Extensions.Powerstore = &replicationv1alpha1.PowerStoreExtensions{}
 	}
 
 	return uvr

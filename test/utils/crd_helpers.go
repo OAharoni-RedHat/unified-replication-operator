@@ -183,14 +183,12 @@ func (b *CRDBuilder) WithCephExtensions(mirroringMode string, startTime *metav1.
 	return b
 }
 
-// WithTridentExtensions adds Trident extensions
-func (b *CRDBuilder) WithTridentExtensions(actions []replicationv1alpha1.TridentAction) *CRDBuilder {
+// WithTridentExtensions adds Trident extensions (currently empty, reserved for future use)
+func (b *CRDBuilder) WithTridentExtensions() *CRDBuilder {
 	if b.uvr.Spec.Extensions == nil {
 		b.uvr.Spec.Extensions = &replicationv1alpha1.Extensions{}
 	}
-	b.uvr.Spec.Extensions.Trident = &replicationv1alpha1.TridentExtensions{
-		Actions: actions,
-	}
+	b.uvr.Spec.Extensions.Trident = &replicationv1alpha1.TridentExtensions{}
 	return b
 }
 
@@ -199,9 +197,7 @@ func (b *CRDBuilder) WithPowerStoreExtensions(rpoSettings string, volumeGroups [
 	if b.uvr.Spec.Extensions == nil {
 		b.uvr.Spec.Extensions = &replicationv1alpha1.Extensions{}
 	}
-	b.uvr.Spec.Extensions.Powerstore = &replicationv1alpha1.PowerStoreExtensions{
-		RpoSettings: &rpoSettings,
-	}
+	b.uvr.Spec.Extensions.Powerstore = &replicationv1alpha1.PowerStoreExtensions{}
 	return b
 }
 
@@ -354,10 +350,7 @@ func (g *MockDataGenerator) GenerateRandomCRD() *replicationv1alpha1.UnifiedVolu
 	}
 
 	if g.rand.Float32() < 0.3 { // 30% chance of Trident extensions
-		actions := []replicationv1alpha1.TridentAction{
-			{Type: "mirror-update", SnapshotHandle: g.RandomName("snap")},
-		}
-		builder.WithTridentExtensions(actions)
+		builder.WithTridentExtensions()
 	}
 
 	if g.rand.Float32() < 0.3 { // 30% chance of PowerStore extensions

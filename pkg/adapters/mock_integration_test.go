@@ -498,13 +498,9 @@ func createIntegrationTestUVR(name, namespace string, backend translation.Backen
 	// Add backend-specific configuration
 	switch backend {
 	case translation.BackendTrident:
-		uvr.Spec.Extensions.Trident = &replicationv1alpha1.TridentExtensions{
-			Actions: []replicationv1alpha1.TridentAction{},
-		}
+		uvr.Spec.Extensions.Trident = &replicationv1alpha1.TridentExtensions{}
 	case translation.BackendPowerStore:
-		uvr.Spec.Extensions.Powerstore = &replicationv1alpha1.PowerStoreExtensions{
-			RpoSettings: stringPtr("Five_Minutes"),
-		}
+		uvr.Spec.Extensions.Powerstore = &replicationv1alpha1.PowerStoreExtensions{}
 	case translation.BackendCeph:
 		uvr.Spec.Extensions.Ceph = &replicationv1alpha1.CephExtensions{
 			MirroringMode: stringPtr("journal"),

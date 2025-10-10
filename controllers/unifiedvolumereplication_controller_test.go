@@ -109,9 +109,7 @@ var _ = Describe("UnifiedVolumeReplicationController", func() {
 						Rto:  "5m",
 					},
 					Extensions: &replicationv1alpha1.Extensions{
-						Trident: &replicationv1alpha1.TridentExtensions{
-							Actions: []replicationv1alpha1.TridentAction{},
-						},
+						Trident: &replicationv1alpha1.TridentExtensions{},
 					},
 				},
 			}
@@ -290,8 +288,6 @@ var _ = Describe("UnifiedVolumeReplicationController", func() {
 			Expect(notFound).To(BeNil())
 		})
 	})
-
-	// Operation determination tests removed (behavior now handled by EnsureReplication)
 
 	Context("Adapter selection", func() {
 		var (

@@ -210,10 +210,7 @@ func createTestUVRForPowerStore(name, namespace string) *replicationv1alpha1.Uni
 				Rto:  "5m",
 			},
 			Extensions: &replicationv1alpha1.Extensions{
-				Powerstore: &replicationv1alpha1.PowerStoreExtensions{
-					RpoSettings: stringPtr("Five_Minutes"),
-					// VolumeGroups: []string{"vg-1", "vg-2"}, // Temporarily disabled to avoid deep copy panic
-				},
+				Powerstore: &replicationv1alpha1.PowerStoreExtensions{},
 			},
 		},
 	}
