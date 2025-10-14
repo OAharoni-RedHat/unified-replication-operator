@@ -1,0 +1,34 @@
+apiVersion: replication.unified.io/v1alpha1
+kind: UnifiedVolumeReplication
+metadata:
+  name: invalid-test-replication
+  namespace: default
+spec:
+  # Invalid: sourceEndpoint and destinationEndpoint have same cluster/region
+  sourceEndpoint:
+    cluster: "same-cluster"
+    region: "us-east-1"
+    storageClass: "trident-ontap-san"
+  
+  destinationEndpoint:
+    cluster: "same-cluster"  # ← INVALID: Same as source
+    region: "us-east-1"      # ← INVALID: Same as source
+    storageClass: "trident-ontap-nas"
+  
+  volumeMapping:
+    source:
+      pvcName: "test-pvc"
+      namespace: "default"
+    destination:
+      volumeHandle: "test-volume"
+      namespace: "default"
+  
+  # Invalid state value
+  replicationState: "invalid-state"  # ← INVALID: Not a valid state
+  replicationMode: "asynchronous"
+  
+  schedule:
+    rpo: "15m"
+    rto: "5m"
+    mode: "interval"
+

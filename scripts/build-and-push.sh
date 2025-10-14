@@ -11,6 +11,8 @@ CONTAINER_TOOL="${CONTAINER_TOOL:-podman}"  # Can be 'docker' or 'podman'
 SKIP_TESTS="${SKIP_TESTS:-true}"
 SKIP_DEPLOY="${SKIP_DEPLOY:-false}"
 PUSH_IMAGE="${PUSH_IMAGE:-true}"
+ENABLE_WEBHOOKS="${ENABLE_WEBHOOKS:-false}"  # Enable webhook validation
+ENABLE_NETWORK_POLICY="${ENABLE_NETWORK_POLICY:-false}"  # Enable network policies
 
 # Computed values
 FULL_IMAGE="${REGISTRY}/${IMAGE_NAME}:${VERSION}"
@@ -302,8 +304,8 @@ deploy_operator() {
             --set image.repository=${REGISTRY}/${IMAGE_NAME} \
             --set image.tag=${VERSION} \
             --set image.pullPolicy=Always \
-            --set webhook.enabled=false \
-            --set security.networkPolicy.enabled=false \
+            --set webhook.enabled=${ENABLE_WEBHOOKS} \
+            --set security.networkPolicy.enabled=${ENABLE_NETWORK_POLICY} \
             --no-hooks \
             --wait=false
     else
@@ -315,8 +317,8 @@ deploy_operator() {
             --set image.tag=${VERSION} \
             --set image.pullPolicy=Always \
             --set openshift.compatibleSecurity=true \
-            --set webhook.enabled=false \
-            --set security.networkPolicy.enabled=false \
+            --set webhook.enabled=${ENABLE_WEBHOOKS} \
+            --set security.networkPolicy.enabled=${ENABLE_NETWORK_POLICY} \
             --no-hooks \
             --wait=false
     fi
