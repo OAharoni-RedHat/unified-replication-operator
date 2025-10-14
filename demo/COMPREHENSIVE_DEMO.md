@@ -606,7 +606,7 @@ kubectl describe uvr demo-trident-replication -n default
 kubectl describe tridentmirrorrelationship demo-trident-replication -n default
 
 # Automated validation
-./scripts/validate-replication.sh demo-trident-replication
+../scripts/validate-replication.sh demo-trident-replication
 ```
 
 ### **For Ceph Replication:**

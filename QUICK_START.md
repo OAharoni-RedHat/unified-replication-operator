@@ -1,5 +1,7 @@
 # Quick Start Guide
 
+> 🎬 **Want a complete demo?** See the **[demo/](demo/)** folder for comprehensive walkthrough!
+
 ## ✅ What's Working
 
 Your operator build environment is now fully configured:

@@ -47,7 +47,7 @@ cat COMPREHENSIVE_DEMO.md | less
 
 #### **Automated Validation Script**
 ```bash
-./scripts/validate-replication.sh trident-volume-replication
+../scripts/validate-replication.sh trident-volume-replication
 ```
 
 Checks:
@@ -268,7 +268,7 @@ kubectl get tridentmirrorrelationship -n default
 kubectl get volumereplication -n default 2>/dev/null || echo "Ceph CRDs not installed"
 
 # 4. Run validation
-./scripts/validate-replication.sh trident-volume-replication
+../scripts/validate-replication.sh trident-volume-replication
 
 # 5. Check no restarts
 kubectl get pods -n unified-replication-system \
@@ -353,7 +353,7 @@ If any demo step fails:
 
 2. **Run validation:**
    ```bash
-   ./scripts/validate-replication.sh <resource-name>
+   ../scripts/validate-replication.sh <resource-name>
    ```
 
 3. **Check events:**

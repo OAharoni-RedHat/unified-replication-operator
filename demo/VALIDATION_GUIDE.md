@@ -5,7 +5,7 @@
 ### **Automated Validation**
 ```bash
 export KUBECONFIG=/path/to/kubeconfig
-./scripts/validate-replication.sh trident-volume-replication
+../scripts/validate-replication.sh trident-volume-replication
 ```
 
 ### **Manual Validation Steps**
@@ -268,7 +268,7 @@ kubectl logs -n unified-replication-system -l control-plane=controller-manager -
 export KUBECONFIG=/home/oaharoni/aws-gpfs-playground/ocp_install_files/auth/kubeconfig
 
 # Full validation
-./scripts/validate-replication.sh trident-volume-replication
+../scripts/validate-replication.sh trident-volume-replication
 
 # Quick status
 kubectl get uvr,tridentmirrorrelationship -n default

@@ -36,7 +36,7 @@ This interactive script demonstrates all operator capabilities in sequence.
 ./test-backend-switching.sh
 
 # Validate specific replication
-./scripts/validate-replication.sh <replication-name>
+../scripts/validate-replication.sh <replication-name>
 
 # Build and deploy operator
 ./scripts/build-and-push.sh
@@ -147,7 +147,7 @@ When running a demo, validate:
 
 1. **Start here:** Run `./run-demo.sh` to see everything in action
 2. **Read:** `COMPREHENSIVE_DEMO.md` for detailed explanations
-3. **Validate:** Use `./scripts/validate-replication.sh` to check your replications
+3. **Validate:** Use `../scripts/validate-replication.sh` to check your replications
 4. **Deep dive:** Read `BACKEND_SWITCHING_DEMO.md` for architecture details
 
 ## 🔗 **Related Documentation**

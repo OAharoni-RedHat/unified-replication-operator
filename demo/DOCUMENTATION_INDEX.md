@@ -48,7 +48,7 @@ Perfect for first-time users and demonstrations:
 **Validation scripts:**
 ```bash
 # Validate specific replication
-./scripts/validate-replication.sh <name>
+../scripts/validate-replication.sh <name>
 
 # Test backend switching
 ./test-backend-switching.sh
@@ -128,7 +128,7 @@ Original documentation (in `docs/` directory):
 1. Copy `trident-replication.yaml` or `ceph-replication.yaml`
 2. Modify for your needs
 3. `kubectl apply -f your-replication.yaml`
-4. Validate with `./scripts/validate-replication.sh`
+4. Validate with `../scripts/validate-replication.sh`
 
 ### **"I want to understand backend switching"**
 1. [BACKEND_SWITCHING_DEMO.md](BACKEND_SWITCHING_DEMO.md)
@@ -136,7 +136,7 @@ Original documentation (in `docs/` directory):
 
 ### **"I want to validate my setup"**
 1. [VALIDATION_GUIDE.md](VALIDATION_GUIDE.md)
-2. Run `./scripts/validate-replication.sh <name>`
+2. Run `../scripts/validate-replication.sh <name>`
 
 ### **"I want to troubleshoot"**
 1. [VALIDATION_GUIDE.md](VALIDATION_GUIDE.md) - Common Issues section
@@ -216,7 +216,7 @@ Original documentation (in `docs/` directory):
 | **See demo** | Run `./run-demo.sh` |
 | **Install operator** | [QUICK_START.md](QUICK_START.md) |
 | **Build from source** | [BUILD_AND_DEPLOY.md](BUILD_AND_DEPLOY.md) |
-| **Validate replication** | Run `./scripts/validate-replication.sh` |
+| **Validate replication** | Run `../scripts/validate-replication.sh` |
 | **Troubleshoot** | [VALIDATION_GUIDE.md](VALIDATION_GUIDE.md) |
 | **Understand architecture** | [BACKEND_SWITCHING_DEMO.md](BACKEND_SWITCHING_DEMO.md) |
 
