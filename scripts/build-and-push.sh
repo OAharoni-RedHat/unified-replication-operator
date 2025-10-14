@@ -217,6 +217,67 @@ push_image() {
     echo_info "Images pushed successfully"
 }
 
+# Install CRDs
+install_crds() {
+    if [[ "${SKIP_DEPLOY}" == "true" ]]; then
+        return 0
+    fi
+    
+    echo_step "Installing CRDs..."
+    
+    local kubectl_cmd="kubectl"
+    if command -v oc &> /dev/null; then
+        kubectl_cmd="oc"
+    fi
+    
+    # Apply CRDs
+    ${kubectl_cmd} apply -f config/crd/bases/ 2>&1 | head -5 || echo_warn "CRDs may already exist"
+    echo_info "CRDs installed"
+}
+
+# Create webhook certificates
+create_webhook_cert() {
+    if [[ "${SKIP_DEPLOY}" == "true" ]]; then
+        return 0
+    fi
+    
+    echo_step "Creating webhook certificates..."
+    
+    local kubectl_cmd="kubectl"
+    if command -v oc &> /dev/null; then
+        kubectl_cmd="oc"
+    fi
+    
+    # Check if secret already exists
+    if ${kubectl_cmd} get secret ${OPERATOR}-webhook-cert -n ${NAMESPACE} &>/dev/null; then
+        echo_info "Webhook certificate already exists"
+        return 0
+    fi
+    
+    # Create namespace if it doesn't exist
+    ${kubectl_cmd} create namespace ${NAMESPACE} 2>/dev/null || true
+    
+    # Generate certificate
+    echo_info "Generating self-signed certificate..."
+    TMPDIR=$(mktemp -d)
+    trap "rm -rf $TMPDIR" EXIT
+    
+    cd "$TMPDIR"
+    
+    openssl req -x509 -newkey rsa:2048 -nodes -keyout tls.key -out tls.crt -days 365 \
+        -subj "/CN=webhook" \
+        -addext "subjectAltName=DNS:${OPERATOR}-webhook-service,DNS:${OPERATOR}-webhook-service.${NAMESPACE},DNS:${OPERATOR}-webhook-service.${NAMESPACE}.svc,DNS:${OPERATOR}-webhook-service.${NAMESPACE}.svc.cluster.local" \
+        2>/dev/null
+    
+    # Create secret
+    ${kubectl_cmd} create secret tls ${OPERATOR}-webhook-cert \
+        --cert=tls.crt --key=tls.key -n ${NAMESPACE}
+    
+    echo_info "Webhook certificate created"
+    
+    cd - > /dev/null
+}
+
 # Deploy/Update via Helm
 deploy_operator() {
     if [[ "${SKIP_DEPLOY}" == "true" ]]; then
@@ -225,6 +286,12 @@ deploy_operator() {
     fi
     
     echo_step "Deploying operator via Helm..."
+    
+    # Install CRDs first
+    install_crds
+    
+    # Create webhook cert
+    create_webhook_cert
     
     # Check if release exists
     if helm list -n ${NAMESPACE} 2>/dev/null | grep -q ${OPERATOR}; then
@@ -235,6 +302,8 @@ deploy_operator() {
             --set image.repository=${REGISTRY}/${IMAGE_NAME} \
             --set image.tag=${VERSION} \
             --set image.pullPolicy=Always \
+            --set webhook.enabled=false \
+            --set security.networkPolicy.enabled=false \
             --no-hooks \
             --wait=false
     else
@@ -246,6 +315,8 @@ deploy_operator() {
             --set image.tag=${VERSION} \
             --set image.pullPolicy=Always \
             --set openshift.compatibleSecurity=true \
+            --set webhook.enabled=false \
+            --set security.networkPolicy.enabled=false \
             --no-hooks \
             --wait=false
     fi

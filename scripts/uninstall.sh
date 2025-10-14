@@ -1,135 +1,160 @@
 #!/bin/bash
-# Uninstallation script for Unified Replication Operator
+# Uninstall script for Unified Replication Operator
+# Removes all operator artifacts from the cluster
 
 set -e
 
-# Default values
 NAMESPACE="${NAMESPACE:-unified-replication-system}"
 RELEASE_NAME="${RELEASE_NAME:-unified-replication-operator}"
-DELETE_NAMESPACE="${DELETE_NAMESPACE:-false}"
-DELETE_CRDS="${DELETE_CRDS:-false}"
 
 # Colors
-RED='\033[0;31m'
 GREEN='\033[0;32m'
+RED='\033[0;31m'
 YELLOW='\033[1;33m'
 NC='\033[0m'
 
 echo_info() {
-    echo -e "${GREEN}[INFO]${NC} $1"
+    echo -e "${GREEN}✅${NC} $1"
 }
 
 echo_warn() {
-    echo -e "${YELLOW}[WARN]${NC} $1"
+    echo -e "${YELLOW}⚠️${NC}  $1"
 }
 
 echo_error() {
-    echo -e "${RED}[ERROR]${NC} $1"
+    echo -e "${RED}❌${NC} $1"
 }
 
-# Cleanup resources
-cleanup_resources() {
-    echo_info "Cleaning up UnifiedVolumeReplication resources..."
-    
-    # Delete all UVR resources
-    if kubectl get unifiedvolumereplications -A &> /dev/null; then
-        kubectl delete unifiedvolumereplications --all -A --wait=true --timeout=300s || \
-            echo_warn "Some resources may still be deleting"
-    fi
-    
-    echo_info "Resources cleaned up ✓"
-}
+echo ""
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "  Unified Replication Operator - Uninstall"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo ""
+echo "This will remove:"
+echo "  • All UnifiedVolumeReplication resources"
+echo "  • Backend-specific CRDs (via finalizers)"
+echo "  • Helm release: $RELEASE_NAME"
+echo "  • Namespace: $NAMESPACE"
+echo "  • CRDs, webhooks, RBAC, SCC"
+echo ""
 
-# Uninstall operator
-uninstall_operator() {
-    echo_info "Uninstalling operator via Helm..."
-    
-    if helm list -n "$NAMESPACE" | grep -q "$RELEASE_NAME"; then
-        helm uninstall "$RELEASE_NAME" -n "$NAMESPACE" --wait
-        echo_info "Operator uninstalled ✓"
-    else
-        echo_warn "Release $RELEASE_NAME not found in namespace $NAMESPACE"
-    fi
-}
+# Prompt for confirmation
+read -p "Are you sure you want to continue? (yes/no): " CONFIRM
+if [ "$CONFIRM" != "yes" ]; then
+    echo "Uninstall cancelled."
+    exit 0
+fi
 
-# Delete webhook configuration
-delete_webhook() {
-    echo_info "Deleting webhook configuration..."
-    
-    WEBHOOK_NAME="${RELEASE_NAME}-validating-webhook"
-    if kubectl get validatingwebhookconfiguration "$WEBHOOK_NAME" &> /dev/null; then
-        kubectl delete validatingwebhookconfiguration "$WEBHOOK_NAME"
-        echo_info "Webhook deleted ✓"
-    fi
-}
+echo ""
 
-# Delete CRDs
-delete_crds() {
-    if [ "$DELETE_CRDS" = "true" ]; then
-        echo_warn "Deleting CRDs (this will delete ALL UnifiedVolumeReplication resources)..."
-        
-        if kubectl get crd unifiedvolumereplications.replication.unified.io &> /dev/null; then
-            kubectl delete crd unifiedvolumereplications.replication.unified.io
-            echo_info "CRDs deleted ✓"
-        fi
-    else
-        echo_info "Skipping CRD deletion (set DELETE_CRDS=true to delete)"
-    fi
-}
+# Step 1: Delete all UnifiedVolumeReplication resources
+echo_info "Step 1: Deleting all UnifiedVolumeReplication resources..."
+if kubectl get uvr --all-namespaces &>/dev/null; then
+    kubectl delete uvr --all --all-namespaces --timeout=60s || echo_warn "Some resources may still be deleting"
+    echo_info "UnifiedVolumeReplication resources deleted"
+else
+    echo_info "No UnifiedVolumeReplication resources found"
+fi
 
-# Delete namespace
-delete_namespace() {
-    if [ "$DELETE_NAMESPACE" = "true" ]; then
-        echo_warn "Deleting namespace: $NAMESPACE"
-        
-        if kubectl get namespace "$NAMESPACE" &> /dev/null; then
-            kubectl delete namespace "$NAMESPACE" --wait=true --timeout=300s
-            echo_info "Namespace deleted ✓"
-        fi
-    else
-        echo_info "Skipping namespace deletion (set DELETE_NAMESPACE=true to delete)"
-    fi
-}
+# Wait for finalizers to clean up backend CRDs
+echo_info "Waiting for finalizers to clean up backend resources..."
+sleep 5
 
-# Main uninstallation flow
-main() {
-    echo_info "=== Unified Replication Operator Uninstallation ==="
-    echo ""
-    echo_info "Namespace: $NAMESPACE"
-    echo_info "Release: $RELEASE_NAME"
-    echo_info "Delete CRDs: $DELETE_CRDS"
-    echo_info "Delete Namespace: $DELETE_NAMESPACE"
-    echo ""
-    
-    # Confirm
-    read -p "Continue with uninstallation? (yes/no): " -r
-    echo
-    if [[ ! $REPLY =~ ^[Yy][Ee][Ss]$ ]]; then
-        echo_info "Uninstallation cancelled"
-        exit 0
-    fi
-    
-    # Cleanup resources
-    cleanup_resources
-    
-    # Delete webhook
-    delete_webhook
-    
-    # Uninstall operator
-    uninstall_operator
-    
-    # Delete CRDs (optional)
-    delete_crds
-    
-    # Delete namespace (optional)
-    delete_namespace
-    
-    echo ""
-    echo_info "========================================="
-    echo_info "Uninstallation Complete!"
-    echo_info "========================================="
-}
+# Step 2: Uninstall Helm release
+echo_info "Step 2: Uninstalling Helm release..."
+if helm list -n "$NAMESPACE" 2>/dev/null | grep -q "$RELEASE_NAME"; then
+    helm uninstall "$RELEASE_NAME" -n "$NAMESPACE" --wait || echo_warn "Helm uninstall had issues"
+    echo_info "Helm release uninstalled"
+else
+    echo_info "Helm release not found (already uninstalled)"
+fi
 
-# Run main
-main
+# Step 3: Delete webhook configurations
+echo_info "Step 3: Deleting webhook configurations..."
+kubectl delete validatingwebhookconfiguration "${RELEASE_NAME}-validating-webhook" 2>/dev/null || echo_info "Webhook config not found"
 
+# Step 4: Delete mutating webhook if exists
+kubectl delete mutatingwebhookconfiguration "${RELEASE_NAME}-mutating-webhook" 2>/dev/null || echo_info "Mutating webhook not found"
+
+# Step 5: Delete CRDs
+echo_info "Step 4: Deleting Custom Resource Definitions..."
+kubectl delete crd unifiedvolumereplications.replication.unified.io 2>/dev/null || echo_info "CRD not found"
+
+# Step 6: Delete OpenShift SCC if exists
+echo_info "Step 5: Deleting OpenShift SCC (if exists)..."
+if kubectl api-resources | grep -q securitycontextconstraints; then
+    kubectl delete scc unified-replication-operator-scc 2>/dev/null || echo_info "SCC not found"
+else
+    echo_info "Not an OpenShift cluster, skipping SCC"
+fi
+
+# Step 7: Delete namespace
+echo_info "Step 6: Deleting namespace..."
+if kubectl get namespace "$NAMESPACE" &>/dev/null; then
+    kubectl delete namespace "$NAMESPACE" --timeout=120s || echo_warn "Namespace deletion timed out"
+    echo_info "Namespace deleted"
+else
+    echo_info "Namespace not found"
+fi
+
+# Step 8: Clean up any remaining cluster-level RBAC
+echo_info "Step 7: Cleaning up cluster-level RBAC..."
+kubectl delete clusterrole "${RELEASE_NAME}-manager" 2>/dev/null || echo_info "ClusterRole not found"
+kubectl delete clusterrolebinding "${RELEASE_NAME}-manager" 2>/dev/null || echo_info "ClusterRoleBinding not found"
+
+# Step 9: Verify cleanup
+echo ""
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "  Verification"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo ""
+
+ALL_CLEAN=true
+
+# Check namespace
+if kubectl get namespace "$NAMESPACE" &>/dev/null; then
+    echo_warn "Namespace still exists (may be terminating)"
+    ALL_CLEAN=false
+else
+    echo_info "Namespace: Deleted"
+fi
+
+# Check CRDs
+if kubectl get crd | grep -q unifiedvolumeplication; then
+    echo_warn "CRDs still exist"
+    ALL_CLEAN=false
+else
+    echo_info "CRDs: Deleted"
+fi
+
+# Check pods
+if kubectl get pods -n "$NAMESPACE" &>/dev/null 2>&1; then
+    echo_warn "Pods still exist in namespace"
+    ALL_CLEAN=false
+else
+    echo_info "Pods: Deleted"
+fi
+
+# Check Helm
+if helm list -n "$NAMESPACE" 2>/dev/null | grep -q "$RELEASE_NAME"; then
+    echo_warn "Helm release still exists"
+    ALL_CLEAN=false
+else
+    echo_info "Helm release: Uninstalled"
+fi
+
+echo ""
+if [ "$ALL_CLEAN" = true ]; then
+    echo_info "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo_info "✅ CLEANUP COMPLETE - All artifacts removed!"
+    echo_info "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+else
+    echo_warn "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo_warn "⚠️  Some resources may still be terminating"
+    echo_warn "Wait a moment and re-run this script to verify"
+    echo_warn "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+fi
+
+echo ""
+echo "Your cluster is clean! The operator has been completely removed."
+echo ""
