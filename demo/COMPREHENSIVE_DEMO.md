@@ -168,10 +168,10 @@ demo-trident-replication   established     my-app-data
 
 ```bash
 # View your Unified CR spec
-kubectl get uvr demo-trident-replication -n default -o yaml | grep -A 15 "spec:"
+kubectl get uvr trident-volume-replication -n default -o yaml | grep -A 15 "spec:"
 
 # View generated Trident CR spec
-kubectl get tridentmirrorrelationship demo-trident-replication -n default -o yaml | grep -A 10 "spec:"
+kubectl get tridentmirrorrelationship trident-volume-replication -n default -o yaml | grep -A 10 "spec:"
 ```
 
 **Comparison:**
@@ -189,7 +189,7 @@ kubectl get tridentmirrorrelationship demo-trident-replication -n default -o yam
 
 ```bash
 kubectl logs -n unified-replication-system -l control-plane=controller-manager | \
-  grep demo-trident-replication | tail -10
+  grep trident-volume-replication | tail -10
 ```
 
 **Expected Log Sequence:**
@@ -211,7 +211,7 @@ kubectl logs -n unified-replication-system -l control-plane=controller-manager |
 Change the replication state from `source` to `replica`:
 
 ```bash
-kubectl patch uvr demo-trident-replication -n default --type=merge -p '
+kubectl patch uvr trident-volume-replication -n default --type=merge -p '
 {
   "spec": {
     "replicationState": "replica"
@@ -221,13 +221,13 @@ kubectl patch uvr demo-trident-replication -n default --type=merge -p '
 
 **Expected Output:**
 ```
-unifiedvolumereplication.replication.unified.io/demo-trident-replication patched
+unifiedvolumereplication.replication.unified.io/trident-volume-replication patched
 ```
 
 ### **Step 2: Verify Unified CR Updated**
 
 ```bash
-kubectl get uvr demo-trident-replication -n default -o jsonpath='{.spec.replicationState}'
+kubectl get uvr trident-volume-replication -n default -o jsonpath='{.spec.replicationState}'
 echo ""
 ```
 
@@ -245,7 +245,7 @@ Wait a moment for reconciliation (operator polls every 30s):
 sleep 10
 
 # Check Trident CR state
-kubectl get tridentmirrorrelationship demo-trident-replication -n default -o jsonpath='{.spec.state}'
+kubectl get tridentmirrorrelationship trident-volume-replication -n default -o jsonpath='{.spec.state}'
 echo ""
 ```
 
@@ -261,17 +261,17 @@ established
 In one terminal:
 ```bash
 # Watch the Trident CR
-kubectl get tridentmirrorrelationship demo-trident-replication -n default -w
+kubectl get tridentmirrorrelationship trident-volume-replication -n default -w
 ```
 
 In another terminal:
 ```bash
 # Make another change
-kubectl patch uvr demo-trident-replication -n default --type=merge -p '
+kubectl patch uvr trident-volume-replication -n default --type=merge -p '
 {
   "spec": {
     "schedule": {
-      "rpo": "10m"
+      "rpo": "5m"
     }
   }
 }'
@@ -285,7 +285,7 @@ kubectl patch uvr demo-trident-replication -n default --type=merge -p '
 
 ```bash
 kubectl logs -n unified-replication-system -l control-plane=controller-manager --tail=50 | \
-  grep demo-trident-replication | grep -i update
+  grep trident-volume-replication | grep -i update
 ```
 
 **Expected:**

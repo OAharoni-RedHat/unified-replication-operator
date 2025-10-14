@@ -31,14 +31,15 @@ var CephStateMap = NewTranslationMap(map[string]string{
 })
 
 // TridentStateMap defines the translation between unified and Trident states
-// Trident uses TridentMirrorRelationship with states: established, promoted, reestablished, establishing, error
+// Trident uses TridentMirrorRelationship with states: established, promoted, reestablished
+// Note: Trident uses "established" for both source and replica - the direction is in the relationship itself
 var TridentStateMap = NewTranslationMap(map[string]string{
-	"source":    "established",         // Source volume with established mirror relationship
-	"replica":   "established-replica", // Replica uses extended established state
-	"promoting": "promoted",            // Volume being promoted from replica to source
-	"demoting":  "reestablished",       // Volume being demoted, relationship reestablished
-	"syncing":   "establishing",        // Volume synchronizing, relationship establishing
-	"failed":    "error",               // Failed state maps to error condition
+	"source":    "established",   // Source volume with established mirror relationship
+	"replica":   "established",   // Replica also uses established (direction is implicit)
+	"promoting": "promoted",      // Volume being promoted from replica to source
+	"demoting":  "reestablished", // Volume being demoted, relationship reestablished
+	"syncing":   "established",   // Volume synchronizing, use established
+	"failed":    "established",   // Failed state - keep relationship established
 })
 
 // PowerStoreStateMap defines the translation between unified and PowerStore states
