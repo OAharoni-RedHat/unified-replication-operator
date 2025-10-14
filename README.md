@@ -18,6 +18,16 @@ A Kubernetes operator that provides unified storage replication management acros
 - **Security Hardened** - TLS, RBAC, audit logging, pod security
 - **Production Ready** - Health checks and comprehensive docs
 
+## 🎬 **Live Demo**
+
+Want to see it in action? Run the comprehensive demo:
+
+```bash
+./run-demo.sh
+```
+
+Or read the step-by-step guide: **[COMPREHENSIVE_DEMO.md](COMPREHENSIVE_DEMO.md)**
+
 ## Quick Start
 
 ```bash
@@ -63,8 +73,18 @@ kubectl get uvr my-replication -n default
 
 ## Documentation
 
-- **[Getting Started](docs/user-guide/GETTING_STARTED.md)** - Quick start guide
-- **[User Guide](docs/user-guide/)** - Complete user documentation
+### **Getting Started**
+- **[🎬 Comprehensive Demo](COMPREHENSIVE_DEMO.md)** - ⭐ Complete walkthrough with all features
+- **[Quick Start Guide](QUICK_START.md)** - Fast setup and validation
+- **[Getting Started](docs/user-guide/GETTING_STARTED.md)** - Detailed guide
+
+### **Installation**
+- **[Build & Deploy Guide](BUILD_AND_DEPLOY.md)** - Build from source
+- **[OpenShift Installation](OPENSHIFT_INSTALL.md)** - OpenShift-specific setup
+- **[Validation Guide](VALIDATION_GUIDE.md)** - How to validate replications
+
+### **Advanced Topics**
+- **[Backend Switching Demo](BACKEND_SWITCHING_DEMO.md)** - Multi-backend support
 - **[API Reference](docs/api-reference/API_REFERENCE.md)** - Full API specification
 - **[Operations Guide](docs/operations/OPERATIONS_GUIDE.md)** - Production operations
 - **[Tutorials](docs/tutorials/)** - Step-by-step guides

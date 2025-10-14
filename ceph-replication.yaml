@@ -1,0 +1,42 @@
+apiVersion: replication.unified.io/v1alpha1
+kind: UnifiedVolumeReplication
+metadata:
+  name: ceph-volume-replication
+  namespace: default
+spec:
+  # Source endpoint configuration
+  sourceEndpoint:
+    cluster: "oa-bm-redux"
+    region: "us-east-1"
+    storageClass: "ceph-rbd"  # Triggers Ceph backend detection
+  
+  # Destination endpoint configuration (Ceph)
+  destinationEndpoint:
+    cluster: "foobar"
+    region: "us-west-1"
+    storageClass: "ceph-rbd"
+  
+  # Volume mapping between source and destination
+  volumeMapping:
+    source:
+      pvcName: "ceph-app-data"
+      namespace: "default"
+    destination:
+      volumeHandle: "ceph-volume-handle-abcd1234"
+      namespace: "default"
+  
+  # Replication configuration
+  replicationState: "replica"  # Different state than Trident example
+  replicationMode: "asynchronous"
+  
+  # Schedule configuration
+  schedule:
+    rpo: "5m"   # More aggressive than Trident (5 min vs 15 min)
+    rto: "2m"
+    mode: "continuous"
+  
+  # Ceph-specific extensions (optional)
+  extensions:
+    ceph:
+      mirroringMode: "snapshot"  # Ceph-specific: snapshot or journal
+
