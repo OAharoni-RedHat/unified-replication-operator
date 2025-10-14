@@ -11,8 +11,8 @@ CONTAINER_TOOL="${CONTAINER_TOOL:-podman}"  # Can be 'docker' or 'podman'
 SKIP_TESTS="${SKIP_TESTS:-true}"
 SKIP_DEPLOY="${SKIP_DEPLOY:-false}"
 PUSH_IMAGE="${PUSH_IMAGE:-true}"
-ENABLE_WEBHOOKS="${ENABLE_WEBHOOKS:-false}"  # Enable webhook validation
-ENABLE_NETWORK_POLICY="${ENABLE_NETWORK_POLICY:-false}"  # Enable network policies
+ENABLE_WEBHOOKS="${ENABLE_WEBHOOKS:-true}"  # Enable webhook validation
+ENABLE_NETWORK_POLICY="${ENABLE_NETWORK_POLICY:-true}"  # Enable network policies
 
 # Computed values
 FULL_IMAGE="${REGISTRY}/${IMAGE_NAME}:${VERSION}"

@@ -30,15 +30,18 @@ cat COMPREHENSIVE_DEMO.md | less
   - Part 4: Switch to Ceph backend seamlessly
 
 ### **Demo Scripts**
-- **[run-demo.sh](run-demo.sh)** - Interactive demo (with pauses)
+- **[run-demo.sh](run-demo.sh)** - Interactive 4-part demo (with pauses)
 - **[test-backend-switching.sh](test-backend-switching.sh)** - Backend switching validation
+- **[test-webhook-validation.sh](test-webhook-validation.sh)** - Webhook & validation testing
 
 ### **Example Resources**
 - **[trident-replication.yaml](trident-replication.yaml)** - Trident backend example
 - **[ceph-replication.yaml](ceph-replication.yaml)** - Ceph backend example
+- **[test-invalid-replication.yaml](test-invalid-replication.yaml)** - Invalid resource for testing validation
 
 ### **Supporting Documentation**
 - **[VALIDATION_GUIDE.md](VALIDATION_GUIDE.md)** - How to validate replications
+- **[WEBHOOK_VALIDATION_GUIDE.md](WEBHOOK_VALIDATION_GUIDE.md)** - Webhook & validation layers
 - **[BACKEND_SWITCHING_DEMO.md](BACKEND_SWITCHING_DEMO.md)** - Multi-backend architecture
 - **[DEMO_SUMMARY.md](DEMO_SUMMARY.md)** - Demo package overview
 - **[DEMO_README.md](DEMO_README.md)** - This file (detailed guide)

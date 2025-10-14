@@ -443,7 +443,98 @@ kubectl logs -n unified-replication-system -l control-plane=controller-manager -
 
 ---
 
-## Part 5: Advanced Validation
+## Part 5: Webhook Validation (Optional)
+
+Webhooks provide pre-admission validation. By default, they're disabled for simpler deployment, but you can enable them for production.
+
+### **Current Setup: Controller-Based Validation**
+
+With webhooks disabled (current configuration):
+- ✅ Resources are validated during reconciliation
+- ✅ Invalid resources show errors in `.status.conditions`
+- ✅ Simpler deployment (no certificate management)
+
+### **Step 1: Test Current Validation**
+
+```bash
+# Try to create an invalid resource
+kubectl apply -f test-invalid-replication.yaml
+```
+
+**Result:**
+- Resource is **accepted** by Kubernetes API
+- Operator reconciles and **sets Ready=False**
+- Error appears in status conditions
+
+```bash
+# Check the status
+kubectl get uvr invalid-test-replication -n default \
+  -o jsonpath='{.status.conditions[0].message}'
+```
+
+**Expected Output:**
+```
+Validation failed: replicationState must be one of: source, replica, promoting, demoting, syncing
+```
+
+### **Step 2: Enable Webhook Validation (Optional)**
+
+For production environments where you want pre-admission validation:
+
+```bash
+# Deploy with webhooks enabled
+ENABLE_WEBHOOKS=true ./scripts/build-and-push.sh
+```
+
+This will:
+1. Create webhook certificates
+2. Enable ValidatingWebhookConfiguration
+3. Reject invalid resources **before** they're created
+
+**Test with webhooks enabled:**
+```bash
+kubectl apply -f test-invalid-replication.yaml
+```
+
+**Expected Output (with webhooks):**
+```
+Error from server: admission webhook "vunifiedvolumereplication.kb.io" denied the request:
+  replicationState must be one of: source, replica, promoting, demoting, syncing
+```
+
+Resource is **rejected immediately** - never created in the cluster.
+
+### **Step 3: Validate Webhook Configuration**
+
+```bash
+# Check webhook is configured
+kubectl get validatingwebhookconfiguration
+
+# Check webhook service
+kubectl get svc -n unified-replication-system
+
+# Test with dry-run
+kubectl apply -f test-invalid-replication.yaml --dry-run=server
+```
+
+**With webhooks:** Dry-run validation works  
+**Without webhooks:** Basic schema validation only
+
+### **Comparison: Webhook vs Controller Validation**
+
+| Aspect | Webhooks Disabled | Webhooks Enabled |
+|--------|-------------------|------------------|
+| **Validation timing** | During reconciliation | Pre-admission |
+| **Invalid resources** | Created, then fail | Rejected immediately |
+| **Error location** | `.status.conditions` | API server response |
+| **Setup complexity** | Simple | Requires certificates |
+| **Best for** | Development, testing | Production |
+
+✅ **Checkpoint:** Understand validation modes
+
+---
+
+## Part 6: Advanced Validation
 
 ### **Test 1: Simultaneous Reconciliation**
 
@@ -904,4 +995,55 @@ You have successfully demonstrated:
 *Demo Version: 1.0*  
 *Operator Version: 0.2.1*  
 *Last Updated: 2025-10-14*
+
+
+---
+
+## Appendix A: Webhook Validation Quick Reference
+
+### **Run Webhook Validation Test**
+
+```bash
+cd demo
+./test-webhook-validation.sh
+```
+
+This script tests:
+- ✅ Webhook configuration status
+- ✅ Valid resource acceptance
+- ✅ Invalid resource handling
+- ✅ Dry-run validation
+
+### **Enable Webhooks**
+
+```bash
+# Deploy with webhooks enabled
+ENABLE_WEBHOOKS=true ./scripts/build-and-push.sh
+```
+
+### **Test Invalid Resources**
+
+Example invalid resources are in `demo/test-invalid-replication.yaml`:
+- Invalid replicationState
+- Identical source/destination clusters
+- Missing required fields
+
+```bash
+# Test (should be rejected if webhooks enabled)
+kubectl apply -f demo/test-invalid-replication.yaml
+```
+
+### **Webhook Validation Benefits**
+
+**With Webhooks:**
+- ✅ Immediate feedback (rejected at `kubectl apply`)
+- ✅ Invalid resources never stored in etcd
+- ✅ Prevents cluster pollution
+- ✅ Better for production
+
+**Without Webhooks (Current):**
+- ✅ Simpler deployment
+- ✅ No certificate management
+- ✅ Validation still happens (in controller)
+- ✅ Better for development/testing
 
