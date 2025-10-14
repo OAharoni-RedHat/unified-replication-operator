@@ -481,8 +481,6 @@ func TestEnhancedEngine(t *testing.T) {
 	})
 }
 
-// Tests related to background health monitoring have been removed.
-
 func TestCapabilityConfig(t *testing.T) {
 	t.Run("DefaultCapabilityConfig", func(t *testing.T) {
 		config := DefaultCapabilityConfig()

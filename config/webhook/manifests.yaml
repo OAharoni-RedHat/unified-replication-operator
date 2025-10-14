@@ -1,0 +1,26 @@
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: validating-webhook-configuration
+webhooks:
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /validate-replication-unified-io-v1alpha1-unifiedvolumereplication
+  failurePolicy: Fail
+  name: vunifiedvolumereplication.kb.io
+  rules:
+  - apiGroups:
+    - replication.unified.io
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - unifiedvolumereplications
+  sideEffects: None

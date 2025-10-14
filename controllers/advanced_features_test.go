@@ -274,12 +274,6 @@ func TestCircuitBreaker(t *testing.T) {
 
 }
 
-// TestReadinessChecker tests readiness checking
-// Readiness checker tests removed (feature not implemented)
-
-// TestCorrelationID tests correlation ID functionality
-// Correlation ID tests removed (feature not implemented)
-
 // TestAdvancedReconciliation tests reconciliation with advanced features
 func TestAdvancedReconciliation(t *testing.T) {
 	if testing.Short() {
@@ -301,8 +295,6 @@ func TestAdvancedReconciliation(t *testing.T) {
 	reconciler.StateMachine = NewStateMachine()
 	reconciler.RetryManager = NewRetryManager(nil)
 	reconciler.CircuitBreaker = NewCircuitBreaker(5, 2, 1*time.Minute)
-	// ReadinessChecker not yet implemented
-	// reconciler.ReadinessChecker = NewReadinessChecker(reconciler)
 
 	req := reconcile.Request{
 		NamespacedName: types.NamespacedName{
@@ -315,10 +307,6 @@ func TestAdvancedReconciliation(t *testing.T) {
 	result, err := reconciler.Reconcile(ctx, req)
 	t.Logf("Reconcile result: RequeueAfter=%v, Error=%v",
 		result.RequeueAfter, err)
-
-	// ReadinessChecker not yet implemented
-	// ready := reconciler.ReadinessChecker.Check(ctx)
-	// assert.True(t, ready)
 
 	t.Log("Advanced reconciliation test completed")
 }

@@ -3,7 +3,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.19.0
+    controller-gen.kubebuilder.io/version: v0.16.5
   name: unifiedvolumereplications.replication.unified.io
 spec:
   group: replication.unified.io
@@ -95,12 +95,10 @@ spec:
                         type: string
                     type: object
                   powerstore:
-                    description: PowerStore-specific extensions (reserved for future
-                      use)
+                    description: PowerStore-specific extensions
                     type: object
                   trident:
-                    description: Trident-specific extensions (reserved for future
-                      use)
+                    description: Trident-specific extensions
                     type: object
                 type: object
               replicationMode:

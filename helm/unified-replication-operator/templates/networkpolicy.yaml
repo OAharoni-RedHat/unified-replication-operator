@@ -31,18 +31,15 @@ spec:
     ports:
     - protocol: UDP
       port: 53
-  # Kubernetes API
+  # Kubernetes API server (CIDR-based, not namespace-based)
   - to:
-    - namespaceSelector:
-        matchLabels:
-          kubernetes.io/metadata.name: default
+    - podSelector: {}
+    - namespaceSelector: {}
     ports:
     - protocol: TCP
       port: 443
-  # Storage backends
-  - to:
-    - namespaceSelector: {}
-    ports:
+  # Allow all HTTPS egress for storage backend APIs and Kubernetes API
+  - ports:
     - protocol: TCP
       port: 443
 {{- end }}

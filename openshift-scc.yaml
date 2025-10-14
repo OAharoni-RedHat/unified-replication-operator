@@ -1,0 +1,40 @@
+---
+# OpenShift Security Context Constraint for Unified Replication Operator
+apiVersion: security.openshift.io/v1
+kind: SecurityContextConstraints
+metadata:
+  name: unified-replication-operator-scc
+  annotations:
+    kubernetes.io/description: "Security Context Constraint for the Unified Replication Operator"
+# Allow running as the configured non-root user
+allowPrivilegedContainer: false
+allowPrivilegeEscalation: false
+requiredDropCapabilities:
+- ALL
+# Allow any non-root UID (including 65532)
+runAsUser:
+  type: MustRunAsNonRoot
+# Allow specific supplemental groups
+supplementalGroups:
+  type: RunAsAny
+# Allow specific fsGroups
+fsGroup:
+  type: RunAsAny
+# SELinux context
+seLinuxContext:
+  type: MustRunAs
+# Volume types
+volumes:
+- secret
+- configMap
+- emptyDir
+- projected
+- downwardAPI
+# Read-only root filesystem
+readOnlyRootFilesystem: true
+# Priority (higher = more restrictive, good for security)
+priority: 10
+# Users and groups (will be bound to ServiceAccount)
+users: []
+groups: []
+

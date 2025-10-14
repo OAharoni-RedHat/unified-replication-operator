@@ -1,0 +1,21 @@
+# OpenShift-compatible values for unified-replication-operator
+# This overrides the default values to work with OpenShift SCCs
+
+# Pod security context - let OpenShift assign UIDs
+podSecurityContext:
+  runAsNonRoot: true
+  # runAsUser: removed - OpenShift will assign from namespace range
+  # fsGroup: removed - OpenShift will assign from namespace range
+  seccompProfile:
+    type: RuntimeDefault
+
+# Container security context - let OpenShift assign UID
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  runAsNonRoot: true
+  # runAsUser: removed - OpenShift will assign from namespace range
+  capabilities:
+    drop:
+    - ALL
+

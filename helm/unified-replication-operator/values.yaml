@@ -241,3 +241,11 @@ strategy:
 # Priority class
 priorityClassName: ""
 
+# OpenShift-specific configuration
+openshift:
+  # Enable OpenShift-specific resources (SCC, Routes, etc.)
+  enabled: false
+  # Use OpenShift-compatible security settings
+  # When true, removes hardcoded UIDs and lets OpenShift assign them
+  compatibleSecurity: false
+

@@ -30,7 +30,13 @@ spec:
       {{- end }}
       serviceAccountName: {{ include "unified-replication-operator.serviceAccountName" . }}
       securityContext:
+        {{- if .Values.openshift.compatibleSecurity }}
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+        {{- else }}
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
+        {{- end }}
       {{- if .Values.priorityClassName }}
       priorityClassName: {{ .Values.priorityClassName }}
       {{- end }}
@@ -42,19 +48,22 @@ spec:
         - /manager
         args:
         - --leader-elect={{ .Values.controller.leaderElection.enabled }}
-        {{- if .Values.controller.leaderElection.namespace }}
-        - --leader-elect-namespace={{ .Values.controller.leaderElection.namespace }}
-        {{- end }}
-        - --max-concurrent-reconciles={{ .Values.controller.maxConcurrentReconciles }}
-        - --reconcile-timeout={{ .Values.controller.reconcileTimeout }}
-        - --use-integrated-engine={{ .Values.controller.useIntegratedEngine }}
-        - --enable-advanced-features={{ .Values.controller.enableAdvancedFeatures }}
-        - --log-level={{ .Values.controller.logLevel }}
-        {{- if .Values.webhook.enabled }}
-        - --webhook-port={{ .Values.webhook.port }}
+        {{- if eq .Values.controller.logLevel "debug" }}
+        - --zap-devel=true
+        {{- else }}
+        - --zap-devel=false
         {{- end }}
         securityContext:
+          {{- if .Values.openshift.compatibleSecurity }}
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          capabilities:
+            drop:
+            - ALL
+          {{- else }}
           {{- toYaml .Values.securityContext | nindent 12 }}
+          {{- end }}
         ports:
         {{- if .Values.webhook.enabled }}
         - name: webhook

@@ -21,7 +21,7 @@ limitations under the License.
 package v1alpha1
 
 import (
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 )
 
@@ -91,12 +91,12 @@ func (in *Extensions) DeepCopyInto(out *Extensions) {
 	if in.Trident != nil {
 		in, out := &in.Trident, &out.Trident
 		*out = new(TridentExtensions)
-		(*in).DeepCopyInto(*out)
+		**out = **in
 	}
 	if in.Powerstore != nil {
 		in, out := &in.Powerstore, &out.Powerstore
 		*out = new(PowerStoreExtensions)
-		(*in).DeepCopyInto(*out)
+		**out = **in
 	}
 }
 

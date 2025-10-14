@@ -129,7 +129,7 @@ rules:
   verbs:
   - create
   - patch
-# Secrets - Read only for webhook certs
+# Secrets - Read webhook certs
 - apiGroups:
   - ""
   resources:
@@ -138,6 +138,24 @@ rules:
   - get
   resourceNames:
   - {{ include "unified-replication-operator.webhookCertSecret" . }}
+# Secrets - Create/update webhook certs (for cert generation job)
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - create
+  - update
+  - patch
+# ValidatingWebhookConfiguration - Patch CA bundle
+- apiGroups:
+  - admissionregistration.k8s.io
+  resources:
+  - validatingwebhookconfigurations
+  verbs:
+  - get
+  - update
+  - patch
 {{- with .Values.rbac.additionalRules }}
 {{- toYaml . | nindent 0 }}
 {{- end }}

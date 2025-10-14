@@ -1,0 +1,41 @@
+apiVersion: replication.unified.io/v1alpha1
+kind: UnifiedVolumeReplication
+metadata:
+  name: trident-volume-replication
+  namespace: default
+spec:
+  # Source endpoint configuration
+  sourceEndpoint:
+    cluster: "oa-bm-redux"
+    region: "us-east-1"
+    storageClass: "trident-ontap-san"
+  
+  # Destination endpoint configuration (Trident)
+  destinationEndpoint:
+    cluster: "foobar"
+    region: "us-east-1"
+    storageClass: "trident-ontap-nas"
+  
+  # Volume mapping between source and destination
+  volumeMapping:
+    source:
+      pvcName: "my-app-data"
+      namespace: "default"
+    destination:
+      volumeHandle: "trident-pvc-12345678-abcd-1234-5678-1234567890ab"
+      namespace: "default"
+  
+  # Replication configuration
+  replicationState: "source"
+  replicationMode: "asynchronous"
+  
+  # Schedule configuration
+  schedule:
+    rpo: "15m"  # Recovery Point Objective: 15 minutes
+    rto: "5m"   # Recovery Time Objective: 5 minutes
+    mode: "interval"
+  
+  # Trident-specific extensions (optional)
+  extensions:
+    trident: {}
+

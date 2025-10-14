@@ -20,11 +20,13 @@ import (
 	"crypto/tls"
 	"flag"
 	"os"
+	"time"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -33,6 +35,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	replicationv1alpha1 "github.com/unified-replication/operator/api/v1alpha1"
+	"github.com/unified-replication/operator/controllers"
+	"github.com/unified-replication/operator/pkg"
+	"github.com/unified-replication/operator/pkg/adapters"
+	"github.com/unified-replication/operator/pkg/discovery"
+	"github.com/unified-replication/operator/pkg/translation"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -43,6 +50,7 @@ var (
 
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
+	utilruntime.Must(apiextensionsv1.AddToScheme(scheme))
 
 	utilruntime.Must(replicationv1alpha1.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
@@ -106,6 +114,48 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Initialize components
+	translationEngine := translation.NewEngine()
+	discoveryEngine := discovery.NewEngine(mgr.GetClient(), discovery.DefaultDiscoveryConfig())
+
+	// Initialize adapter registry
+	adapterRegistry := adapters.NewRegistry()
+	adapterRegistry.RegisterFactory(adapters.NewCephAdapterFactory())
+	adapterRegistry.RegisterFactory(adapters.NewMockTridentAdapterFactory(nil))
+	adapterRegistry.RegisterFactory(adapters.NewMockPowerStoreAdapterFactory(nil))
+
+	// Initialize controller engine
+	controllerEngine := pkg.NewControllerEngine(mgr.GetClient(), discoveryEngine, translationEngine, adapterRegistry, pkg.DefaultControllerEngineConfig())
+
+	// Initialize advanced features
+	stateMachine := controllers.NewStateMachine()
+	retryManager := controllers.NewRetryManager(&controllers.RetryStrategy{
+		MaxAttempts:  5,
+		InitialDelay: 1 * time.Second,
+		MaxDelay:     5 * time.Minute,
+		Multiplier:   2.0,
+	})
+	circuitBreaker := controllers.NewCircuitBreaker(5, 2, 60*time.Second)
+
+	// Setup the UnifiedVolumeReplication controller
+	if err = (&controllers.UnifiedVolumeReplicationReconciler{
+		Client:                  mgr.GetClient(),
+		Log:                     ctrl.Log.WithName("controllers").WithName("UnifiedVolumeReplication"),
+		Scheme:                  mgr.GetScheme(),
+		Recorder:                mgr.GetEventRecorderFor("unified-replication-operator"),
+		AdapterRegistry:         adapterRegistry,
+		DiscoveryEngine:         discoveryEngine,
+		TranslationEngine:       translationEngine,
+		ControllerEngine:        controllerEngine,
+		StateMachine:            stateMachine,
+		RetryManager:            retryManager,
+		CircuitBreaker:          circuitBreaker,
+		MaxConcurrentReconciles: 3,
+		ReconcileTimeout:        5 * time.Minute,
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "UnifiedVolumeReplication")
+		os.Exit(1)
+	}
 	//+kubebuilder:scaffold:builder
 
 	setupLog.Info("starting manager")

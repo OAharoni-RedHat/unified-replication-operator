@@ -1,0 +1,34 @@
+{{- if .Values.openshift.enabled -}}
+---
+apiVersion: security.openshift.io/v1
+kind: SecurityContextConstraints
+metadata:
+  name: {{ include "unified-replication-operator.fullname" . }}-scc
+  labels:
+    {{- include "unified-replication-operator.labels" . | nindent 4 }}
+  annotations:
+    kubernetes.io/description: "SCC for Unified Replication Operator"
+allowPrivilegedContainer: false
+allowPrivilegeEscalation: false
+requiredDropCapabilities:
+- ALL
+runAsUser:
+  type: MustRunAsNonRoot
+supplementalGroups:
+  type: RunAsAny
+fsGroup:
+  type: RunAsAny
+seLinuxContext:
+  type: MustRunAs
+volumes:
+- secret
+- configMap
+- emptyDir
+- projected
+- downwardAPI
+readOnlyRootFilesystem: true
+priority: 10
+users:
+- system:serviceaccount:{{ .Release.Namespace }}:{{ include "unified-replication-operator.serviceAccountName" . }}
+{{- end }}
+
