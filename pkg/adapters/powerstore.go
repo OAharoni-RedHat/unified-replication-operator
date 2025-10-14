@@ -19,6 +19,7 @@ package adapters
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -457,4 +458,83 @@ func (psa *PowerStoreAdapter) ResumeReplication(ctx context.Context, uvr *replic
 	}
 
 	return psa.client.Update(ctx, rg)
+}
+
+// PowerStoreAdapterFactory creates real PowerStore adapter instances
+type PowerStoreAdapterFactory struct {
+	info AdapterFactoryInfo
+}
+
+// NewPowerStoreAdapterFactory creates a new factory for PowerStore adapters
+func NewPowerStoreAdapterFactory() *PowerStoreAdapterFactory {
+	return &PowerStoreAdapterFactory{
+		info: AdapterFactoryInfo{
+			Name:    "PowerStore Adapter",
+			Backend: translation.BackendPowerStore,
+			Version: "v1.0.0",
+		},
+	}
+}
+
+// CreateAdapter creates a new PowerStore adapter instance
+func (f *PowerStoreAdapterFactory) CreateAdapter(backend translation.Backend, client client.Client, translator *translation.Engine, config *AdapterConfig) (ReplicationAdapter, error) {
+	if backend != translation.BackendPowerStore {
+		return nil, fmt.Errorf("unsupported backend: %s", backend)
+	}
+
+	if client == nil {
+		return nil, fmt.Errorf("kubernetes client is required for powerstore adapter")
+	}
+
+	if translator == nil {
+		return nil, fmt.Errorf("translator is required for PowerStore adapter")
+	}
+
+	return NewPowerStoreAdapter(client, translator)
+}
+
+// GetBackendType returns the backend type this factory supports
+func (f *PowerStoreAdapterFactory) GetBackendType() translation.Backend {
+	return translation.BackendPowerStore
+}
+
+// GetInfo returns information about this factory
+func (f *PowerStoreAdapterFactory) GetInfo() AdapterFactoryInfo {
+	return f.info
+}
+
+// ValidateConfig validates the adapter configuration for PowerStore
+func (f *PowerStoreAdapterFactory) ValidateConfig(config *AdapterConfig) error {
+	if config == nil {
+		return fmt.Errorf("config cannot be nil")
+	}
+
+	if config.Backend != translation.BackendPowerStore {
+		return fmt.Errorf("unsupported backend: %s", config.Backend)
+	}
+
+	if config.Timeout <= 0 {
+		return fmt.Errorf("timeout must be positive")
+	}
+
+	if config.RetryAttempts < 0 {
+		return fmt.Errorf("retry attempts cannot be negative")
+	}
+
+	return nil
+}
+
+// Supports returns whether this factory supports the given configuration
+func (f *PowerStoreAdapterFactory) Supports(uvr *replicationv1alpha1.UnifiedVolumeReplication) bool {
+	if uvr == nil {
+		return false
+	}
+
+	storageClass := strings.ToLower(uvr.Spec.SourceEndpoint.StorageClass)
+	return strings.Contains(storageClass, "powerstore") || strings.Contains(storageClass, "dell")
+}
+
+// Register the PowerStore adapter factory with the global registry
+func init() {
+	GetGlobalRegistry().RegisterFactory(NewPowerStoreAdapterFactory())
 }

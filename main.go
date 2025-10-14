@@ -121,8 +121,8 @@ func main() {
 	// Initialize adapter registry
 	adapterRegistry := adapters.NewRegistry()
 	adapterRegistry.RegisterFactory(adapters.NewCephAdapterFactory())
-	adapterRegistry.RegisterFactory(adapters.NewMockTridentAdapterFactory(nil))
-	adapterRegistry.RegisterFactory(adapters.NewMockPowerStoreAdapterFactory(nil))
+	adapterRegistry.RegisterFactory(adapters.NewTridentAdapterFactory())
+	adapterRegistry.RegisterFactory(adapters.NewPowerStoreAdapterFactory())
 
 	// Initialize controller engine
 	controllerEngine := pkg.NewControllerEngine(mgr.GetClient(), discoveryEngine, translationEngine, adapterRegistry, pkg.DefaultControllerEngineConfig())

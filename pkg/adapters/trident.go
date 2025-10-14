@@ -19,6 +19,7 @@ package adapters
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -138,15 +139,19 @@ func (ta *TridentAdapter) createTridentMirrorRelationship(ctx context.Context, u
 	}
 	tmr.SetLabels(convertToStringMap(labels))
 
+	// Build volumeMappings array (required by Trident CRD)
+	volumeMapping := map[string]interface{}{
+		"localPVCName":       uvr.Spec.VolumeMapping.Source.PvcName,
+		"remoteVolumeHandle": uvr.Spec.VolumeMapping.Destination.VolumeHandle,
+	}
+
 	// Build spec
 	spec := map[string]interface{}{
 		"state":               tridentState,
 		"replicationPolicy":   tridentMode,
 		"volumeGroupName":     fmt.Sprintf("%s-vg", uvr.Name),
-		"localPVCName":        uvr.Spec.VolumeMapping.Source.PvcName,
-		"localVolumeHandle":   "", // Will be discovered
-		"remoteVolumeHandle":  uvr.Spec.VolumeMapping.Destination.VolumeHandle,
 		"replicationSchedule": uvr.Spec.Schedule.Rpo,
+		"volumeMappings":      []interface{}{volumeMapping}, // Array with one mapping
 	}
 
 	// Trident-specific extensions removed - struct reserved for future use
@@ -186,15 +191,19 @@ func (ta *TridentAdapter) updateTridentMirrorRelationship(ctx context.Context, u
 		return err
 	}
 
+	// Build volumeMappings array (required by Trident CRD)
+	volumeMapping := map[string]interface{}{
+		"localPVCName":       uvr.Spec.VolumeMapping.Source.PvcName,
+		"remoteVolumeHandle": uvr.Spec.VolumeMapping.Destination.VolumeHandle,
+	}
+
 	// Update spec fields
 	spec := map[string]interface{}{
 		"state":               tridentState,
 		"replicationPolicy":   tridentMode,
 		"volumeGroupName":     fmt.Sprintf("%s-vg", uvr.Name),
-		"localPVCName":        uvr.Spec.VolumeMapping.Source.PvcName,
-		"localVolumeHandle":   "", // Will be discovered
-		"remoteVolumeHandle":  uvr.Spec.VolumeMapping.Destination.VolumeHandle,
 		"replicationSchedule": uvr.Spec.Schedule.Rpo,
+		"volumeMappings":      []interface{}{volumeMapping}, // Array with one mapping
 	}
 
 	// Trident-specific extensions removed - struct reserved for future use
@@ -402,4 +411,85 @@ func convertToStringMap(m map[string]interface{}) map[string]string {
 		}
 	}
 	return result
+}
+
+// TridentAdapterFactory creates real Trident adapter instances
+type TridentAdapterFactory struct {
+	info AdapterFactoryInfo
+}
+
+// NewTridentAdapterFactory creates a new factory for Trident adapters
+func NewTridentAdapterFactory() *TridentAdapterFactory {
+	return &TridentAdapterFactory{
+		info: AdapterFactoryInfo{
+			Name:    "Trident Adapter",
+			Backend: translation.BackendTrident,
+			Version: "v1.0.0",
+		},
+	}
+}
+
+// CreateAdapter creates a new Trident adapter instance
+func (f *TridentAdapterFactory) CreateAdapter(backend translation.Backend, client client.Client, translator *translation.Engine, config *AdapterConfig) (ReplicationAdapter, error) {
+	if backend != translation.BackendTrident {
+		return nil, fmt.Errorf("unsupported backend: %s", backend)
+	}
+
+	if client == nil {
+		return nil, fmt.Errorf("kubernetes client is required for trident adapter")
+	}
+
+	if translator == nil {
+		return nil, fmt.Errorf("translator is required for Trident adapter")
+	}
+
+	return NewTridentAdapter(client, translator)
+}
+
+// GetBackendType returns the backend type this factory supports
+func (f *TridentAdapterFactory) GetBackendType() translation.Backend {
+	return translation.BackendTrident
+}
+
+// GetInfo returns information about this factory
+func (f *TridentAdapterFactory) GetInfo() AdapterFactoryInfo {
+	return f.info
+}
+
+// ValidateConfig validates the adapter configuration for Trident
+func (f *TridentAdapterFactory) ValidateConfig(config *AdapterConfig) error {
+	if config == nil {
+		return fmt.Errorf("config cannot be nil")
+	}
+
+	if config.Backend != translation.BackendTrident {
+		return fmt.Errorf("unsupported backend: %s", config.Backend)
+	}
+
+	// Validate Trident-specific configuration
+	if config.Timeout <= 0 {
+		return fmt.Errorf("timeout must be positive")
+	}
+
+	if config.RetryAttempts < 0 {
+		return fmt.Errorf("retry attempts cannot be negative")
+	}
+
+	return nil
+}
+
+// Supports returns whether this factory supports the given configuration
+func (f *TridentAdapterFactory) Supports(uvr *replicationv1alpha1.UnifiedVolumeReplication) bool {
+	if uvr == nil {
+		return false
+	}
+
+	// Check if storage class indicates Trident/NetApp
+	storageClass := strings.ToLower(uvr.Spec.SourceEndpoint.StorageClass)
+	return strings.Contains(storageClass, "trident") || strings.Contains(storageClass, "netapp")
+}
+
+// Register the Trident adapter factory with the global registry
+func init() {
+	GetGlobalRegistry().RegisterFactory(NewTridentAdapterFactory())
 }

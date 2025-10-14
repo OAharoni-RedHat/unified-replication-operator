@@ -6,7 +6,7 @@ metadata:
 spec:
   # Source endpoint configuration
   sourceEndpoint:
-    cluster: "oa-bm-redux"
+    cluster: "ohad-operator-test"
     region: "us-east-1"
     storageClass: "trident-ontap-san"
   
