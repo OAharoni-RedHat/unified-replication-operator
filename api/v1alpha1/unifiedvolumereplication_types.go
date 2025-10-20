@@ -47,7 +47,7 @@ const (
 )
 
 // ReplicationMode defines the replication consistency mode
-// +kubebuilder:validation:Enum=synchronous;asynchronous;eventual
+// +kubebuilder:validation:Enum=synchronous;asynchronous
 type ReplicationMode string
 
 const (
@@ -55,12 +55,10 @@ const (
 	ReplicationModeSynchronous ReplicationMode = "synchronous"
 	// ReplicationModeAsynchronous provides asynchronous replication
 	ReplicationModeAsynchronous ReplicationMode = "asynchronous"
-	// ReplicationModeEventual provides eventual consistency replication
-	ReplicationModeEventual ReplicationMode = "eventual"
 )
 
 // ScheduleMode defines the replication scheduling mode
-// +kubebuilder:validation:Enum=continuous;interval;manual
+// +kubebuilder:validation:Enum=continuous;interval
 type ScheduleMode string
 
 const (
@@ -68,8 +66,6 @@ const (
 	ScheduleModeContinuous ScheduleMode = "continuous"
 	// ScheduleModeInterval provides interval-based replication
 	ScheduleModeInterval ScheduleMode = "interval"
-	// ScheduleModeManual provides manual replication triggers
-	ScheduleModeManual ScheduleMode = "manual"
 )
 
 // Endpoint defines a replication endpoint with cluster, region, and storage information
@@ -412,10 +408,8 @@ func (uvr *UnifiedVolumeReplication) validateSchedule() error {
 		}
 	case ScheduleModeContinuous:
 		// For continuous mode, RPO/RTO are optional as they represent target objectives
-	case ScheduleModeManual:
-		// For manual mode, RPO/RTO are optional as they represent recovery targets
 	default:
-		return fmt.Errorf("invalid schedule mode '%s', must be one of: continuous, interval, manual", schedule.Mode)
+		return fmt.Errorf("invalid schedule mode '%s', must be one of: continuous, interval", schedule.Mode)
 	}
 
 	return nil

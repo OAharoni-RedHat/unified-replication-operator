@@ -106,7 +106,6 @@ spec:
                 enum:
                 - synchronous
                 - asynchronous
-                - eventual
                 type: string
               replicationState:
                 description: ReplicationState defines the desired replication state
@@ -126,7 +125,6 @@ spec:
                     enum:
                     - continuous
                     - interval
-                    - manual
                     type: string
                   rpo:
                     description: RPO (Recovery Point Objective) - maximum acceptable

@@ -95,7 +95,6 @@ func BenchmarkBackendSpecificFunctions(b *testing.B) {
 	b.Run("PowerStoreTranslation", func(b *testing.B) {
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			_, _, _ = engine.TranslateUnifiedToPowerStore("promoting", "eventual")
 		}
 	})
 
@@ -222,7 +221,6 @@ func BenchmarkHighThroughput(b *testing.B) {
 		{BackendCeph, "replica", "synchronous"},
 		{BackendTrident, "promoting", "asynchronous"},
 		{BackendTrident, "demoting", "synchronous"},
-		{BackendPowerStore, "syncing", "eventual"},
 		{BackendPowerStore, "failed", "asynchronous"},
 	}
 

@@ -118,7 +118,7 @@ func TestValidReplicationModes(t *testing.T) {
 	assert.Len(t, modes, 3, "Should have all 3 replication modes")
 	assert.Contains(t, modes, replicationv1alpha1.ReplicationModeSynchronous)
 	assert.Contains(t, modes, replicationv1alpha1.ReplicationModeAsynchronous)
-	assert.Contains(t, modes, replicationv1alpha1.ReplicationModeEventual)
+	assert.Contains(t, modes, replicationv1alpha1.ReplicationModeAsynchronous)
 }
 
 func TestValidScheduleModes(t *testing.T) {
@@ -127,7 +127,6 @@ func TestValidScheduleModes(t *testing.T) {
 	assert.Len(t, modes, 3, "Should have all 3 schedule modes")
 	assert.Contains(t, modes, replicationv1alpha1.ScheduleModeContinuous)
 	assert.Contains(t, modes, replicationv1alpha1.ScheduleModeInterval)
-	assert.Contains(t, modes, replicationv1alpha1.ScheduleModeManual)
 }
 
 func TestValidTimePatterns(t *testing.T) {

@@ -28,10 +28,9 @@ type BackendCapability string
 
 const (
 	// Core replication capabilities
-	CapabilityAsyncReplication    BackendCapability = "async_replication"
-	CapabilitySyncReplication     BackendCapability = "sync_replication"
-	CapabilityEventualReplication BackendCapability = "eventual_replication"
-	CapabilityMetroReplication    BackendCapability = "metro_replication"
+	CapabilityAsyncReplication BackendCapability = "async_replication"
+	CapabilitySyncReplication  BackendCapability = "sync_replication"
+	CapabilityMetroReplication BackendCapability = "metro_replication"
 
 	// State management capabilities
 	CapabilitySourcePromotion BackendCapability = "source_promotion"

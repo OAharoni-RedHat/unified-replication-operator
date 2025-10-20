@@ -97,7 +97,6 @@ func NewMockAdapter(backend translation.Backend, client client.Client, translato
 	capabilities := AdapterCapabilities{
 		Backend:         backend,
 		SupportedStates: []string{"source", "replica", "promoting", "demoting", "syncing", "failed"},
-		SupportedModes:  []string{"synchronous", "asynchronous", "eventual"},
 		Features: []AdapterFeature{
 			FeatureAsyncReplication,
 			FeatureSyncReplication,

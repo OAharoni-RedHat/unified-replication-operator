@@ -155,13 +155,11 @@ func TestReplicationMode_Constants(t *testing.T) {
 	}{
 		{"synchronous mode", ReplicationModeSynchronous},
 		{"asynchronous mode", ReplicationModeAsynchronous},
-		{"eventual mode", ReplicationModeEventual},
 	}
 
 	validModes := []ReplicationMode{
 		ReplicationModeSynchronous,
 		ReplicationModeAsynchronous,
-		ReplicationModeEventual,
 	}
 
 	for _, tt := range tests {
@@ -179,13 +177,11 @@ func TestScheduleMode_Constants(t *testing.T) {
 	}{
 		{"continuous mode", ScheduleModeContinuous},
 		{"interval mode", ScheduleModeInterval},
-		{"manual mode", ScheduleModeManual},
 	}
 
 	validModes := []ScheduleMode{
 		ScheduleModeContinuous,
 		ScheduleModeInterval,
-		ScheduleModeManual,
 	}
 
 	for _, tt := range tests {

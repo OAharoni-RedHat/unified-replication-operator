@@ -291,7 +291,7 @@ func (g *MockDataGenerator) RandomReplicationMode() replicationv1alpha1.Replicat
 	modes := []replicationv1alpha1.ReplicationMode{
 		replicationv1alpha1.ReplicationModeSynchronous,
 		replicationv1alpha1.ReplicationModeAsynchronous,
-		replicationv1alpha1.ReplicationModeEventual,
+		replicationv1alpha1.ReplicationModeAsynchronous,
 	}
 	return modes[g.rand.Intn(len(modes))]
 }
@@ -301,7 +301,6 @@ func (g *MockDataGenerator) RandomScheduleMode() replicationv1alpha1.ScheduleMod
 	modes := []replicationv1alpha1.ScheduleMode{
 		replicationv1alpha1.ScheduleModeContinuous,
 		replicationv1alpha1.ScheduleModeInterval,
-		replicationv1alpha1.ScheduleModeManual,
 	}
 	return modes[g.rand.Intn(len(modes))]
 }

@@ -160,7 +160,6 @@ func TestAdapterTypes(t *testing.T) {
 		assert.False(t, capabilities.SupportsState("promoting"))
 
 		assert.True(t, capabilities.SupportsMode("asynchronous"))
-		assert.False(t, capabilities.SupportsMode("eventual"))
 	})
 }
 

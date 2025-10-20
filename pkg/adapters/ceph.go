@@ -789,11 +789,6 @@ func (ca *CephAdapter) convertConditionsToStatusConditions(conditions []metav1.C
 
 // estimateNextSyncTime estimates when the next sync will occur
 func (ca *CephAdapter) estimateNextSyncTime(uvr *replicationv1alpha1.UnifiedVolumeReplication, vr *VolumeReplication) *time.Time {
-	// If manual mode, no automatic sync
-	if uvr.Spec.Schedule.Mode == "manual" {
-		return nil
-	}
-
 	// If continuous mode, sync is ongoing
 	if uvr.Spec.Schedule.Mode == "continuous" {
 		next := time.Now().Add(AutoResyncCheckInterval)

@@ -82,7 +82,6 @@ func TestValidator_RoundTrip(t *testing.T) {
 	}{
 		{"ceph source async", BackendCeph, "source", "asynchronous"},
 		{"ceph replica sync", BackendCeph, "replica", "synchronous"},
-		{"trident promoting eventual", BackendTrident, "promoting", "eventual"},
 		{"powerstore demoting sync", BackendPowerStore, "demoting", "synchronous"},
 	}
 
@@ -109,7 +108,7 @@ func TestValidator_MappingCoverage(t *testing.T) {
 
 	t.Run("complete coverage", func(t *testing.T) {
 		expectedStates := []string{"source", "replica", "syncing", "promoting", "demoting", "failed"}
-		expectedModes := []string{"synchronous", "asynchronous", "eventual"}
+		expectedModes := []string{"synchronous", "asynchronous"}
 
 		for _, backend := range GetSupportedBackends() {
 			err := validator.ValidateMappingCoverage(backend, expectedStates, expectedModes)

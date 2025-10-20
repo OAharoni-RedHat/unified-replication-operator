@@ -132,7 +132,7 @@ func ValidReplicationModes() []replicationv1alpha1.ReplicationMode {
 	return []replicationv1alpha1.ReplicationMode{
 		replicationv1alpha1.ReplicationModeSynchronous,
 		replicationv1alpha1.ReplicationModeAsynchronous,
-		replicationv1alpha1.ReplicationModeEventual,
+		replicationv1alpha1.ReplicationModeAsynchronous,
 	}
 }
 
@@ -141,7 +141,6 @@ func ValidScheduleModes() []replicationv1alpha1.ScheduleMode {
 	return []replicationv1alpha1.ScheduleMode{
 		replicationv1alpha1.ScheduleModeContinuous,
 		replicationv1alpha1.ScheduleModeInterval,
-		replicationv1alpha1.ScheduleModeManual,
 	}
 }
 

@@ -662,7 +662,7 @@ func (mpa *MockPowerStoreAdapter) estimateRTO(uvr *replicationv1alpha1.UnifiedVo
 
 	if uvr.Spec.ReplicationMode == replicationv1alpha1.ReplicationModeSynchronous {
 		baseRTO = 10 * time.Second
-	} else if uvr.Spec.ReplicationMode == replicationv1alpha1.ReplicationModeEventual {
+	} else if uvr.Spec.ReplicationMode == replicationv1alpha1.ReplicationModeAsynchronous {
 		baseRTO = 60 * time.Second
 	}
 

@@ -34,7 +34,6 @@ func TestCapabilityTypes(t *testing.T) {
 		capabilities := []BackendCapability{
 			CapabilityAsyncReplication,
 			CapabilitySyncReplication,
-			CapabilityEventualReplication,
 			CapabilityMetroReplication,
 			CapabilitySourcePromotion,
 			CapabilityReplicaDemotion,

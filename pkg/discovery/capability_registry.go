@@ -264,8 +264,6 @@ func (r *InMemoryCapabilityRegistry) validateReplicationMode(mode interface{}, c
 		requiredCapability = CapabilitySyncReplication
 	case "asynchronous":
 		requiredCapability = CapabilityAsyncReplication
-	case "eventual":
-		requiredCapability = CapabilityEventualReplication
 	default:
 		return fmt.Errorf("unknown replication mode: %s", modeStr)
 	}

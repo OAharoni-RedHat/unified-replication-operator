@@ -262,11 +262,6 @@ func TestValidateSchedule(t *testing.T) {
 			wantErr:  false,
 		},
 		{
-			name:     "valid manual mode",
-			schedule: Schedule{Mode: ScheduleModeManual},
-			wantErr:  false,
-		},
-		{
 			name:     "interval without RPO",
 			schedule: Schedule{Mode: ScheduleModeInterval},
 			wantErr:  true,

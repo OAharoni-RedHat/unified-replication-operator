@@ -189,17 +189,14 @@ func TestEngine_ModeTranslation(t *testing.T) {
 		// Ceph tests
 		{"ceph synchronous", BackendCeph, "synchronous", "sync", false},
 		{"ceph asynchronous", BackendCeph, "asynchronous", "async", false},
-		{"ceph eventual", BackendCeph, "eventual", "async-eventual", false},
 
 		// Trident tests
 		{"trident synchronous", BackendTrident, "synchronous", "Sync", false},
 		{"trident asynchronous", BackendTrident, "asynchronous", "Async", false},
-		{"trident eventual", BackendTrident, "eventual", "AsyncEventual", false},
 
 		// PowerStore tests
 		{"powerstore synchronous", BackendPowerStore, "synchronous", "SYNC", false},
 		{"powerstore asynchronous", BackendPowerStore, "asynchronous", "ASYNC", false},
-		{"powerstore eventual", BackendPowerStore, "eventual", "ASYNC_EVENTUAL", false},
 
 		// Error cases
 		{"invalid backend", "invalid", "synchronous", "", true},
@@ -253,15 +250,15 @@ func TestEngine_BackendSpecificFunctions(t *testing.T) {
 	})
 
 	t.Run("powerstore functions", func(t *testing.T) {
-		powerstoreState, powerstoreMode, err := engine.TranslateUnifiedToPowerStore("replica", "eventual")
+		powerstoreState, powerstoreMode, err := engine.TranslateUnifiedToPowerStore("replica", "asynchronous")
 		assert.NoError(t, err)
 		assert.Equal(t, "destination", powerstoreState)
-		assert.Equal(t, "ASYNC_EVENTUAL", powerstoreMode)
+		assert.Equal(t, "ASYNC", powerstoreMode)
 
-		state, mode, err := engine.TranslatePowerStoreToUnified("destination", "ASYNC_EVENTUAL")
+		state, mode, err := engine.TranslatePowerStoreToUnified("destination", "ASYNC")
 		assert.NoError(t, err)
 		assert.Equal(t, "replica", state)
-		assert.Equal(t, "eventual", mode)
+		assert.Equal(t, "asynchronous", mode)
 	})
 }
 
@@ -324,7 +321,6 @@ func TestEngine_SupportedValues(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Contains(t, modes, "synchronous")
 		assert.Contains(t, modes, "asynchronous")
-		assert.Contains(t, modes, "eventual")
 
 		_, err = engine.GetSupportedModes("invalid")
 		assert.Error(t, err)

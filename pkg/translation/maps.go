@@ -57,27 +57,23 @@ var PowerStoreStateMap = NewTranslationMap(map[string]string{
 
 // CephModeMap defines the translation between unified and Ceph modes
 // Ceph supports sync/async modes
-// Note: To maintain bidirectional consistency, we create extended backend-specific modes
 var CephModeMap = NewTranslationMap(map[string]string{
-	"synchronous":  "sync",           // Synchronous replication
-	"asynchronous": "async",          // Asynchronous replication
-	"eventual":     "async-eventual", // Eventual consistency uses distinct async mode
+	"synchronous":  "sync",  // Synchronous replication
+	"asynchronous": "async", // Asynchronous replication
 })
 
 // TridentModeMap defines the translation between unified and Trident modes
 // Trident uses capitalized mode names
 var TridentModeMap = NewTranslationMap(map[string]string{
-	"synchronous":  "Sync",          // Synchronous replication
-	"asynchronous": "Async",         // Asynchronous replication
-	"eventual":     "AsyncEventual", // Eventual consistency uses distinct async mode
+	"synchronous":  "Sync",  // Synchronous replication
+	"asynchronous": "Async", // Asynchronous replication
 })
 
 // PowerStoreModeMap defines the translation between unified and PowerStore modes
-// PowerStore supports SYNC, ASYNC, and METRO modes
+// PowerStore supports SYNC and ASYNC modes
 var PowerStoreModeMap = NewTranslationMap(map[string]string{
-	"synchronous":  "SYNC",           // Synchronous replication
-	"asynchronous": "ASYNC",          // Asynchronous replication
-	"eventual":     "ASYNC_EVENTUAL", // Eventual consistency uses distinct async mode
+	"synchronous":  "SYNC",  // Synchronous replication
+	"asynchronous": "ASYNC", // Asynchronous replication
 })
 
 // BackendStateMaps provides easy access to state maps by backend
