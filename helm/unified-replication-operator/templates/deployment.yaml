@@ -47,7 +47,6 @@ spec:
         command:
         - /manager
         args:
-        - --leader-elect={{ .Values.controller.leaderElection.enabled }}
         {{- if eq .Values.controller.logLevel "debug" }}
         - --zap-devel=true
         {{- else }}

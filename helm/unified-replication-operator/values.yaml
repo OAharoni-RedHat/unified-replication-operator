@@ -3,6 +3,8 @@
 # Declare variables to be passed into your templates.
 
 # Operator configuration
+# WARNING: This operator is designed for single-replica deployment only
+# Leader election is disabled - do NOT scale beyond 1 replica
 replicaCount: 1
 
 image:
@@ -100,11 +102,6 @@ controller:
   
   # Logging level
   logLevel: info
-  
-  # Enable leader election
-  leaderElection:
-    enabled: true
-    namespace: ""  # Defaults to release namespace
 
 # Engine configuration
 engines:
@@ -235,6 +232,7 @@ extraVolumeMounts: []
 #   mountPath: /etc/config
 
 # Deployment strategy
+# Recreate ensures only one pod at a time (no overlapping replicas during updates)
 strategy:
   type: Recreate
 
