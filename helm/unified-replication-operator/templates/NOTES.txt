@@ -10,15 +10,6 @@ To view the operator logs:
 
   kubectl logs -n {{ .Release.Namespace }} -l control-plane=controller-manager -f
 
-{{- if .Values.webhook.enabled }}
-
-Webhook is enabled. Verify it's configured:
-
-  kubectl get validatingwebhookconfiguration {{ include "unified-replication-operator.fullname" . }}-validating-webhook
-
-{{- end }}
-
-
 To create a replication, apply a UnifiedVolumeReplication resource:
 
   kubectl apply -f - <<EOF

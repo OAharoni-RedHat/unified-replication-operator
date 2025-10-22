@@ -1,329 +1,347 @@
 # Security Policy
 
-## Overview
-
-The Unified Replication Operator follows security best practices and implements multiple layers of defense to protect Kubernetes clusters and storage systems.
+This document outlines the security features, policies, and best practices for the Unified Replication Operator.
 
 ## Security Features
 
-### 1. Admission Webhooks
+### 1. Validation
 
-**Validating Webhook:**
-- Validates all UnifiedVolumeReplication resources before admission
-- Prevents invalid configurations from entering the cluster
-- Enforces business rules and state transitions
-- Performance: < 100ms validation time
+**API Validation:**
+- Server-side validation of all UnifiedVolumeReplication resources
+- Prevents invalid configurations from being created
+- Schema validation via OpenAPI v3
+- Custom validation rules in CRD
 
-**TLS Security:**
-- Self-signed certificates with 1-year validity
-- Automatic certificate rotation support
-- Secure webhook endpoint (port 9443)
-- mTLS between API server and webhook
+**Validation Rules:**
+- Endpoint validation (source ≠ destination)
+- Volume mapping validation
+- Schedule pattern validation (e.g., "5m", "1h")
+- Extension validation (backend-specific)
+- State transition validation
 
 ### 2. RBAC (Role-Based Access Control)
 
-**Principle of Least Privilege:**
-- Minimal required permissions only
-- Separate roles for operator and viewers
-- No cluster-admin required
-- Resource-specific permissions
+**Operator Service Account:**
+- Limited to required permissions only
+- Separate namespace isolation
+- No cluster-admin privileges
 
-**Required Permissions:**
-- UnifiedVolumeReplication: Full CRUD
-- Backend CRDs: Full CRUD (Ceph, Trident, PowerStore)
+**Permissions:**
+- CRDs: Full access to UnifiedVolumeReplication
+- Backend CRDs: Full access (VolumeReplication, TridentMirrorRelationship, DellCSIReplicationGroup)
 - Core resources: Read-only (PVCs, PVs, StorageClasses)
 - Events: Create/Patch only
-- Secrets: Read-only for webhook certs (named resource)
 
 **Viewer Role:**
-- Read-only access to UnifiedVolumeReplication resources
-- Suitable for monitoring and operators
-- No write permissions
+```yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: unified-replication-viewer
+rules:
+- apiGroups: ["replication.unified.io"]
+  resources: ["unifiedvolumereplications"]
+  verbs: ["get", "list", "watch"]
+```
 
-### 3. Input Validation and Sanitization
+### 3. Pod Security
 
-**All user inputs are validated for:**
-- Length limits (253 characters for names, 1024 for values)
-- Format compliance (DNS-compatible names)
-- No script injection (`<script>`, `javascript:`, etc.)
-- No path traversal (`../`, `/etc/`, etc.)
-- No SQL injection (defensive, though not applicable)
-- Control character removal
-
-**Validation Points:**
-- Resource names
-- Namespace names
-- Cluster names
-- Storage class names
-- Schedule expressions (RPO/RTO)
-- All string fields
-
-### 4. Audit Logging
-
-**All security-relevant events are logged:**
-- CREATE, UPDATE, DELETE operations
-- Validation successes and failures
-- State changes
-- Authentication/authorization failures
-- Policy violations
-
-**Audit Log Contents:**
-- Event type and timestamp
-- User and service account
-- Resource namespace and name
-- Operation and result
-- Request ID (correlation)
-- Detailed context
-
-**Audit Log Retention:**
-- Last 1000 events in memory
-- Export capability for external systems
-- Query by type, time, user
-
-### 5. Network Policies
-
-**Ingress Rules:**
-- Webhook traffic from API server only
-
-**Egress Rules:**
-- DNS resolution (kube-system)
-- Kubernetes API access
-- Storage backend access (all namespaces)
-- No unrestricted egress
-
-**Default Deny:**
-- Deny-all policy as baseline
-- Explicit allows only
-
-### 6. Pod Security
-
-**Pod Security Policy (PSP):**
-- No privileged containers
-- No privilege escalation
-- Drop all capabilities
-- Run as non-root user
-- Read-only root filesystem
-- No host namespaces (network, IPC, PID)
-
-**Pod Security Standards (PSS):**
-- Namespace labeled with `pod-security.kubernetes.io/enforce: restricted`
-- Strictest security profile
-- Audit and warn modes enabled
-
-### 7. Container Security
-
-**Image Security:**
-- Minimal base image (distroless recommended)
-- No secrets in image layers
-- Regular vulnerability scanning
-- Image signing and verification
-
-**Runtime Security:**
-- Non-root user (UID > 1000)
-- Read-only filesystem
-- No new privileges
-- Security context enforced
-
-### 8. Secret Management
-
-**Best Practices:**
-- Secrets mounted as volumes (not environment variables)
-- Minimal secret access (named resources only)
-- No secrets in logs or events
-- Encryption at rest (etcd encryption)
-
-**Webhook Certificates:**
-- Stored in Kubernetes Secret
-- Automatic generation and rotation
-- Scoped access (only operator service account)
-
-### 9. Data Protection
-
-**Encryption:**
-- TLS for all network communication
-- etcd encryption at rest (Kubernetes feature)
-- No plaintext sensitive data in logs
-- Secure secret handling
-
-**Data Minimization:**
-- Only necessary data collected
-- PII avoided
-- Audit logs rotated
-
-### 10. Compliance
-
-**Security Standards:**
-- CIS Kubernetes Benchmark compliant
-- NIST guidelines followed
-- Principle of least privilege
-- Defense in depth
-
-**Audit Trail:**
-- All security events logged
-- Immutable audit log
-- Export capability for compliance
-- Retention policy configurable
-
-## Threat Model
-
-### Threats Mitigated
-
-**1. Malicious Resource Creation**
-- **Threat:** Attacker creates resources to disrupt system
-- **Mitigation:** Webhook validation, RBAC, audit logging
-
-**2. Privilege Escalation**
-- **Threat:** Attacker gains elevated permissions
-- **Mitigation:** Minimal RBAC, no privileged containers, PSP/PSS
-
-**3. Injection Attacks**
-- **Threat:** Script/SQL/Command injection via input fields
-- **Mitigation:** Input sanitization, validation, pattern blocking
-
-**4. Path Traversal**
-- **Threat:** Access to unauthorized files/directories
-- **Mitigation:** Path validation, read-only filesystem
-
-**5. Data Exfiltration**
-- **Threat:** Sensitive data leaked
-- **Mitigation:** Network policies, no secrets in logs, encryption
-
-**6. Denial of Service**
-- **Threat:** Resource exhaustion
-- **Mitigation:** Rate limiting, circuit breakers, retry backoff
-
-**7. Man-in-the-Middle**
-- **Threat:** Interception of communication
-- **Mitigation:** TLS for webhook, mTLS, certificate validation
-
-**8. Unauthorized Access**
-- **Threat:** Access to resources without permission
-- **Mitigation:** RBAC, admission webhooks, audit logging
-
-## Security Configuration
-
-### Deployment Security Context
+**Security Context:**
 ```yaml
 securityContext:
   runAsNonRoot: true
   runAsUser: 65532
+  fsGroup: 65532
   allowPrivilegeEscalation: false
   readOnlyRootFilesystem: true
   capabilities:
     drop:
     - ALL
+  seccompProfile:
+    type: RuntimeDefault
 ```
 
-### Required Secrets
+**Pod Security Standards:**
+- Compliant with "restricted" profile
+- No privileged containers
+- No host network/PID/IPC
+- Limited volume types
+
+### 4. Network Policies
+
+**Ingress Rules:**
+- API server access only
+
+**Egress Rules:**
+- Kubernetes API server
+- DNS resolution
+- Backend operator services
+
+**Example:**
 ```yaml
-apiVersion: v1
-kind: Secret
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
 metadata:
-  name: unified-replication-webhook-server-cert
-  namespace: unified-replication-system
-type: kubernetes.io/tls
-data:
-  tls.crt: <base64-encoded-cert>
-  tls.key: <base64-encoded-key>
-  ca.crt: <base64-encoded-ca>
+  name: unified-replication-operator
+spec:
+  podSelector:
+    matchLabels:
+      control-plane: controller-manager
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: kube-system
+  egress:
+  - to:
+    - namespaceSelector: {}
+    ports:
+    - protocol: TCP
+      port: 443
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: kube-system
+    ports:
+    - protocol: UDP
+      port: 53
 ```
 
-### Webhook Configuration
+### 5. Audit Logging
+
+**Audit Events:**
+- Resource creation/update/deletion
+- State transitions
+- Backend operations
+- Failures and errors
+
+**Configuration:**
 ```yaml
-apiVersion: admissionregistration.k8s.io/v1
-kind: ValidatingWebhookConfiguration
-metadata:
-  name: unified-replication-validating-webhook
-webhooks:
-- name: vunifiedvolumereplication.kb.io
-  clientConfig:
-    service:
-      name: webhook-service
-      namespace: unified-replication-system
-      path: /validate-replication-unified-io-v1alpha1-unifiedvolumereplication
-    caBundle: <base64-encoded-ca-bundle>
-  rules:
-  - apiGroups: ["replication.unified.io"]
-    apiVersions: ["v1alpha1"]
-    operations: ["CREATE", "UPDATE"]
-    resources: ["unifiedvolumereplications"]
-  failurePolicy: Fail
-  sideEffects: None
-  admissionReviewVersions: ["v1"]
+security:
+  audit:
+    enabled: true
+    logLevel: info
+    includeMetadata: true
+```
+
+**Log Format:**
+```json
+{
+  "timestamp": "2024-10-07T12:34:56Z",
+  "level": "info",
+  "msg": "Replication created",
+  "resource": "my-replication",
+  "namespace": "default",
+  "backend": "ceph",
+  "user": "system:serviceaccount:default:operator"
+}
+```
+
+### 6. Secrets Management
+
+**Backend Credentials:**
+- Stored in Kubernetes Secrets
+- Mounted as volumes (not environment variables)
+- Minimal secret access (named resources only)
+
+**Best Practices:**
+- Use external secret management (e.g., Vault, AWS Secrets Manager)
+- Rotate credentials regularly
+- Enable encryption at rest (etcd encryption)
+
+## Threat Model
+
+### Threats and Mitigations
+
+**1. Malicious Resource Creation**
+- **Threat:** Attacker creates resources to disrupt system
+- **Mitigation:** API validation, RBAC, audit logging
+
+**2. Privilege Escalation**
+- **Threat:** Operator gains excessive permissions
+- **Mitigation:** Minimal RBAC, pod security context, no cluster-admin
+
+**3. Data Exfiltration**
+- **Threat:** Sensitive data accessed via operator
+- **Mitigation:** Read-only access to core resources, network policies
+
+**4. Denial of Service**
+- **Threat:** Resource exhaustion or disruption
+- **Mitigation:** Resource limits, rate limiting, validation
+
+**5. Supply Chain Attack**
+- **Threat:** Compromised dependencies or container images
+- **Mitigation:** Image scanning, signed images, vendored dependencies
+
+**6. Configuration Tampering**
+- **Threat:** Unauthorized modification of CRDs
+- **Mitigation:** RBAC, audit logging, validation
+
+**7. Man-in-the-Middle**
+- **Threat:** Interception of communication
+- **Mitigation:** TLS for API communication, certificate validation
+
+**8. Unauthorized Access**
+- **Threat:** Access to resources without permission
+- **Mitigation:** RBAC, API validation, audit logging
+
+## Security Configuration
+
+### RBAC Configuration
+
+See `config/security/rbac.yaml` for complete RBAC manifests.
+
+### Network Policy
+
+Enable network policies in your cluster:
+```bash
+kubectl apply -f config/security/network-policy.yaml
+```
+
+### Pod Security Standards
+
+Apply pod security policy:
+```bash
+kubectl label namespace unified-replication-system \
+  pod-security.kubernetes.io/enforce=restricted \
+  pod-security.kubernetes.io/audit=restricted \
+  pod-security.kubernetes.io/warn=restricted
 ```
 
 ## Security Testing
 
-### Validation Tests
+### Run Security Tests
+
 ```bash
-# Run security tests
+# Run all security tests
 go test -v ./pkg/security/...
 
-# Run webhook security tests
-go test -v ./pkg/webhook/... -run Security
-
 # Benchmark validation performance
-go test -bench=. ./pkg/security/...
+go test -bench=. ./api/v1alpha1/...
+
+# Test RBAC policies
+kubectl auth can-i --list --as=system:serviceaccount:unified-replication-system:operator
 ```
 
 ### Vulnerability Scanning
-```bash
-# Scan Go dependencies
-go list -json -m all | nancy sleuth
 
+```bash
 # Scan container image
 trivy image unified-replication-operator:latest
 
-# Security audit
-gosec ./...
-```
+# Scan Go dependencies
+govulncheck ./...
 
-### RBAC Validation
-```bash
-# Verify permissions
-kubectl auth can-i create unifiedvolumereplications \
-  --as=system:serviceaccount:unified-replication-system:unified-replication-operator
-
-# Test with minimal permissions
-kubectl apply -f config/security/rbac.yaml
+# Scan Kubernetes manifests
+kubesec scan config/security/*.yaml
 ```
 
 ## Incident Response
 
-### Security Issue Reporting
-- Report to: security@example.com
-- Include: Detailed description, reproduction steps, impact
-- Response Time: 24 hours for critical, 72 hours for others
+### Security Incident Process
 
-### Security Updates
-- Regular dependency updates
-- CVE monitoring
-- Security patch releases
-- Coordinated disclosure
+1. **Detection:**
+   - Monitor audit logs
+   - Check for unusual resource creation
+   - Review RBAC denials
+
+2. **Investigation:**
+   - Review operator logs
+   - Check resource changes
+   - Verify backend operations
+
+3. **Containment:**
+   - Pause operator (scale to 0)
+   - Block network access
+   - Revoke compromised credentials
+
+4. **Remediation:**
+   - Apply security patches
+   - Rotate credentials
+   - Update RBAC policies
+
+5. **Recovery:**
+   - Verify fixes
+   - Scale operator back up
+   - Monitor for issues
+
+### Contact
+
+Report security vulnerabilities to: security@unified-replication.io
+
+## Security Best Practices
+
+### Deployment
+
+1. **Use dedicated namespace:**
+   ```bash
+   kubectl create namespace unified-replication-system
+   ```
+
+2. **Enable pod security:**
+   ```bash
+   kubectl label namespace unified-replication-system \
+     pod-security.kubernetes.io/enforce=restricted
+   ```
+
+3. **Apply network policies:**
+   ```bash
+   kubectl apply -f config/security/network-policy.yaml
+   ```
+
+4. **Use minimal RBAC:**
+   ```bash
+   kubectl apply -f config/security/rbac.yaml
+   ```
+
+5. **Enable audit logging:**
+   ```yaml
+   security:
+     audit:
+       enabled: true
+   ```
+
+### Operations
+
+1. **Regular updates:** Keep operator and dependencies up to date
+2. **Monitor logs:** Review audit logs regularly
+3. **Rotate credentials:** Update backend credentials periodically
+4. **Review RBAC:** Audit permissions quarterly
+5. **Scan images:** Use vulnerability scanning in CI/CD
+
+### Development
+
+1. **Code review:** All changes reviewed by security-aware developers
+2. **Static analysis:** Use gosec, staticcheck
+3. **Dependency scanning:** Monitor for vulnerable dependencies
+4. **Testing:** Include security tests in test suite
+5. **Documentation:** Keep security docs updated
 
 ## Compliance Checklist
 
-- [x] Admission webhooks implemented
-- [x] TLS certificates managed
+- [x] API validation implemented
 - [x] RBAC with minimal permissions
-- [x] Input sanitization and validation
-- [x] Audit logging enabled
+- [x] Pod security context (restricted)
 - [x] Network policies defined
-- [x] Pod security policies/standards
-- [x] Container security hardened
-- [x] Secrets properly handled
-- [x] Security documentation complete
+- [x] Audit logging available
+- [x] Secret management documented
+- [x] Threat model documented
+- [x] Security tests included
+- [x] Incident response process defined
+- [x] Regular security updates
 
 ## References
 
 - [Kubernetes Security Best Practices](https://kubernetes.io/docs/concepts/security/)
-- [CIS Kubernetes Benchmark](https://www.cisecurity.org/benchmark/kubernetes)
-- [NIST Guidelines](https://www.nist.gov/)
-- [OWASP Top 10](https://owasp.org/www-project-top-ten/)
+- [Pod Security Standards](https://kubernetes.io/docs/concepts/security/pod-security-standards/)
+- [RBAC Documentation](https://kubernetes.io/docs/reference/access-authn-authz/rbac/)
+- [Network Policies](https://kubernetes.io/docs/concepts/services-networking/network-policies/)
+- [Secrets Management](https://kubernetes.io/docs/concepts/configuration/secret/)
 
 ---
 
-**Last Updated:** 2024-10-07  
-**Version:** 1.0  
-**Status:** Production Ready
-
+**Last Updated:** 2024-10-22  
+**Version:** 1.0.0

@@ -63,28 +63,15 @@ spec:
           {{- else }}
           {{- toYaml .Values.securityContext | nindent 12 }}
           {{- end }}
-        ports:
-        {{- if .Values.webhook.enabled }}
-        - name: webhook
-          containerPort: {{ .Values.webhook.port }}
-          protocol: TCP
-        {{- end }}
         resources:
           {{- toYaml .Values.resources | nindent 12 }}
         volumeMounts:
-        {{- if .Values.webhook.enabled }}
-        - name: cert
-          mountPath: /tmp/k8s-webhook-server/serving-certs
-          readOnly: true
-        {{- end }}
         - name: tmp
           mountPath: /tmp
         {{- with .Values.extraVolumeMounts }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
         env:
-        - name: ENABLE_WEBHOOKS
-          value: "{{ .Values.webhook.enabled }}"
         - name: ENABLE_AUDIT
           value: "{{ .Values.security.audit.enabled }}"
         - name: ENABLE_ADVANCED_FEATURES
@@ -93,12 +80,6 @@ spec:
         {{- toYaml . | nindent 8 }}
         {{- end }}
       volumes:
-      {{- if .Values.webhook.enabled }}
-      - name: cert
-        secret:
-          secretName: {{ include "unified-replication-operator.webhookCertSecret" . }}
-          defaultMode: 420
-      {{- end }}
       - name: tmp
         emptyDir: {}
       {{- with .Values.extraVolumes }}

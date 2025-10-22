@@ -87,6 +87,7 @@ kubectl get uvr my-replication -n default
 - **[OpenShift Installation](OPENSHIFT_INSTALL.md)** - OpenShift-specific setup
 
 ### **Advanced Topics**
+- **[Dell Workflow Comparison](docs/DELL_WORKFLOW_COMPARISON.md)** - Native Dell CSI vs Unified Operator
 - **[Backend Switching Demo](demo/BACKEND_SWITCHING_DEMO.md)** - Multi-backend support
 - **[Validation Guide](demo/VALIDATION_GUIDE.md)** - How to validate replications
 - **[API Reference](docs/api-reference/API_REFERENCE.md)** - Full API specification
@@ -212,7 +213,6 @@ We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 ## Security
 
-- **TLS:** Webhook encryption
 - **RBAC:** Minimal permissions
 - **Audit:** All operations logged
 - **Pod Security:** Restricted profile

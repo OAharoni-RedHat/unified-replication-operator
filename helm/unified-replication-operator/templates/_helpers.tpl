@@ -58,22 +58,3 @@ Create the name of the service account to use
 {{- default "default" .Values.serviceAccount.name }}
 {{- end }}
 {{- end }}
-
-{{/*
-Create the name of the webhook certificate secret
-*/}}
-{{- define "unified-replication-operator.webhookCertSecret" -}}
-{{- if .Values.webhook.certificate.existingSecret }}
-{{- .Values.webhook.certificate.existingSecret }}
-{{- else }}
-{{- printf "%s-webhook-cert" (include "unified-replication-operator.fullname" .) }}
-{{- end }}
-{{- end }}
-
-{{/*
-Create the webhook service name
-*/}}
-{{- define "unified-replication-operator.webhookServiceName" -}}
-{{- printf "%s-webhook-service" (include "unified-replication-operator.fullname" .) }}
-{{- end }}
-

@@ -51,22 +51,7 @@ securityContext:
 # Service configuration
 service:
   type: ClusterIP
-  port: 443
-
-# Webhook configuration
-webhook:
-  enabled: true
-  port: 9443
-  certManager:
-    enabled: false  # Set to true if using cert-manager
-  # Certificate configuration (if not using cert-manager)
-  certificate:
-    # Auto-generate self-signed certificates
-    generate: true
-    # Or provide existing certificate
-    existingSecret: ""
-    # Certificate validity in days
-    validityDays: 365
+  port: 8080
 
 # Resource limits and requests
 resources:

@@ -17,7 +17,6 @@ limitations under the License.
 package main
 
 import (
-	"crypto/tls"
 	"flag"
 	"os"
 	"time"
@@ -32,7 +31,6 @@ import (
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
-	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	replicationv1alpha1 "github.com/unified-replication/operator/api/v1alpha1"
 	"github.com/unified-replication/operator/controllers"
@@ -57,9 +55,6 @@ func init() {
 }
 
 func main() {
-	var enableHTTP2 bool
-	flag.BoolVar(&enableHTTP2, "enable-http2", false,
-		"If set, HTTP/2 will be enabled for the webhook servers")
 	opts := zap.Options{
 		Development: true,
 	}
@@ -68,29 +63,8 @@ func main() {
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 
-	// if the enable-http2 flag is false (the default), http/2 should be disabled
-	// due to its vulnerabilities. More specifically, disabling http/2 will
-	// prevent from being vulnerable to the HTTP/2 Stream Cancellation and
-	// Rapid Reset CVEs. For more information see:
-	// - https://github.com/advisories/GHSA-qppj-fm5r-hxr3
-	// - https://github.com/advisories/GHSA-4374-p667-p6c8
-	disableHTTP2 := func(c *tls.Config) {
-		setupLog.Info("disabling http/2")
-		c.NextProtos = []string{"http/1.1"}
-	}
-
-	tlsOpts := []func(*tls.Config){}
-	if !enableHTTP2 {
-		tlsOpts = append(tlsOpts, disableHTTP2)
-	}
-
-	webhookServer := webhook.NewServer(webhook.Options{
-		TLSOpts: tlsOpts,
-	})
-
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
-		Scheme:        scheme,
-		WebhookServer: webhookServer,
+		Scheme: scheme,
 		// Leader election disabled - single replica deployment only
 		LeaderElection: false,
 	})
