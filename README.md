@@ -200,11 +200,27 @@ go test -v ./controllers/...
 # Unit tests
 go test -short ./...
 
-# Integration tests
+# Integration tests (requires envtest)
+make test-integration
+
+# All tests
 go test ./...
 
 # Benchmark
 go test -bench=. ./pkg/translation/...
+```
+
+#### Running Integration Tests
+
+Integration tests require kubebuilder test binaries (envtest):
+
+```bash
+# The Makefile handles envtest setup automatically
+make test-integration
+
+# Or manually:
+export KUBEBUILDER_ASSETS="$(./bin/setup-envtest use -p path)"
+go test ./test/integration/... -v
 ```
 
 ## Contributing

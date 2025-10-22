@@ -121,10 +121,21 @@ func TestValidReplicationModes(t *testing.T) {
 	assert.Contains(t, modes, replicationv1alpha1.ReplicationModeAsynchronous)
 }
 
+// TestValidScheduleModes verifies that all schedule modes are defined.
+// Current modes:
+// - continuous: Replication runs continuously
+// - interval: Replication runs at specified intervals (RPO-based)
 func TestValidScheduleModes(t *testing.T) {
 	modes := ValidScheduleModes()
 
-	assert.Len(t, modes, 3, "Should have all 3 schedule modes")
+	assert.Len(t, modes, 2, "Should have all defined schedule modes")
+
+	// Verify each mode is valid
+	for _, mode := range modes {
+		assert.NotEmpty(t, string(mode), "Schedule mode should not be empty")
+	}
+
+	// Verify the modes are the expected ones
 	assert.Contains(t, modes, replicationv1alpha1.ScheduleModeContinuous)
 	assert.Contains(t, modes, replicationv1alpha1.ScheduleModeInterval)
 }

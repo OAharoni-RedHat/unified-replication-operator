@@ -145,9 +145,12 @@ func (ta *TridentAdapter) createTridentMirrorRelationship(ctx context.Context, u
 		"remoteVolumeHandle": uvr.Spec.VolumeMapping.Destination.VolumeHandle,
 	}
 
+	// Normalize extended states to actual Trident states
+	normalizedState := normalizeTridentState(tridentState)
+
 	// Build spec
 	spec := map[string]interface{}{
-		"state":               tridentState,
+		"state":               normalizedState,
 		"replicationPolicy":   tridentMode,
 		"volumeGroupName":     fmt.Sprintf("%s-vg", uvr.Name),
 		"replicationSchedule": uvr.Spec.Schedule.Rpo,
@@ -197,9 +200,12 @@ func (ta *TridentAdapter) updateTridentMirrorRelationship(ctx context.Context, u
 		"remoteVolumeHandle": uvr.Spec.VolumeMapping.Destination.VolumeHandle,
 	}
 
+	// Normalize extended states to actual Trident states
+	normalizedState := normalizeTridentState(tridentState)
+
 	// Update spec fields
 	spec := map[string]interface{}{
-		"state":               tridentState,
+		"state":               normalizedState,
 		"replicationPolicy":   tridentMode,
 		"volumeGroupName":     fmt.Sprintf("%s-vg", uvr.Name),
 		"replicationSchedule": uvr.Spec.Schedule.Rpo,
@@ -402,6 +408,23 @@ func (ta *TridentAdapter) ResyncReplication(ctx context.Context, uvr *replicatio
 }
 
 // Helper functions
+
+// normalizeTridentState normalizes extended translation states to actual Trident states
+// Extended states (e.g., "established-replica") are used for bidirectional translation consistency
+// but must be normalized to real Trident states before sending to the backend
+func normalizeTridentState(extendedState string) string {
+	switch extendedState {
+	case "established-replica", "established-syncing", "established-failed":
+		return "established"
+	case "promoted":
+		return "promoted"
+	case "reestablished":
+		return "reestablished"
+	default:
+		// Already a valid Trident state or "established"
+		return extendedState
+	}
+}
 
 func convertToStringMap(m map[string]interface{}) map[string]string {
 	result := make(map[string]string)

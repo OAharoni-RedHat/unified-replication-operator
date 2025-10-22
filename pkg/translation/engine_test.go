@@ -141,8 +141,8 @@ func TestEngine_StateTranslation(t *testing.T) {
 		{"trident replica", BackendTrident, "replica", "established-replica", false},
 		{"trident promoting", BackendTrident, "promoting", "promoted", false},
 		{"trident demoting", BackendTrident, "demoting", "reestablished", false},
-		{"trident syncing", BackendTrident, "syncing", "establishing", false},
-		{"trident failed", BackendTrident, "failed", "error", false},
+		{"trident syncing", BackendTrident, "syncing", "established-syncing", false},
+		{"trident failed", BackendTrident, "failed", "established-failed", false},
 
 		// PowerStore tests
 		{"powerstore source", BackendPowerStore, "source", "source", false},

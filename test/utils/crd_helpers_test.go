@@ -207,8 +207,12 @@ func TestCRDManipulator(t *testing.T) {
 		err := manipulator.CreateCRD(ctx, uvr)
 		require.NoError(t, err)
 
-		// Update status
-		uvr.Status = replicationv1alpha1.UnifiedVolumeReplicationStatus{
+		// Retrieve the created CRD to get the latest version
+		created, err := manipulator.GetCRD(ctx, "test-status-update", "default")
+		require.NoError(t, err, "Failed to retrieve created CRD before status update")
+
+		// Update status on the retrieved resource
+		created.Status = replicationv1alpha1.UnifiedVolumeReplicationStatus{
 			ObservedGeneration: 1,
 			Conditions: []metav1.Condition{
 				{
@@ -220,7 +224,7 @@ func TestCRDManipulator(t *testing.T) {
 				},
 			},
 		}
-		err = manipulator.UpdateCRDStatus(ctx, uvr)
+		err = manipulator.UpdateCRDStatus(ctx, created)
 		require.NoError(t, err)
 
 		// Verify status update
@@ -279,9 +283,9 @@ func TestCRDManipulator(t *testing.T) {
 }
 
 func TestPerformanceTracker(t *testing.T) {
-	tracker := NewPerformanceTracker()
-
 	t.Run("track single operation", func(t *testing.T) {
+		tracker := NewPerformanceTracker() // Fresh instance per subtest
+
 		tracker.StartOperation("test-op")
 		time.Sleep(10 * time.Millisecond) // Simulate work
 		duration := tracker.EndOperation("test-op")
@@ -291,6 +295,8 @@ func TestPerformanceTracker(t *testing.T) {
 	})
 
 	t.Run("track multiple operations", func(t *testing.T) {
+		tracker := NewPerformanceTracker() // Fresh instance per subtest
+
 		operations := []string{"op1", "op2", "op3"}
 
 		for _, op := range operations {
@@ -300,7 +306,7 @@ func TestPerformanceTracker(t *testing.T) {
 		}
 
 		allOps := tracker.GetAllOperations()
-		assert.Len(t, allOps, len(operations))
+		assert.Len(t, allOps, len(operations), "Should have exactly 3 operations")
 
 		for _, op := range operations {
 			duration, exists := allOps[op]
@@ -310,16 +316,20 @@ func TestPerformanceTracker(t *testing.T) {
 	})
 
 	t.Run("reset tracker", func(t *testing.T) {
+		tracker := NewPerformanceTracker() // Fresh instance per subtest
+
 		tracker.StartOperation("reset-test")
 		tracker.EndOperation("reset-test")
 
-		assert.Len(t, tracker.GetAllOperations(), 1)
+		assert.Len(t, tracker.GetAllOperations(), 1, "Should have 1 operation before reset")
 
 		tracker.Reset()
-		assert.Len(t, tracker.GetAllOperations(), 0)
+		assert.Len(t, tracker.GetAllOperations(), 0, "Should have 0 operations after reset")
 	})
 
 	t.Run("non-existent operation", func(t *testing.T) {
+		tracker := NewPerformanceTracker() // Fresh instance per subtest
+
 		duration := tracker.EndOperation("non-existent")
 		assert.Equal(t, time.Duration(0), duration)
 	})

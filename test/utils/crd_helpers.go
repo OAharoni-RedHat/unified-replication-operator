@@ -49,6 +49,7 @@ func NewTestClient(existingObjects ...runtime.Object) *TestClient {
 	client := fake.NewClientBuilder().
 		WithScheme(scheme).
 		WithRuntimeObjects(existingObjects...).
+		WithStatusSubresource(&replicationv1alpha1.UnifiedVolumeReplication{}).
 		Build()
 
 	return &TestClient{
