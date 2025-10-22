@@ -232,7 +232,6 @@ var _ = Describe("UnifiedVolumeReplicationController", func() {
 
 			// Create fake client
 			fakeClient := fake.NewClientBuilder().WithScheme(s).Build()
-			u
 			// Initialize engines
 			discoveryEngine := discovery.NewEngine(fakeClient, discovery.DefaultDiscoveryConfig())
 			translationEngine := translation.NewEngine()
