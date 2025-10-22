@@ -32,6 +32,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	replicationv1alpha1 "github.com/unified-replication/operator/api/v1alpha1"
+	"github.com/unified-replication/operator/pkg"
+	"github.com/unified-replication/operator/pkg/adapters"
+	"github.com/unified-replication/operator/pkg/discovery"
 	"github.com/unified-replication/operator/pkg/translation"
 )
 
@@ -61,12 +64,24 @@ var _ = Describe("UnifiedVolumeReplicationController", func() {
 				WithStatusSubresource(&replicationv1alpha1.UnifiedVolumeReplication{}).
 				Build()
 
-			// Create reconciler
+			// Create reconciler with required engines
+			discoveryEngine := discovery.NewEngine(fakeClient, discovery.DefaultDiscoveryConfig())
+			translationEngine := translation.NewEngine()
+			adapterRegistry := adapters.GetGlobalRegistry()
+			controllerEngine := pkg.NewControllerEngine(fakeClient, discoveryEngine, translationEngine, adapterRegistry, pkg.DefaultControllerEngineConfig())
+
 			reconciler = &UnifiedVolumeReplicationReconciler{
-				Client:   fakeClient,
-				Log:      ctrl.Log.WithName("controllers").WithName("UnifiedVolumeReplication"),
-				Scheme:   s,
-				Recorder: record.NewFakeRecorder(100),
+				Client:            fakeClient,
+				Log:               ctrl.Log.WithName("controllers").WithName("UnifiedVolumeReplication"),
+				Scheme:            s,
+				Recorder:          record.NewFakeRecorder(100),
+				DiscoveryEngine:   discoveryEngine,
+				TranslationEngine: translationEngine,
+				ControllerEngine:  controllerEngine,
+				AdapterRegistry:   adapterRegistry,
+				StateMachine:      NewStateMachine(),
+				RetryManager:      NewRetryManager(nil),
+				CircuitBreaker:    NewCircuitBreaker(5, 2, 1*time.Minute),
 			}
 
 			// Create test resource
@@ -215,9 +230,20 @@ var _ = Describe("UnifiedVolumeReplicationController", func() {
 			s := scheme.Scheme
 			Expect(replicationv1alpha1.AddToScheme(s)).To(Succeed())
 
+			// Create fake client
+			fakeClient := fake.NewClientBuilder().WithScheme(s).Build()
+			u
+			// Initialize engines
+			discoveryEngine := discovery.NewEngine(fakeClient, discovery.DefaultDiscoveryConfig())
+			translationEngine := translation.NewEngine()
+
 			reconciler = &UnifiedVolumeReplicationReconciler{
-				Log:    ctrl.Log.WithName("test"),
-				Scheme: s,
+				Client:            fakeClient,
+				Log:               ctrl.Log.WithName("test"),
+				Scheme:            s,
+				DiscoveryEngine:   discoveryEngine,
+				TranslationEngine: translationEngine,
+				StateMachine:      NewStateMachine(),
 			}
 
 			uvr = &replicationv1alpha1.UnifiedVolumeReplication{
@@ -302,10 +328,18 @@ var _ = Describe("UnifiedVolumeReplicationController", func() {
 
 			fakeClient := fake.NewClientBuilder().WithScheme(s).Build()
 
+			// Initialize required engines
+			discoveryEngine := discovery.NewEngine(fakeClient, discovery.DefaultDiscoveryConfig())
+			translationEngine := translation.NewEngine()
+			adapterRegistry := adapters.GetGlobalRegistry()
+
 			reconciler = &UnifiedVolumeReplicationReconciler{
-				Client: fakeClient,
-				Log:    ctrl.Log.WithName("test"),
-				Scheme: s,
+				Client:            fakeClient,
+				Log:               ctrl.Log.WithName("test"),
+				Scheme:            s,
+				DiscoveryEngine:   discoveryEngine,
+				TranslationEngine: translationEngine,
+				AdapterRegistry:   adapterRegistry,
 			}
 		})
 

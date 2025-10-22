@@ -34,6 +34,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	replicationv1alpha1 "github.com/unified-replication/operator/api/v1alpha1"
+	"github.com/unified-replication/operator/pkg"
+	"github.com/unified-replication/operator/pkg/adapters"
+	"github.com/unified-replication/operator/pkg/discovery"
+	"github.com/unified-replication/operator/pkg/translation"
 )
 
 func TestReconciler_BasicLifecycle(t *testing.T) {
@@ -310,11 +314,24 @@ func createTestScheme(t *testing.T) *runtime.Scheme {
 }
 
 func createTestReconciler(client client.Client, s *runtime.Scheme) *UnifiedVolumeReplicationReconciler {
+	// Initialize required engines
+	discoveryEngine := discovery.NewEngine(client, discovery.DefaultDiscoveryConfig())
+	translationEngine := translation.NewEngine()
+	adapterRegistry := adapters.GetGlobalRegistry()
+	controllerEngine := pkg.NewControllerEngine(client, discoveryEngine, translationEngine, adapterRegistry, pkg.DefaultControllerEngineConfig())
+
 	return &UnifiedVolumeReplicationReconciler{
-		Client:   client,
-		Log:      ctrl.Log.WithName("test").WithName("UnifiedVolumeReplication"),
-		Scheme:   s,
-		Recorder: record.NewFakeRecorder(100),
+		Client:            client,
+		Log:               ctrl.Log.WithName("test").WithName("UnifiedVolumeReplication"),
+		Scheme:            s,
+		Recorder:          record.NewFakeRecorder(100),
+		DiscoveryEngine:   discoveryEngine,
+		TranslationEngine: translationEngine,
+		ControllerEngine:  controllerEngine,
+		AdapterRegistry:   adapterRegistry,
+		StateMachine:      NewStateMachine(),
+		RetryManager:      NewRetryManager(nil),
+		CircuitBreaker:    NewCircuitBreaker(5, 2, 1*time.Minute),
 	}
 }
 

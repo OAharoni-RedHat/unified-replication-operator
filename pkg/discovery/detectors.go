@@ -115,7 +115,7 @@ func (bd *BaseDetector) DetectBackend(ctx context.Context) (*BackendDiscoveryRes
 
 // checkCRDReady checks if a CRD exists and is established
 func (bd *BaseDetector) checkCRDReady(ctx context.Context, crdName string) (bool, error) {
-	engine := &Engine{client: bd.client}
+	engine := NewEngine(bd.client, DefaultDiscoveryConfig())
 	return engine.CheckCRDReady(ctx, crdName)
 }
 

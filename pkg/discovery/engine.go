@@ -80,6 +80,11 @@ func (e *Engine) DiscoverBackends(ctx context.Context) (*DiscoveryResult, error)
 	logger := log.FromContext(ctx).WithName("discovery-engine")
 	logger.Info("Starting backend discovery")
 
+	// Ensure config is initialized
+	if e.config == nil {
+		e.config = DefaultDiscoveryConfig()
+	}
+
 	result := &DiscoveryResult{
 		Backends:          make(map[translation.Backend]BackendDiscoveryResult),
 		AvailableBackends: make([]translation.Backend, 0),
