@@ -1,0 +1,42 @@
+apiVersion: replication.unified.io/v1alpha2
+kind: VolumeReplication
+metadata:
+  name: powerstore-critical-data-replication
+  namespace: critical-workloads
+spec:
+  # Reference to the VolumeReplicationClass for Dell PowerStore
+  volumeReplicationClass: powerstore-replication
+  
+  # Name of the PersistentVolumeClaim to replicate
+  pvcName: critical-data-pvc
+  
+  # Replication state: "primary" means this volume is the primary (active)
+  # This translates to "Failover" action in DellCSIReplicationGroup
+  replicationState: primary
+  
+  # Automatically resync after failures
+  autoResync: true
+
+---
+# Note: The secondary VolumeReplication should be created in the DR cluster:
+#
+# apiVersion: replication.unified.io/v1alpha2
+# kind: VolumeReplication
+# metadata:
+#   name: powerstore-critical-data-replication
+#   namespace: critical-workloads
+# spec:
+#   volumeReplicationClass: powerstore-replication
+#   pvcName: critical-data-pvc-dr
+#   replicationState: secondary
+#   autoResync: true
+#
+# For Dell PowerStore:
+# - primary state translates to "Failover" action (this site is active)
+# - secondary state translates to "Sync" action (this site syncs from remote)
+# - resync state translates to "Reprotect" action (re-establish replication)
+#
+# The operator will also:
+# - Label the PVC with replication.storage.dell.com/replicated: "true"
+# - Create a DellCSIReplicationGroup with appropriate PVCSelector
+

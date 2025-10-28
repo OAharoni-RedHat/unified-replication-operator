@@ -20,12 +20,75 @@ import (
 	"context"
 	"time"
 
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	ctrl "sigs.k8s.io/controller-runtime"
+
 	replicationv1alpha1 "github.com/unified-replication/operator/api/v1alpha1"
+	replicationv1alpha2 "github.com/unified-replication/operator/api/v1alpha2"
 	"github.com/unified-replication/operator/pkg/translation"
 )
 
-// ReplicationAdapter defines the interface that all backend adapters must implement
-type ReplicationAdapter interface {
+// VolumeReplicationAdapter handles reconciliation for v1alpha2 VolumeReplication resources
+// This is the NEW interface for kubernetes-csi-addons compatible single volume replication
+type VolumeReplicationAdapter interface {
+	// ReconcileVolumeReplication reconciles a VolumeReplication resource
+	ReconcileVolumeReplication(
+		ctx context.Context,
+		vr *replicationv1alpha2.VolumeReplication,
+		vrc *replicationv1alpha2.VolumeReplicationClass,
+	) (ctrl.Result, error)
+
+	// DeleteVolumeReplication cleans up backend resources for a VolumeReplication
+	DeleteVolumeReplication(
+		ctx context.Context,
+		vr *replicationv1alpha2.VolumeReplication,
+	) error
+
+	// GetStatus fetches current replication status from backend
+	GetStatus(
+		ctx context.Context,
+		vr *replicationv1alpha2.VolumeReplication,
+	) (*V1Alpha2ReplicationStatus, error)
+}
+
+// VolumeGroupReplicationAdapter handles reconciliation for v1alpha2 VolumeGroupReplication resources
+// This enables multi-volume crash-consistent group replication
+type VolumeGroupReplicationAdapter interface {
+	// ReconcileVolumeGroupReplication reconciles a group of volumes
+	ReconcileVolumeGroupReplication(
+		ctx context.Context,
+		vgr *replicationv1alpha2.VolumeGroupReplication,
+		vgrc *replicationv1alpha2.VolumeGroupReplicationClass,
+		pvcs []corev1.PersistentVolumeClaim,
+	) (ctrl.Result, error)
+
+	// DeleteVolumeGroupReplication cleans up backend resources for a volume group
+	DeleteVolumeGroupReplication(
+		ctx context.Context,
+		vgr *replicationv1alpha2.VolumeGroupReplication,
+	) error
+
+	// GetGroupStatus fetches current group replication status from backend
+	GetGroupStatus(
+		ctx context.Context,
+		vgr *replicationv1alpha2.VolumeGroupReplication,
+	) (*V1Alpha2ReplicationStatus, error)
+}
+
+// V1Alpha2ReplicationStatus represents status for v1alpha2 resources
+type V1Alpha2ReplicationStatus struct {
+	State            string
+	Message          string
+	LastSyncTime     *metav1.Time
+	LastSyncDuration *metav1.Duration
+	Conditions       []metav1.Condition
+}
+
+// UnifiedVolumeReplicationAdapter defines the interface for v1alpha1 backend adapters
+// DEPRECATED: This interface is for v1alpha1 API. Use VolumeReplicationAdapter for v1alpha2.
+// This will be removed in v3.0.0 when v1alpha1 support is dropped.
+type UnifiedVolumeReplicationAdapter interface {
 	// Core operations - use EnsureReplication for reconciliation
 	EnsureReplication(ctx context.Context, uvr *replicationv1alpha1.UnifiedVolumeReplication) error
 	DeleteReplication(ctx context.Context, uvr *replicationv1alpha1.UnifiedVolumeReplication) error
@@ -57,6 +120,10 @@ type ReplicationAdapter interface {
 	Cleanup(ctx context.Context) error
 	Reconcile(ctx context.Context, uvr *replicationv1alpha1.UnifiedVolumeReplication) error
 }
+
+// ReplicationAdapter is an alias for backward compatibility
+// DEPRECATED: Use UnifiedVolumeReplicationAdapter explicitly
+type ReplicationAdapter = UnifiedVolumeReplicationAdapter
 
 // ReplicationStatus represents the status of a replication relationship
 type ReplicationStatus struct {

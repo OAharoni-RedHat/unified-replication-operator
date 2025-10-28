@@ -40,10 +40,12 @@ help: ## Display this help.
 .PHONY: manifests
 manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
 	$(CONTROLLER_GEN) rbac:roleName=manager-role crd paths="./..." output:crd:artifacts:config=config/crd/bases
+	@echo "✅ Generated CRDs for both v1alpha1 and v1alpha2"
 
 .PHONY: generate
 generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
+	@echo "✅ Generated deepcopy code for both v1alpha1 and v1alpha2"
 
 .PHONY: fmt
 fmt: ## Run go fmt against code.
@@ -90,6 +92,23 @@ test-utils: ## Test utility functions
 test-setup: $(ENVTEST) ## Setup test environment
 	$(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN)
 	@echo "Test environment setup complete"
+
+.PHONY: test-v1alpha2
+test-v1alpha2: fmt vet ## Run v1alpha2 specific tests
+	go test -v ./api/v1alpha2/...
+	go test -v ./controllers/... -run "VolumeReplication|VolumeGroupReplication|BackendDetection"
+	go test -v ./pkg/adapters/... -run "V1Alpha2|Translation"
+	@echo "✅ v1alpha2 tests passed"
+
+.PHONY: test-translation
+test-translation: ## Run translation logic tests
+	go test -v ./pkg/adapters/... -run "Translation"
+	@echo "✅ Translation tests passed"
+
+.PHONY: test-backend-detection
+test-backend-detection: ## Run backend detection tests
+	go test -v ./controllers/... -run "BackendDetection"
+	@echo "✅ Backend detection tests passed"
 
 ##@ Coverage Reporting
 
@@ -197,6 +216,42 @@ deploy: manifests kustomize ## Deploy controller to the K8s cluster specified in
 .PHONY: undeploy
 undeploy: ## Undeploy controller from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
 	$(KUSTOMIZE) build config/default | kubectl delete --ignore-not-found=$(ignore-not-found) -f -
+
+##@ Samples (v1alpha2)
+
+.PHONY: deploy-samples-v1alpha2
+deploy-samples-v1alpha2: ## Deploy v1alpha2 sample resources
+	@echo "Deploying v1alpha2 sample resources..."
+	kubectl apply -f config/samples/volumereplicationclass_ceph.yaml
+	kubectl apply -f config/samples/volumereplication_ceph_primary.yaml
+	@echo "✅ v1alpha2 samples deployed"
+
+.PHONY: deploy-samples-all
+deploy-samples-all: ## Deploy all v1alpha2 sample resources (all backends)
+	@echo "Deploying all v1alpha2 samples..."
+	kubectl apply -f config/samples/volumereplicationclass_ceph.yaml
+	kubectl apply -f config/samples/volumereplicationclass_trident.yaml
+	kubectl apply -f config/samples/volumereplicationclass_powerstore.yaml
+	kubectl apply -f config/samples/volumereplication_ceph_primary.yaml
+	kubectl apply -f config/samples/volumereplication_trident_secondary.yaml
+	kubectl apply -f config/samples/volumereplication_powerstore_primary.yaml
+	@echo "✅ All single volume samples deployed"
+
+.PHONY: deploy-samples-groups
+deploy-samples-groups: ## Deploy volume group sample resources
+	@echo "Deploying volume group samples..."
+	kubectl apply -f config/samples/volumegroupreplicationclass_ceph_group.yaml
+	kubectl apply -f config/samples/volumegroupreplication_postgresql.yaml
+	@echo "✅ Volume group samples deployed"
+
+.PHONY: undeploy-samples
+undeploy-samples: ## Remove all sample resources
+	@echo "Removing sample resources..."
+	kubectl delete vr --all --all-namespaces --ignore-not-found=true
+	kubectl delete vgr --all --all-namespaces --ignore-not-found=true
+	kubectl delete vrc --all --ignore-not-found=true
+	kubectl delete vgrc --all --ignore-not-found=true
+	@echo "✅ Samples removed"
 
 ##@ Security
 

@@ -1,0 +1,28 @@
+apiVersion: replication.unified.io/v1alpha2
+kind: VolumeGroupReplicationClass
+metadata:
+  name: trident-consistency-group-replication
+spec:
+  # Provisioner identifies this as a NetApp Trident backend for group replication
+  provisioner: csi.trident.netapp.io
+  
+  # Parameters for Trident consistency group replication
+  parameters:
+    # Consistency group policy name configured in NetApp ONTAP
+    consistencyGroupPolicy: "cg-async-policy"
+    
+    # Replication policy for the entire group: "Async" or "Sync"
+    replicationPolicy: "Async"
+    
+    # Group replication schedule interval
+    groupReplicationSchedule: "15m"
+    
+    # Remote cluster identifier for disaster recovery
+    remoteCluster: "dr-cluster"
+    
+    # Remote Storage Virtual Machine (SVM) name
+    remoteSVM: "svm-dr"
+    
+    # Enable consistency group for crash-consistent multi-volume snapshots
+    consistencyGroup: "enabled"
+

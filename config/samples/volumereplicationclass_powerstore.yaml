@@ -1,0 +1,25 @@
+apiVersion: replication.unified.io/v1alpha2
+kind: VolumeReplicationClass
+metadata:
+  name: powerstore-replication
+spec:
+  # Provisioner identifies this as a Dell PowerStore backend
+  provisioner: csi-powerstore.dellemc.com
+  
+  # Parameters for Dell PowerStore-specific replication configuration
+  parameters:
+    # Protection policy name configured on PowerStore array
+    protectionPolicy: "15min-async"
+    
+    # Remote PowerStore system ID
+    remoteSystem: "PS-DR-001"
+    
+    # Recovery Point Objective (RPO) value (e.g., "15m", "1h", "4h")
+    rpo: "15m"
+    
+    # Remote Kubernetes cluster identifier
+    remoteClusterId: "dr-k8s-cluster"
+    
+    # Optional: Remote namespace for replicated volumes
+    remoteNamespace: "disaster-recovery"
+

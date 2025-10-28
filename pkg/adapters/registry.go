@@ -48,17 +48,23 @@ type AdapterFactoryInfo struct {
 
 // Registry manages adapter factories and provides adapter creation services
 type Registry interface {
-	// Factory management
+	// Factory management (v1alpha1 - deprecated)
 	RegisterFactory(factory AdapterFactory) error
 	UnregisterFactory(backend translation.Backend) error
 	GetFactory(backend translation.Backend) (AdapterFactory, error)
 	ListFactories() []AdapterFactory
 
-	// Adapter management
+	// v1alpha1 Adapter management (deprecated)
 	CreateAdapter(backend translation.Backend, client client.Client, translator *translation.Engine, config *AdapterConfig) (ReplicationAdapter, error)
 	GetAdapterInfo(backend translation.Backend) (*AdapterFactoryInfo, error)
 	IsBackendSupported(backend translation.Backend) bool
 	GetSupportedBackends() []translation.Backend
+
+	// v1alpha2 Adapter management (new)
+	GetVolumeReplicationAdapter(backend translation.Backend) VolumeReplicationAdapter
+	GetVolumeGroupReplicationAdapter(backend translation.Backend) VolumeGroupReplicationAdapter
+	RegisterVolumeReplicationAdapter(backend translation.Backend, adapter VolumeReplicationAdapter)
+	RegisterVolumeGroupReplicationAdapter(backend translation.Backend, adapter VolumeGroupReplicationAdapter)
 
 	// Lifecycle management
 	Initialize(ctx context.Context) error
@@ -67,7 +73,13 @@ type Registry interface {
 
 // DefaultRegistry implements the Registry interface
 type DefaultRegistry struct {
-	factories   map[translation.Backend]AdapterFactory
+	// v1alpha1 support (deprecated)
+	factories map[translation.Backend]AdapterFactory
+
+	// v1alpha2 support (new)
+	vrAdapters  map[translation.Backend]VolumeReplicationAdapter
+	vgrAdapters map[translation.Backend]VolumeGroupReplicationAdapter
+
 	mu          sync.RWMutex
 	initialized bool
 }
@@ -75,7 +87,9 @@ type DefaultRegistry struct {
 // NewRegistry creates a new adapter registry
 func NewRegistry() Registry {
 	return &DefaultRegistry{
-		factories: make(map[translation.Backend]AdapterFactory),
+		factories:   make(map[translation.Backend]AdapterFactory),
+		vrAdapters:  make(map[translation.Backend]VolumeReplicationAdapter),
+		vgrAdapters: make(map[translation.Backend]VolumeGroupReplicationAdapter),
 	}
 }
 
@@ -491,4 +505,38 @@ func RegisterAdapter(factory AdapterFactory) error {
 // CreateAdapterForBackend is a convenience function to create an adapter from the global registry
 func CreateAdapterForBackend(backend translation.Backend, client client.Client, translator *translation.Engine, config *AdapterConfig) (ReplicationAdapter, error) {
 	return GetGlobalRegistry().CreateAdapter(backend, client, translator, config)
+}
+
+// v1alpha2 Adapter Management Methods
+
+// GetVolumeReplicationAdapter returns the v1alpha2 adapter for single volume replication
+func (r *DefaultRegistry) GetVolumeReplicationAdapter(backend translation.Backend) VolumeReplicationAdapter {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	return r.vrAdapters[backend]
+}
+
+// GetVolumeGroupReplicationAdapter returns the v1alpha2 adapter for volume group replication
+func (r *DefaultRegistry) GetVolumeGroupReplicationAdapter(backend translation.Backend) VolumeGroupReplicationAdapter {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	return r.vgrAdapters[backend]
+}
+
+// RegisterVolumeReplicationAdapter registers a v1alpha2 volume replication adapter
+func (r *DefaultRegistry) RegisterVolumeReplicationAdapter(backend translation.Backend, adapter VolumeReplicationAdapter) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	r.vrAdapters[backend] = adapter
+}
+
+// RegisterVolumeGroupReplicationAdapter registers a v1alpha2 volume group replication adapter
+func (r *DefaultRegistry) RegisterVolumeGroupReplicationAdapter(backend translation.Backend, adapter VolumeGroupReplicationAdapter) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	r.vgrAdapters[backend] = adapter
 }

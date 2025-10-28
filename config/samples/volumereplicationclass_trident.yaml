@@ -1,0 +1,28 @@
+apiVersion: replication.unified.io/v1alpha2
+kind: VolumeReplicationClass
+metadata:
+  name: trident-san-replication
+spec:
+  # Provisioner identifies this as a NetApp Trident backend
+  provisioner: csi.trident.netapp.io
+  
+  # Parameters for Trident-specific replication configuration
+  parameters:
+    # Replication policy: "Async" for asynchronous, "Sync" for synchronous
+    replicationPolicy: "Async"
+    
+    # Replication schedule interval (e.g., "15m", "1h", "4h")
+    replicationSchedule: "15m"
+    
+    # Remote cluster identifier for disaster recovery
+    remoteCluster: "dr-cluster"
+    
+    # Remote Storage Virtual Machine (SVM) name
+    remoteSVM: "svm-dr"
+    
+    # Remote volume handle (or can be derived from PVC)
+    remoteVolume: "trident-remote-volume-handle"
+    
+    # Optional: Snapshot policy for async replication
+    snapshotPolicy: "daily"
+

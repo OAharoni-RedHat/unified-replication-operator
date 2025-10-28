@@ -4,19 +4,22 @@
 [![Go Report](https://img.shields.io/badge/go%20report-A+-brightgreen)]()
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue)]()
 [![Kubernetes](https://img.shields.io/badge/kubernetes-1.24%2B-blue)]()
+[![kubernetes-csi-addons](https://img.shields.io/badge/kubernetes--csi--addons-compatible-blue)]()
 
-A Kubernetes operator that provides unified storage replication management across multiple storage backends including Ceph-CSI, NetApp Trident, and Dell PowerStore.
+A Kubernetes operator that provides kubernetes-csi-addons compatible storage replication API with multi-backend translation support for Ceph, NetApp Trident, and Dell PowerStore.
+
+**Key Value:** Use the standard kubernetes-csi-addons `VolumeReplication` API, and the operator automatically translates to Trident and Dell PowerStore backends!
 
 ## Features
 
-- **Unified API** - Single CRD for all storage backends
-- **Multi-Backend Support** - Ceph, Trident, PowerStore
-- **Automatic Discovery** - Detects available backends
-- **State Translation** - Automatic state/mode conversion
-- **High Availability** - Leader election, multiple replicas
-- **Advanced Features** - Retry logic, circuit breakers, state machine
-- **Security Hardened** - TLS, RBAC, audit logging, pod security
-- **Production Ready** - Health checks and comprehensive docs
+- **kubernetes-csi-addons Compatible** - 100% compatible with kubernetes-csi-addons VolumeReplication API
+- **Multi-Backend Translation** - Automatically translates to Ceph (passthrough), Trident, and Dell PowerStore
+- **Volume Group Support** - Crash-consistent multi-volume replication for databases
+- **Simple API** - Just 3 required fields (class, pvcName, state)
+- **Automatic Backend Detection** - Detects backend from VolumeReplicationClass provisioner
+- **State Translation** - Automatic translation for Trident and Dell backends
+- **Standard Compliant** - Uses kubernetes-csi-addons standard (primary, secondary, resync states)
+- **Production Ready** - Tested, documented, with comprehensive examples
 
 ## 🎬 **Live Demo**
 
@@ -39,39 +42,36 @@ helm install unified-replication-operator ./helm/unified-replication-operator \
   --namespace unified-replication-system \
   --create-namespace
 
-# Create a replication
+# Create a VolumeReplicationClass
 cat <<EOF | kubectl apply -f -
-apiVersion: replication.unified.io/v1alpha1
-kind: UnifiedVolumeReplication
+apiVersion: replication.unified.io/v1alpha2
+kind: VolumeReplicationClass
+metadata:
+  name: ceph-replication
+spec:
+  provisioner: rbd.csi.ceph.com
+  parameters:
+    mirroringMode: "snapshot"
+    schedulingInterval: "5m"
+EOF
+
+# Create a VolumeReplication
+cat <<EOF | kubectl apply -f -
+apiVersion: replication.unified.io/v1alpha2
+kind: VolumeReplication
 metadata:
   name: my-replication
   namespace: default
 spec:
-  replicationState: replica
-  replicationMode: asynchronous
-  volumeMapping:
-    source:
-      pvcName: source-pvc
-      namespace: default
-    destination:
-      volumeHandle: dest-volume
-      namespace: default
-  sourceEndpoint:
-    cluster: source
-    region: us-east-1
-    storageClass: ceph-rbd
-  destinationEndpoint:
-    cluster: dest
-    region: us-west-1
-    storageClass: ceph-rbd
-  schedule:
-    mode: continuous
-    rpo: "15m"
-    rto: "5m"
+  volumeReplicationClass: ceph-replication
+  pvcName: my-data-pvc
+  replicationState: primary
+  autoResync: true
 EOF
 
 # Check status
-kubectl get uvr my-replication -n default
+kubectl get vr my-replication -n default
+kubectl describe vr my-replication -n default
 ```
 
 ## Documentation
@@ -100,17 +100,23 @@ kubectl get uvr my-replication -n default
 ```
 User
   ↓
-UnifiedVolumeReplication CRD
+VolumeReplication (kubernetes-csi-addons compatible)
   ↓
-Controller
-  ├→ Discovery Engine (finds backends)
-  ├→ Translation Engine (translates states/modes)
-  ├→ State Machine (validates transitions)
-  └→ Adapter (backend-specific operations)
-      ├→ Ceph Adapter → VolumeReplication CRD
-      ├→ Trident Adapter → TridentMirrorRelationship CRD
-      └→ PowerStore Adapter → DellCSIReplicationGroup CRD
+VolumeReplicationClass (backend config + detection)
+  ↓
+Controller (backend detection from provisioner)
+  ↓
+Adapter Registry
+  ├→ Ceph Adapter (passthrough) → VolumeReplication CRD
+  ├→ Trident Adapter (state translation) → TridentMirrorRelationship CRD
+  └→ Dell Adapter (action translation) → DellCSIReplicationGroup CRD
 ```
+
+**How It Works:**
+1. User creates `VolumeReplication` with standard kubernetes-csi-addons API
+2. Controller reads `VolumeReplicationClass` to detect backend
+3. Appropriate adapter translates to backend-specific CR
+4. Backend CR managed automatically with owner references
 
 ## Supported Backends
 

@@ -71,6 +71,13 @@ tolerations: []
 # Affinity rules
 affinity: {}
 
+# API version configuration
+api:
+  # v1alpha2 is the primary kubernetes-csi-addons compatible API
+  # v1alpha1 support can be disabled if not needed
+  v1alpha2Enabled: true
+  v1alpha1Enabled: true  # Set to false to disable legacy API
+
 # Controller configuration
 controller:
   # Maximum concurrent reconciles
@@ -78,6 +85,12 @@ controller:
   
   # Reconcile timeout
   reconcileTimeout: "5m"
+  
+  # Watch v1alpha2 resources (VolumeReplication, VolumeGroupReplication)
+  watchV1Alpha2: true
+  
+  # Watch v1alpha1 resources (UnifiedVolumeReplication) - legacy
+  watchV1Alpha1: true
   
   # Enable engine integration (Phase 4.2)
   useIntegratedEngine: true

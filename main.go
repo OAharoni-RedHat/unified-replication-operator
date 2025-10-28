@@ -33,6 +33,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	replicationv1alpha1 "github.com/unified-replication/operator/api/v1alpha1"
+	replicationv1alpha2 "github.com/unified-replication/operator/api/v1alpha2"
 	"github.com/unified-replication/operator/controllers"
 	"github.com/unified-replication/operator/pkg"
 	"github.com/unified-replication/operator/pkg/adapters"
@@ -50,7 +51,11 @@ func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 	utilruntime.Must(apiextensionsv1.AddToScheme(scheme))
 
+	// Register both API versions:
+	// - v1alpha1: Legacy UnifiedVolumeReplication (deprecated, will be removed in future)
+	// - v1alpha2: kubernetes-csi-addons compatible VolumeReplication
 	utilruntime.Must(replicationv1alpha1.AddToScheme(scheme))
+	utilruntime.Must(replicationv1alpha2.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
 }
 
@@ -79,9 +84,14 @@ func main() {
 
 	// Initialize adapter registry
 	adapterRegistry := adapters.NewRegistry()
+
+	// Register v1alpha1 factories (deprecated - for backward compatibility)
 	adapterRegistry.RegisterFactory(adapters.NewCephAdapterFactory())
 	adapterRegistry.RegisterFactory(adapters.NewTridentAdapterFactory())
 	adapterRegistry.RegisterFactory(adapters.NewPowerStoreAdapterFactory())
+
+	// Register v1alpha2 adapters (new)
+	adapters.RegisterV1Alpha2Adapters(adapterRegistry, mgr.GetClient())
 
 	// Initialize controller engine
 	controllerEngine := pkg.NewControllerEngine(mgr.GetClient(), discoveryEngine, translationEngine, adapterRegistry, pkg.DefaultControllerEngineConfig())
@@ -96,7 +106,7 @@ func main() {
 	})
 	circuitBreaker := controllers.NewCircuitBreaker(5, 2, 60*time.Second)
 
-	// Setup the UnifiedVolumeReplication controller
+	// Setup the UnifiedVolumeReplication controller (v1alpha1 - DEPRECATED)
 	if err = (&controllers.UnifiedVolumeReplicationReconciler{
 		Client:                  mgr.GetClient(),
 		Log:                     ctrl.Log.WithName("controllers").WithName("UnifiedVolumeReplication"),
@@ -115,6 +125,31 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "UnifiedVolumeReplication")
 		os.Exit(1)
 	}
+
+	// Setup the VolumeReplication controller (v1alpha2 - kubernetes-csi-addons compatible)
+	if err = (&controllers.VolumeReplicationReconciler{
+		Client:          mgr.GetClient(),
+		Scheme:          mgr.GetScheme(),
+		AdapterRegistry: adapterRegistry,
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "VolumeReplication")
+		os.Exit(1)
+	}
+
+	// Setup the VolumeGroupReplication controller (v1alpha2 - volume groups)
+	if err = (&controllers.VolumeGroupReplicationReconciler{
+		Client:          mgr.GetClient(),
+		Scheme:          mgr.GetScheme(),
+		AdapterRegistry: adapterRegistry,
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "VolumeGroupReplication")
+		os.Exit(1)
+	}
+
+	setupLog.Info("All controllers registered successfully",
+		"v1alpha1", "UnifiedVolumeReplication (deprecated)",
+		"v1alpha2", "VolumeReplication + VolumeGroupReplication")
+
 	//+kubebuilder:scaffold:builder
 
 	setupLog.Info("starting manager")

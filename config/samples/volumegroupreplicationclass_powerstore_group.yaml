@@ -1,0 +1,31 @@
+apiVersion: replication.unified.io/v1alpha2
+kind: VolumeGroupReplicationClass
+metadata:
+  name: powerstore-group-replication
+spec:
+  # Provisioner identifies this as a Dell PowerStore backend for group replication
+  provisioner: csi-powerstore.dellemc.com
+  
+  # Parameters for Dell PowerStore group replication
+  parameters:
+    # Consistency type: "Metro" for synchronous metro replication, "Async" for asynchronous
+    consistencyType: "Async"
+    
+    # Protection policy name for the volume group (configured on PowerStore array)
+    protectionPolicy: "group-15min-async"
+    
+    # Remote PowerStore system ID
+    remoteSystem: "PS-DR-001"
+    
+    # Recovery Point Objective (RPO) for the volume group
+    rpo: "15m"
+    
+    # Remote Kubernetes cluster identifier
+    remoteClusterId: "dr-k8s-cluster"
+    
+    # Remote namespace for replicated volumes
+    remoteNamespace: "disaster-recovery"
+    
+    # Enable consistency group for crash-consistent group operations
+    consistencyGroup: "enabled"
+

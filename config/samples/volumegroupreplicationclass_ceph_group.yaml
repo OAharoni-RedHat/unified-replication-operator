@@ -1,0 +1,26 @@
+apiVersion: replication.unified.io/v1alpha2
+kind: VolumeGroupReplicationClass
+metadata:
+  name: ceph-rbd-group-replication
+spec:
+  # Provisioner identifies this as a Ceph backend for group replication
+  provisioner: rbd.csi.ceph.com
+  
+  # Parameters for Ceph volume group replication
+  parameters:
+    # Mirroring mode for the group: "snapshot" for snapshot-based, "journal" for journal-based
+    groupMirroringMode: "snapshot"
+    
+    # Scheduling interval for group snapshots (e.g., "1m", "5m", "15m")
+    schedulingInterval: "5m"
+    
+    # Group consistency level: "crash" for crash-consistent, "application" for app-consistent
+    groupConsistency: "crash"
+    
+    # Enable group snapshots for atomic consistency across all volumes
+    groupSnapshots: "true"
+    
+    # Secret containing Ceph cluster credentials for replication
+    replication.storage.openshift.io/replication-secret-name: "rbd-replication-secret"
+    replication.storage.openshift.io/replication-secret-namespace: "rook-ceph"
+

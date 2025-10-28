@@ -1,0 +1,37 @@
+apiVersion: replication.unified.io/v1alpha2
+kind: VolumeReplication
+metadata:
+  name: trident-app-replication
+  namespace: applications
+spec:
+  # Reference to the VolumeReplicationClass for Trident
+  volumeReplicationClass: trident-san-replication
+  
+  # Name of the PersistentVolumeClaim to replicate
+  pvcName: application-data-pvc
+  
+  # Replication state: "secondary" means this volume is a replica (read-only)
+  # This site receives replicated data from the primary site
+  replicationState: secondary
+  
+  # Automatically resync after connection issues
+  autoResync: true
+
+---
+# Note: The primary VolumeReplication should be created in the source cluster:
+#
+# apiVersion: replication.unified.io/v1alpha2
+# kind: VolumeReplication
+# metadata:
+#   name: trident-app-replication
+#   namespace: applications
+# spec:
+#   volumeReplicationClass: trident-san-replication
+#   pvcName: application-data-pvc
+#   replicationState: primary
+#   autoResync: true
+#
+# For Trident:
+# - primary state will be translated to "established" 
+# - secondary state will be translated to "reestablishing"
+

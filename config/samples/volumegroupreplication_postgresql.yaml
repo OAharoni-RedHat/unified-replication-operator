@@ -1,0 +1,109 @@
+apiVersion: replication.unified.io/v1alpha2
+kind: VolumeGroupReplication
+metadata:
+  name: postgresql-database-group-replication
+  namespace: production
+spec:
+  # Reference to the VolumeGroupReplicationClass that defines group replication parameters
+  volumeGroupReplicationClass: ceph-rbd-group-replication
+  
+  # Label selector to identify all PVCs that are part of this PostgreSQL database
+  # All PVCs with matching labels will be replicated together as a crash-consistent group
+  selector:
+    matchLabels:
+      app: postgresql
+      instance: prod-db-01
+  
+  # Replication state: "primary" means all volumes in the group are primary (source)
+  # This state applies to ALL selected PVCs simultaneously
+  # Valid values: "primary", "secondary", "resync"
+  replicationState: primary
+  
+  # Automatically resync the entire group after connection loss and recovery
+  autoResync: true
+
+---
+# Example PVCs that would be selected by this VolumeGroupReplication:
+#
+# apiVersion: v1
+# kind: PersistentVolumeClaim
+# metadata:
+#   name: postgresql-data-pvc
+#   namespace: production
+#   labels:
+#     app: postgresql              # Matches selector
+#     instance: prod-db-01         # Matches selector
+#     component: data
+# spec:
+#   storageClassName: ceph-rbd
+#   accessModes: [ReadWriteOnce]
+#   resources:
+#     requests:
+#       storage: 100Gi
+# ---
+# apiVersion: v1
+# kind: PersistentVolumeClaim
+# metadata:
+#   name: postgresql-logs-pvc
+#   namespace: production
+#   labels:
+#     app: postgresql              # Matches selector
+#     instance: prod-db-01         # Matches selector
+#     component: logs
+# spec:
+#   storageClassName: ceph-rbd
+#   accessModes: [ReadWriteOnce]
+#   resources:
+#     requests:
+#       storage: 50Gi
+# ---
+# apiVersion: v1
+# kind: PersistentVolumeClaim
+# metadata:
+#   name: postgresql-config-pvc
+#   namespace: production
+#   labels:
+#     app: postgresql              # Matches selector
+#     instance: prod-db-01         # Matches selector
+#     component: config
+# spec:
+#   storageClassName: ceph-rbd
+#   accessModes: [ReadWriteOnce]
+#   resources:
+#     requests:
+#       storage: 1Gi
+
+---
+# Benefits of Volume Group Replication:
+#
+# 1. CRASH CONSISTENCY:
+#    All volumes are snapshotted at the exact same point in time,
+#    ensuring the database can recover to a consistent state.
+#
+# 2. ATOMIC OPERATIONS:
+#    Promoting from secondary to primary happens for ALL volumes together.
+#    No risk of partial failover where some volumes promote and others don't.
+#
+# 3. SIMPLIFIED MANAGEMENT:
+#    Manage one VolumeGroupReplication instead of 3 separate VolumeReplications.
+#
+# 4. GUARANTEED CONSISTENCY:
+#    PostgreSQL data, WAL logs, and config are always in sync during replication.
+
+---
+# To create a secondary (replica) site, create a VolumeGroupReplication in the DR cluster:
+#
+# apiVersion: replication.unified.io/v1alpha2
+# kind: VolumeGroupReplication
+# metadata:
+#   name: postgresql-database-group-replication
+#   namespace: disaster-recovery
+# spec:
+#   volumeGroupReplicationClass: ceph-rbd-group-replication
+#   selector:
+#     matchLabels:
+#       app: postgresql
+#       instance: dr-db-01
+#   replicationState: secondary  # This cluster receives replicated data
+#   autoResync: true
+

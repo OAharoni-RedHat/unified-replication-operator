@@ -14,6 +14,17 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// DEPRECATED: This controller is for v1alpha1 API (UnifiedVolumeReplication).
+// For v1alpha2 API (VolumeReplication), use volumereplication_controller.go.
+//
+// This controller will be removed in v3.0.0 (approximately 12 months after v2.0.0 release).
+// It is maintained for backward compatibility only. No new features will be added.
+//
+// Users should migrate to v1alpha2 using the migration tool:
+//   $ migrate-uvr --all-namespaces
+//
+// See docs/migration/V1ALPHA1_TO_V1ALPHA2_MIGRATION_GUIDE.md for details.
+
 package controllers
 
 import (

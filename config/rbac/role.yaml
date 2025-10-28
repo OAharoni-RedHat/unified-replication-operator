@@ -12,6 +12,16 @@ rules:
   - create
   - patch
 - apiGroups:
+  - ""
+  resources:
+  - persistentvolumeclaims
+  verbs:
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
   - replication.storage.io
   resources:
   - unifiedvolumereplications
@@ -37,3 +47,49 @@ rules:
   - get
   - patch
   - update
+- apiGroups:
+  - replication.unified.io
+  resources:
+  - volumegroupreplicationclasses
+  - volumereplicationclasses
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - replication.unified.io
+  resources:
+  - volumegroupreplications
+  - volumereplications
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - replication.unified.io
+  resources:
+  - volumegroupreplications/finalizers
+  - volumereplications/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - replication.unified.io
+  resources:
+  - volumegroupreplications/status
+  - volumereplications/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - storage.k8s.io
+  resources:
+  - storageclasses
+  verbs:
+  - get
+  - list
+  - watch

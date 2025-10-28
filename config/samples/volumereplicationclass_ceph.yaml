@@ -1,0 +1,20 @@
+apiVersion: replication.unified.io/v1alpha2
+kind: VolumeReplicationClass
+metadata:
+  name: ceph-rbd-replication
+spec:
+  # Provisioner identifies this as a Ceph backend
+  provisioner: rbd.csi.ceph.com
+  
+  # Parameters for Ceph-specific replication configuration
+  parameters:
+    # Mirroring mode: "snapshot" for snapshot-based mirroring, "journal" for journal-based
+    mirroringMode: "snapshot"
+    
+    # Scheduling interval for snapshot replication (e.g., "1m", "5m", "15m", "1h")
+    schedulingInterval: "5m"
+    
+    # Secret containing Ceph cluster credentials for replication
+    replication.storage.openshift.io/replication-secret-name: "rbd-replication-secret"
+    replication.storage.openshift.io/replication-secret-namespace: "rook-ceph"
+
