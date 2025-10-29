@@ -3,12 +3,12 @@ set -e -o pipefail
 
 # Configuration
 OPERATOR="unified-replication-operator"
-VERSION="${VERSION:-0.1.0}"
+VERSION="${VERSION:-2.0.0-beta}"  # Updated for v1alpha2 kubernetes-csi-addons compatible release
 REGISTRY="${REGISTRY:-quay.io/rh-ee-oaharoni}"  # Override with your registry
 IMAGE_NAME="${IMAGE_NAME:-unified-replication-operator}"
 NAMESPACE="${NAMESPACE:-unified-replication-system}"
 CONTAINER_TOOL="${CONTAINER_TOOL:-podman}"  # Can be 'docker' or 'podman'
-SKIP_TESTS="${SKIP_TESTS:-true}"
+SKIP_TESTS="${SKIP_TESTS:-false}"  # Run tests by default now that all pass
 SKIP_DEPLOY="${SKIP_DEPLOY:-false}"
 PUSH_IMAGE="${PUSH_IMAGE:-true}"
 ENABLE_WEBHOOKS="${ENABLE_WEBHOOKS:-false}"  # Enable webhook validation
@@ -405,8 +405,11 @@ print_summary() {
         echo_info "Next steps:"
         echo "  • View logs:         ${kubectl_cmd} logs -n ${NAMESPACE} -l control-plane=controller-manager -f"
         echo "  • Check pods:        ${kubectl_cmd} get pods -n ${NAMESPACE}"
-        echo "  • Test replication:  ${kubectl_cmd} apply -f trident-replication.yaml"
-        echo "  • Check status:      ${kubectl_cmd} get unifiedvolumereplications -A"
+        echo "  • Create class:      ${kubectl_cmd} apply -f config/samples/volumereplicationclass_ceph.yaml"
+        echo "  • Test replication:  ${kubectl_cmd} apply -f config/samples/volumereplication_ceph_primary.yaml"
+        echo "  • Check status:      ${kubectl_cmd} get vr,vgr,vrc,vgrc -A"
+        echo "  • Check v1alpha2:    ${kubectl_cmd} get volumereplications -A"
+        echo "  • Check v1alpha1:    ${kubectl_cmd} get unifiedvolumereplications -A  # (legacy)"
     else
         echo_info "To deploy manually:"
         echo "  helm install ${OPERATOR} ./helm/${OPERATOR} \\"
@@ -445,21 +448,22 @@ main() {
 show_help() {
     cat << EOF
 Unified Replication Operator Build and Deploy Script
+Version: 2.0.0-beta (kubernetes-csi-addons compatible)
 
 Usage: $0 [options]
 
 Environment Variables:
-  VERSION              Version tag for the image (default: 0.1.0)
+  VERSION              Version tag for the image (default: 2.0.0-beta)
   REGISTRY             Container registry (default: quay.io/YOUR_USERNAME)
   IMAGE_NAME           Image name (default: unified-replication-operator)
   NAMESPACE            Kubernetes namespace (default: unified-replication-system)
   CONTAINER_TOOL       Container tool to use (default: podman, can be docker)
-  SKIP_TESTS           Skip running tests (default: false)
+  SKIP_TESTS           Skip running tests (default: false - tests run by default)
   SKIP_DEPLOY          Skip deployment to cluster (default: false)
   PUSH_IMAGE           Push image to registry (default: true)
 
 Examples:
-  # Build, push, and deploy with default settings
+  # Build, push, and deploy v2.0.0-beta with default settings
   REGISTRY=quay.io/myuser $0
 
   # Build and push only (no deploy)
@@ -469,13 +473,19 @@ Examples:
   PUSH_IMAGE=false SKIP_DEPLOY=true $0
 
   # Build with custom version
-  VERSION=0.2.0 REGISTRY=quay.io/myuser $0
+  VERSION=2.0.1 REGISTRY=quay.io/myuser $0
 
-  # Skip tests and use docker instead of podman
+  # Skip tests (not recommended) and use docker instead of podman
   SKIP_TESTS=true CONTAINER_TOOL=docker REGISTRY=quay.io/myuser $0
 
   # Build for OpenShift internal registry
   REGISTRY=image-registry.openshift-image-registry.svc:5000/unified-replication-system $0
+
+Note: This script builds the v2.0.0-beta release with:
+  - kubernetes-csi-addons compatible v1alpha2 API
+  - VolumeReplication and VolumeGroupReplication resources
+  - Multi-backend translation (Ceph, Trident, Dell PowerStore)
+  - Backward compatible v1alpha1 API (optional)
 
 EOF
 }
