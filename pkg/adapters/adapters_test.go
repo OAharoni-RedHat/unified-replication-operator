@@ -554,26 +554,30 @@ func TestGlobalRegistry(t *testing.T) {
 	})
 
 	t.Run("RegisterAdapter", func(t *testing.T) {
+		// FIX: Use new registry instance instead of global to avoid singleton conflicts
+		registry := NewRegistry()
 		factory := NewBaseAdapterFactory(translation.BackendPowerStore, "Test PowerStore Adapter", "1.0.0", "Test adapter")
 
-		err := RegisterAdapter(factory)
-		assert.NoError(t, err)
+		err := registry.RegisterFactory(factory)
+		assert.NoError(t, err, "RegisterFactory should succeed on fresh registry")
 
-		registry := GetGlobalRegistry()
-		assert.True(t, registry.IsBackendSupported(translation.BackendPowerStore))
+		assert.True(t, registry.IsBackendSupported(translation.BackendPowerStore), "Backend should be supported after registration")
 	})
 
 	t.Run("CreateAdapterForBackend", func(t *testing.T) {
+		// FIX: Use new registry instance for test isolation
+		registry := NewRegistry()
 		factory := NewBaseAdapterFactory(translation.BackendTrident, "Test Trident Adapter", "1.0.0", "Test adapter")
-		_ = RegisterAdapter(factory)
+		err := registry.RegisterFactory(factory)
+		assert.NoError(t, err, "RegisterFactory should succeed")
 
 		client := createFakeClient()
 		translator := translation.NewEngine()
 
-		adapter, err := CreateAdapterForBackend(translation.BackendTrident, client, translator, nil)
-		assert.NoError(t, err)
-		assert.NotNil(t, adapter)
-		assert.Equal(t, translation.BackendTrident, adapter.GetBackendType())
+		adapter, err := registry.CreateAdapter(translation.BackendTrident, client, translator, nil)
+		assert.NoError(t, err, "CreateAdapter should succeed")
+		assert.NotNil(t, adapter, "Adapter should not be nil")
+		assert.Equal(t, translation.BackendTrident, adapter.GetBackendType(), "Adapter should have correct backend type")
 	})
 }
 

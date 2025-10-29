@@ -47,7 +47,7 @@ const (
 )
 
 // ReplicationMode defines the replication consistency mode
-// +kubebuilder:validation:Enum=synchronous;asynchronous
+// +kubebuilder:validation:Enum=synchronous;asynchronous;eventual
 type ReplicationMode string
 
 const (
@@ -55,6 +55,8 @@ const (
 	ReplicationModeSynchronous ReplicationMode = "synchronous"
 	// ReplicationModeAsynchronous provides asynchronous replication
 	ReplicationModeAsynchronous ReplicationMode = "asynchronous"
+	// ReplicationModeEventual provides eventual consistency replication
+	ReplicationModeEventual ReplicationMode = "eventual"
 )
 
 // ScheduleMode defines the replication scheduling mode

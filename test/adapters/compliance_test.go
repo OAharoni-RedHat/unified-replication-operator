@@ -23,6 +23,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
@@ -33,7 +36,22 @@ import (
 
 // TestAdapterInterfaceCompliance verifies that all adapters implement the ReplicationAdapter interface correctly
 func TestAdapterInterfaceCompliance(t *testing.T) {
-	client := fake.NewClientBuilder().Build()
+	// Create scheme and register all required types
+	scheme := runtime.NewScheme()
+	_ = clientgoscheme.AddToScheme(scheme)
+	_ = replicationv1alpha1.AddToScheme(scheme)
+
+	// Register Ceph VolumeReplication and VolumeReplicationList types
+	// These are defined in pkg/adapters/ceph.go and needed by the Ceph adapter
+	// GroupVersion: replication.storage.openshift.io/v1alpha1
+	gv := schema.GroupVersion{Group: "replication.storage.openshift.io", Version: "v1alpha1"}
+	scheme.AddKnownTypes(gv,
+		&adapters.VolumeReplication{},
+		&adapters.VolumeReplicationList{},
+	)
+	metav1.AddToGroupVersion(scheme, gv)
+
+	client := fake.NewClientBuilder().WithScheme(scheme).Build()
 	translator := translation.NewEngine()
 
 	backends := []translation.Backend{
@@ -127,7 +145,15 @@ func testAdapterCompliance(t *testing.T, adapter adapters.ReplicationAdapter, ba
 
 // TestCrossAdapterConsistency verifies consistent behavior across all adapters
 func TestCrossAdapterConsistency(t *testing.T) {
-	client := fake.NewClientBuilder().Build()
+	// Create scheme with Ceph types
+	scheme := runtime.NewScheme()
+	_ = clientgoscheme.AddToScheme(scheme)
+	_ = replicationv1alpha1.AddToScheme(scheme)
+	gv := schema.GroupVersion{Group: "replication.storage.openshift.io", Version: "v1alpha1"}
+	scheme.AddKnownTypes(gv, &adapters.VolumeReplication{}, &adapters.VolumeReplicationList{})
+	metav1.AddToGroupVersion(scheme, gv)
+
+	client := fake.NewClientBuilder().WithScheme(scheme).Build()
 	translator := translation.NewEngine()
 
 	backends := []translation.Backend{
@@ -187,7 +213,15 @@ func TestCrossAdapterConsistency(t *testing.T) {
 
 // TestAdapterValidation tests validation logic across adapters
 func TestAdapterValidation(t *testing.T) {
-	client := fake.NewClientBuilder().Build()
+	// Create scheme with Ceph types
+	scheme := runtime.NewScheme()
+	_ = clientgoscheme.AddToScheme(scheme)
+	_ = replicationv1alpha1.AddToScheme(scheme)
+	gv := schema.GroupVersion{Group: "replication.storage.openshift.io", Version: "v1alpha1"}
+	scheme.AddKnownTypes(gv, &adapters.VolumeReplication{}, &adapters.VolumeReplicationList{})
+	metav1.AddToGroupVersion(scheme, gv)
+
+	client := fake.NewClientBuilder().WithScheme(scheme).Build()
 	translator := translation.NewEngine()
 
 	backends := []translation.Backend{
@@ -250,7 +284,15 @@ func TestAdapterValidation(t *testing.T) {
 
 // TestAdapterResourceCleanup verifies proper resource cleanup
 func TestAdapterResourceCleanup(t *testing.T) {
-	client := fake.NewClientBuilder().Build()
+	// Create scheme with Ceph types
+	scheme := runtime.NewScheme()
+	_ = clientgoscheme.AddToScheme(scheme)
+	_ = replicationv1alpha1.AddToScheme(scheme)
+	gv := schema.GroupVersion{Group: "replication.storage.openshift.io", Version: "v1alpha1"}
+	scheme.AddKnownTypes(gv, &adapters.VolumeReplication{}, &adapters.VolumeReplicationList{})
+	metav1.AddToGroupVersion(scheme, gv)
+
+	client := fake.NewClientBuilder().WithScheme(scheme).Build()
 	translator := translation.NewEngine()
 
 	backends := []translation.Backend{

@@ -23,7 +23,7 @@ This document summarizes the complete migration to kubernetes-csi-addons compati
 - VolumeReplication (single volumes) - WORKING
 - VolumeGroupReplication (volume groups) - WORKING  
 - Backend detection (automatic from provisioner) - WORKING
-- Translation (Trident, Dell) - WORKING & TESTED
+- Translation (Trident, Dell) - WORKING
 - Passthrough (Ceph) - WORKING
 - Deletion and cleanup - WORKING
 

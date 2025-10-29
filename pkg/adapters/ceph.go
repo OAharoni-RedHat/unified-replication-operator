@@ -591,7 +591,7 @@ func (ca *CephAdapter) GetReplicationStatus(ctx context.Context, uvr *replicatio
 	if err != nil {
 		logger.Error(err, "Failed to build enhanced status")
 		// Return basic status on error
-		status = ca.buildBasicReplicationStatus(vr)
+		status = ca.buildBasicReplicationStatus(vr, uvr)
 	}
 
 	// Cache the status
@@ -629,8 +629,12 @@ func (ca *CephAdapter) buildEnhancedReplicationStatus(ctx context.Context, vr *V
 		detailedMessage += fmt.Sprintf("; Invalid transition: %s", activeTransition.Reason)
 	}
 
+	// Get the replication mode from the UVR spec
+	mode := string(uvr.Spec.ReplicationMode) // Should be "synchronous", "asynchronous", or "eventual"
+
 	status := &ReplicationStatus{
 		State:           unifiedState,
+		Mode:            mode, // Add Mode field
 		Health:          health,
 		Message:         detailedMessage,
 		SyncProgress:    &progress,
@@ -651,7 +655,7 @@ func (ca *CephAdapter) buildEnhancedReplicationStatus(ctx context.Context, vr *V
 }
 
 // buildBasicReplicationStatus creates basic status for fallback
-func (ca *CephAdapter) buildBasicReplicationStatus(vr *VolumeReplication) *ReplicationStatus {
+func (ca *CephAdapter) buildBasicReplicationStatus(vr *VolumeReplication, uvr *replicationv1alpha1.UnifiedVolumeReplication) *ReplicationStatus {
 	// Basic state translation without error handling
 	unifiedState := "unknown"
 	if state, _, err := ca.translateFromCephState(vr.Spec.ReplicationState); err == nil {
@@ -661,8 +665,12 @@ func (ca *CephAdapter) buildBasicReplicationStatus(vr *VolumeReplication) *Repli
 	health := ca.mapCephStatusToHealth(vr.Status)
 	progress := ca.calculateSyncProgress(vr.Status)
 
+	// Get mode from UVR spec
+	mode := string(uvr.Spec.ReplicationMode)
+
 	return &ReplicationStatus{
 		State:        unifiedState,
+		Mode:         mode, // Add Mode field
 		Health:       health,
 		Message:      vr.Status.Message,
 		SyncProgress: &progress,

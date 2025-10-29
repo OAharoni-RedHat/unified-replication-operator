@@ -18,7 +18,11 @@ package integration
 
 import (
 	"context"
+	"fmt"
+	"os"
+	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -52,10 +56,32 @@ func TestMain(m *testing.M) {
 		ErrorIfCRDPathMissing: true,
 	}
 
+	// Check if KUBEBUILDER_ASSETS is set, if not try to set it
+	if os.Getenv("KUBEBUILDER_ASSETS") == "" {
+		// Try to find setup-envtest binary and use it
+		setupEnvtestPath := filepath.Join("..", "..", "bin", "setup-envtest")
+		if _, err := os.Stat(setupEnvtestPath); err == nil {
+			// setup-envtest exists, use it to get the path
+			cmd := exec.Command(setupEnvtestPath, "use", "1.30.0", "-p", "path")
+			output, err := cmd.Output()
+			if err == nil {
+				assetsPath := strings.TrimSpace(string(output))
+				os.Setenv("KUBEBUILDER_ASSETS", assetsPath)
+				fmt.Printf("Set KUBEBUILDER_ASSETS=%s\n", assetsPath)
+			}
+		}
+	}
+
 	var err error
 	cfg, err = testEnv.Start()
 	if err != nil {
-		panic(err)
+		// Provide helpful error message
+		fmt.Printf("ERROR: envtest failed to start: %v\n", err)
+		fmt.Println("\nTo run integration tests, use one of:")
+		fmt.Println("  1. make test-integration")
+		fmt.Println("  2. KUBEBUILDER_ASSETS=\"$(./bin/setup-envtest use -p path)\" go test ./test/integration/...")
+		fmt.Println("  3. make test-setup && KUBEBUILDER_ASSETS=\"$(./bin/setup-envtest use -p path)\" go test ./test/integration/...")
+		panic(err) // Fail the test with helpful message
 	}
 
 	scheme := runtime.NewScheme()
