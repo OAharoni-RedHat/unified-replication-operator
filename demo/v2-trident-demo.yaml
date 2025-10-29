@@ -1,0 +1,132 @@
+# v2.0.0-beta Trident Demo - kubernetes-csi-addons Compatible API
+#
+# This demo shows how the operator uses the standard kubernetes-csi-addons
+# VolumeReplication API and automatically translates to Trident backend.
+#
+# Translation Demonstration:
+#   Input (kubernetes-csi-addons):  replicationState: primary
+#   Output (Trident):               state: established
+#
+#   Input:  replicationState: secondary
+#   Output: state: reestablishing
+
+---
+# Step 1: Create VolumeReplicationClass for Trident
+# This tells the operator:
+#   - Which backend to use (csi.trident.netapp.io)
+#   - How to configure replication (parameters)
+apiVersion: replication.unified.io/v1alpha2
+kind: VolumeReplicationClass
+metadata:
+  name: trident-async-replication
+spec:
+  # Provisioner determines which backend adapter to use
+  # The operator will detect "trident" and use the Trident adapter
+  provisioner: csi.trident.netapp.io
+  
+  # Parameters specific to Trident replication
+  parameters:
+    # Replication policy: Async or Sync
+    replicationPolicy: "Async"
+    
+    # Schedule for async replication
+    replicationSchedule: "15m"
+    
+    # Remote cluster identifier
+    remoteCluster: "dr-cluster"
+    
+    # Remote Storage Virtual Machine
+    remoteSVM: "svm-disaster-recovery"
+    
+    # Remote volume handle (optional - can be auto-generated)
+    remoteVolume: "trident-remote-volume-handle"
+
+---
+# Step 2: Create VolumeReplication using kubernetes-csi-addons standard API
+#
+# This is the SAME API you would use for Ceph or any other
+# kubernetes-csi-addons compatible storage!
+apiVersion: replication.unified.io/v1alpha2
+kind: VolumeReplication
+metadata:
+  name: trident-app-replication
+  namespace: applications
+spec:
+  # Reference to the class (determines backend)
+  volumeReplicationClass: trident-async-replication
+  
+  # Which PVC to replicate
+  pvcName: application-data-pvc
+  
+  # Desired state using kubernetes-csi-addons standard states
+  # primary = this volume is the active source
+  # This will be TRANSLATED to Trident state: "established"
+  replicationState: primary
+  
+  # Automatically resync after connection recovery
+  autoResync: true
+
+---
+# What the Operator Creates Automatically:
+#
+# apiVersion: trident.netapp.io/v1
+# kind: TridentMirrorRelationship
+# metadata:
+#   name: trident-app-replication
+#   namespace: applications
+#   ownerReferences:
+#   - apiVersion: replication.unified.io/v1alpha2
+#     kind: VolumeReplication
+#     name: trident-app-replication
+#     controller: true
+# spec:
+#   state: established                    # TRANSLATED from "primary"!
+#   replicationPolicy: Async              # From VolumeReplicationClass
+#   replicationSchedule: "15m"            # From VolumeReplicationClass
+#   volumeMappings:
+#   - localPVCName: application-data-pvc
+#     remoteVolumeHandle: trident-remote-volume-handle
+
+---
+# Example: Secondary Site VolumeReplication
+#
+# Create this on the DR site to receive replicated data
+apiVersion: replication.unified.io/v1alpha2
+kind: VolumeReplication
+metadata:
+  name: trident-app-replication
+  namespace: applications
+spec:
+  volumeReplicationClass: trident-async-replication
+  pvcName: application-data-pvc-dr
+  
+  # Secondary state = this volume receives replicated data
+  # This will be TRANSLATED to Trident state: "reestablished"
+  replicationState: secondary
+  
+  autoResync: true
+
+---
+# The operator will create TridentMirrorRelationship with:
+#   state: reestablished    # TRANSLATED from "secondary"!
+
+---
+# Translation Table:
+#
+# kubernetes-csi-addons  →  Trident
+# ────────────────────────────────────
+# primary                →  established
+# secondary              →  reestablished  
+# resync                 →  reestablished
+#
+# Note: Trident uses "reestablished" (with 'd' at the end)
+
+---
+# Benefits of v2.0.0-beta:
+#
+# 1. Standard API - Use kubernetes-csi-addons (industry standard)
+# 2. Automatic Translation - Operator handles Trident specifics
+# 3. Simple - Only 3 required fields (class, pvcName, state)
+# 4. Portable - Same API works for Ceph, Trident, Dell
+# 5. Clean - No Trident-specific states in your YAML
+

@@ -194,9 +194,9 @@ func (a *TridentV1Alpha2Adapter) translateStateToTrident(vrState string) string 
 	case "primary":
 		return "established" // Trident primary state
 	case "secondary":
-		return "reestablishing" // Trident secondary/replica state
+		return "reestablished" // Trident secondary/replica state (note: reestablisheD with 'd')
 	case "resync":
-		return "reestablishing" // Re-establish mirror
+		return "reestablished" // Re-establish mirror
 	default:
 		return "established" // Default to established
 	}
@@ -207,8 +207,10 @@ func (a *TridentV1Alpha2Adapter) translateStateFromTrident(tridentState string) 
 	switch tridentState {
 	case "established":
 		return "primary" // Trident primary → kubernetes-csi-addons primary
-	case "reestablishing":
-		return "secondary" // Trident secondary → kubernetes-csi-addons secondary
+	case "reestablished":
+		return "secondary" // Trident secondary → kubernetes-csi-addons secondary (note: reestablisheD with 'd')
+	case "promoted":
+		return "primary" // Promoted volume is now primary
 	default:
 		return tridentState // Pass through unknown states
 	}

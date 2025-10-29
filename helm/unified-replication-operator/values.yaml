@@ -71,6 +71,11 @@ tolerations: []
 # Affinity rules
 affinity: {}
 
+# Webhook configuration (disabled by default for v2.0.0-beta)
+webhook:
+  enabled: false
+  port: 9443
+
 # API version configuration
 api:
   # v1alpha2 is the primary kubernetes-csi-addons compatible API

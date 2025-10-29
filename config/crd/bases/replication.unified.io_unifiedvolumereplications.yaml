@@ -106,6 +106,7 @@ spec:
                 enum:
                 - synchronous
                 - asynchronous
+                - eventual
                 type: string
               replicationState:
                 description: ReplicationState defines the desired replication state

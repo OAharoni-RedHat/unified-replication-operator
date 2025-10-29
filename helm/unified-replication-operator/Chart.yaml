@@ -1,17 +1,19 @@
 apiVersion: v2
 name: unified-replication-operator
-description: A Helm chart for Unified Replication Operator - unified storage replication across Ceph, Trident, and PowerStore
+description: kubernetes-csi-addons compatible replication operator with multi-backend translation (Ceph, Trident, PowerStore)
 type: application
-version: 0.1.0
-appVersion: "0.1.0"
+version: 2.0.0-beta
+appVersion: "2.0.0-beta"
 keywords:
   - storage
   - replication
+  - kubernetes-csi-addons
   - ceph
   - trident
   - powerstore
   - disaster-recovery
   - backup
+  - volume-groups
 home: https://github.com/unified-replication/operator
 sources:
   - https://github.com/unified-replication/operator

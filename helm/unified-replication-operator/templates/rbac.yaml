@@ -137,7 +137,7 @@ rules:
   verbs:
   - get
   resourceNames:
-  - {{ include "unified-replication-operator.webhookCertSecret" . }}
+  - unified-replication-operator-webhook-cert
 # Secrets - Create/update webhook certs (for cert generation job)
 - apiGroups:
   - ""

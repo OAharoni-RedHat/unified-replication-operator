@@ -34,14 +34,14 @@ func TestTridentStateTranslationToTrident(t *testing.T) {
 			tridentState: "established",
 		},
 		{
-			name:         "secondary to reestablishing",
+			name:         "secondary to reestablished",
 			vrState:      "secondary",
-			tridentState: "reestablishing",
+			tridentState: "reestablished", // Note: reestablisheD with 'd'
 		},
 		{
-			name:         "resync to reestablishing",
+			name:         "resync to reestablished",
 			vrState:      "resync",
-			tridentState: "reestablishing",
+			tridentState: "reestablished", // Note: reestablisheD with 'd'
 		},
 		{
 			name:         "unknown state defaults to established",
@@ -76,9 +76,14 @@ func TestTridentStateTranslationFromTrident(t *testing.T) {
 			vrState:      "primary",
 		},
 		{
-			name:         "reestablishing to secondary",
-			tridentState: "reestablishing",
+			name:         "reestablished to secondary",
+			tridentState: "reestablished", // Note: reestablisheD with 'd'
 			vrState:      "secondary",
+		},
+		{
+			name:         "promoted to primary",
+			tridentState: "promoted",
+			vrState:      "primary",
 		},
 		{
 			name:         "unknown state passthrough",
