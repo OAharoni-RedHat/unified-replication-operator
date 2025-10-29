@@ -19,7 +19,10 @@ package utils
 import (
 	"context"
 	"fmt"
+	"os"
+	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -105,6 +108,19 @@ func NewTestEnvironment(t *testing.T, options *TestEnvironmentOptions) *TestEnvi
 
 	if options.BinaryAssetsDirectory != "" {
 		env.BinaryAssetsDirectory = options.BinaryAssetsDirectory
+	}
+
+	// Auto-detect KUBEBUILDER_ASSETS if not set (same as integration tests)
+	if os.Getenv("KUBEBUILDER_ASSETS") == "" {
+		setupEnvtestPath := filepath.Join("..", "..", "bin", "setup-envtest")
+		if _, err := os.Stat(setupEnvtestPath); err == nil {
+			cmd := exec.Command(setupEnvtestPath, "use", "1.30.0", "-p", "path")
+			output, err := cmd.Output()
+			if err == nil {
+				assetsPath := strings.TrimSpace(string(output))
+				os.Setenv("KUBEBUILDER_ASSETS", assetsPath)
+			}
+		}
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), options.Timeout)
