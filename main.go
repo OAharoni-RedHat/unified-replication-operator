@@ -146,9 +146,20 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Setup the Dell CSI Discovery controller (automatically imports Dell CSI CRs)
+	if err = (&controllers.DellCSIDiscoveryReconciler{
+		Client:            mgr.GetClient(),
+		Scheme:            mgr.GetScheme(),
+		TranslationEngine: translationEngine,
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "DellCSIDiscovery")
+		os.Exit(1)
+	}
+
 	setupLog.Info("All controllers registered successfully",
 		"v1alpha1", "UnifiedVolumeReplication (deprecated)",
-		"v1alpha2", "VolumeReplication + VolumeGroupReplication")
+		"v1alpha2", "VolumeReplication + VolumeGroupReplication",
+		"discovery", "DellCSIDiscovery")
 
 	//+kubebuilder:scaffold:builder
 

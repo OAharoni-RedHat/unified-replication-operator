@@ -63,11 +63,7 @@ func (a *PowerStoreV1Alpha2Adapter) ReconcileVolumeReplication(
 		"volumereplication", vr.Name,
 		"namespace", vr.Namespace)
 
-	log.Info("Reconciling VolumeReplication with Dell PowerStore backend (with action translation)")
-
-	// Translate state to Dell action
-	dellAction := a.translateStateToDellAction(vr.Spec.ReplicationState)
-	log.Info("Translated state to action", "vrState", vr.Spec.ReplicationState, "dellAction", dellAction)
+	log.Info("Reconciling VolumeReplication with Dell PowerStore backend")
 
 	// Extract parameters
 	protectionPolicy := vrc.Spec.Parameters["protectionPolicy"]
@@ -85,10 +81,16 @@ func (a *PowerStoreV1Alpha2Adapter) ReconcileVolumeReplication(
 		rpo = "15m" // Default RPO
 	}
 
-	// Label PVC for Dell selector
+	// Label PVC for Dell selector with role
 	if err := a.labelPVCForReplication(ctx, vr.Spec.PvcName, vr.Namespace, vr.Name, log); err != nil {
 		return ctrl.Result{}, err
 	}
+
+	// Get existing DellCSIReplicationGroup if it exists
+	existing := &unstructured.Unstructured{}
+	existing.SetGroupVersionKind(DellCSIReplicationGroupGVKV1Alpha2)
+	err := a.client.Get(ctx, client.ObjectKey{Name: vr.Name, Namespace: vr.Namespace}, existing)
+	existingDRG := err == nil
 
 	// Create DellCSIReplicationGroup
 	drg := &unstructured.Unstructured{}
@@ -102,10 +104,11 @@ func (a *PowerStoreV1Alpha2Adapter) ReconcileVolumeReplication(
 		return ctrl.Result{}, err
 	}
 
-	// Build spec
+	// Build spec WITHOUT action
+	// Dell manages primary/secondary based on PVC read/write permissions
+	// Action is only set when explicitly triggering failover or resync operations
 	spec := map[string]interface{}{
 		"driverName":       "csi-powerstore.dellemc.com",
-		"action":           dellAction, // Translated!
 		"protectionPolicy": protectionPolicy,
 		"remoteSystem":     remoteSystem,
 		"remoteRPO":        rpo,
@@ -114,6 +117,17 @@ func (a *PowerStoreV1Alpha2Adapter) ReconcileVolumeReplication(
 				"replication.storage.dell.com/group": vr.Name,
 			},
 		},
+	}
+
+	// Determine if we need to set an action to trigger an explicit operation
+	action := a.determineRequiredAction(vr, existingDRG, existing)
+	if action != "" {
+		log.Info("Triggering explicit Dell action", "action", action,
+			"reason", "failover or resync operation requested")
+		spec["action"] = action
+	} else {
+		log.Info("No action set - Dell manages replication via protection policy and PVC permissions",
+			"desiredState", vr.Spec.ReplicationState)
 	}
 
 	if err := unstructured.SetNestedMap(drg.Object, spec, "spec"); err != nil {
@@ -127,7 +141,7 @@ func (a *PowerStoreV1Alpha2Adapter) ReconcileVolumeReplication(
 		return ctrl.Result{}, err
 	}
 
-	log.Info("Successfully created/updated DellCSIReplicationGroup with action translation")
+	log.Info("Successfully reconciled DellCSIReplicationGroup")
 	return ctrl.Result{}, nil
 }
 
@@ -202,18 +216,48 @@ func (a *PowerStoreV1Alpha2Adapter) GetStatus(
 	return status, nil
 }
 
-// translateStateToDellAction translates kubernetes-csi-addons state to Dell action
-func (a *PowerStoreV1Alpha2Adapter) translateStateToDellAction(vrState string) string {
-	switch vrState {
-	case "primary":
-		return "Failover" // Promote to primary (failover to this site)
-	case "secondary":
-		return "Sync" // Operate as secondary (sync from primary)
-	case "resync":
-		return "Reprotect" // Re-establish replication after failover
-	default:
-		return "Sync" // Default to Sync
+// determineRequiredAction determines if a Dell action is needed to trigger an explicit operation
+// Dell manages primary/secondary based on PVC read/write vs read-only permissions
+// Actions are ONLY used to trigger explicit failover or resync operations, NOT for state management
+func (a *PowerStoreV1Alpha2Adapter) determineRequiredAction(
+	vr *replicationv1alpha2.VolumeReplication,
+	existingDRG bool,
+	existingObject *unstructured.Unstructured,
+) string {
+	desiredState := vr.Spec.ReplicationState
+	currentState := vr.Status.State
+
+	// Check if a previous action is still in progress
+	if existingDRG && existingObject != nil {
+		if previousAction, found, err := unstructured.NestedString(existingObject.Object, "spec", "action"); found && err == nil && previousAction != "" {
+			// Action is still set - let it complete before setting a new one
+			return ""
+		}
 	}
+
+	// ONLY set action for explicit failover or resync operations
+	// Do NOT set action for initial creation or steady state
+
+	// Explicit resync requested (user wants to reprotect/resync the volume)
+	if desiredState == "resync" {
+		// Only trigger if not already in resync state
+		if currentState != "resync" {
+			return "Reprotect"
+		}
+		return ""
+	}
+
+	// Explicit failover: secondary -> primary transition
+	// This is the ONLY case where we trigger a failover action
+	if existingDRG && currentState == "secondary" && desiredState == "primary" {
+		return "Failover"
+	}
+
+	// All other cases: no action
+	// - Initial creation: Dell sets up replication based on protection policy
+	// - Steady state: Dell maintains replication, primary/secondary determined by PVC permissions
+	// - Primary -> secondary: Dell handles this via PVC permission changes, no action needed
+	return ""
 }
 
 // translateStateFromDell translates Dell state back to kubernetes-csi-addons state
@@ -309,9 +353,6 @@ func (a *PowerStoreV1Alpha2Adapter) ReconcileVolumeGroupReplication(
 
 	log.Info("Reconciling VolumeGroupReplication with Dell PowerStore backend (native selector)")
 
-	// Translate state to action
-	dellAction := a.translateStateToDellAction(vgr.Spec.ReplicationState)
-
 	// Extract parameters
 	protectionPolicy := vgrc.Spec.Parameters["protectionPolicy"]
 	if protectionPolicy == "" {
@@ -322,6 +363,12 @@ func (a *PowerStoreV1Alpha2Adapter) ReconcileVolumeGroupReplication(
 	if remoteSystem == "" {
 		return ctrl.Result{}, fmt.Errorf("remoteSystem parameter required for Dell PowerStore")
 	}
+
+	// Get existing DellCSIReplicationGroup if it exists
+	existing := &unstructured.Unstructured{}
+	existing.SetGroupVersionKind(DellCSIReplicationGroupGVKV1Alpha2)
+	err := a.client.Get(ctx, client.ObjectKey{Name: vgr.Name, Namespace: vgr.Namespace}, existing)
+	existingDRG := err == nil
 
 	// Label all PVCs in the group
 	for _, pvc := range pvcs {
@@ -342,10 +389,10 @@ func (a *PowerStoreV1Alpha2Adapter) ReconcileVolumeGroupReplication(
 		return ctrl.Result{}, err
 	}
 
-	// Build spec with PVCSelector
+	// Build spec with PVCSelector WITHOUT action
+	// Dell manages primary/secondary based on PVC read/write permissions
 	spec := map[string]interface{}{
 		"driverName":       "csi-powerstore.dellemc.com",
-		"action":           dellAction,
 		"protectionPolicy": protectionPolicy,
 		"remoteSystem":     remoteSystem,
 		"remoteRPO":        vgrc.Spec.Parameters["rpo"],
@@ -354,6 +401,27 @@ func (a *PowerStoreV1Alpha2Adapter) ReconcileVolumeGroupReplication(
 				"replication.storage.dell.com/group": vgr.Name,
 			},
 		},
+	}
+
+	// Determine if we need to set an action to trigger an explicit operation
+	// Create a pseudo VolumeReplication for action determination
+	vrForAction := &replicationv1alpha2.VolumeReplication{
+		Spec: replicationv1alpha2.VolumeReplicationSpec{
+			ReplicationState: vgr.Spec.ReplicationState,
+		},
+		Status: replicationv1alpha2.VolumeReplicationStatus{
+			State: vgr.Status.State,
+		},
+	}
+	action := a.determineRequiredAction(vrForAction, existingDRG, existing)
+
+	if action != "" {
+		log.Info("Triggering explicit Dell action for volume group", "action", action,
+			"reason", "failover or resync operation requested")
+		spec["action"] = action
+	} else {
+		log.Info("No action set for volume group - Dell manages replication via protection policy and PVC permissions",
+			"desiredState", vgr.Spec.ReplicationState)
 	}
 
 	if err := unstructured.SetNestedMap(drg.Object, spec, "spec"); err != nil {

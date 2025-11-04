@@ -18,45 +18,111 @@ package adapters
 
 import (
 	"testing"
+
+	replicationv1alpha2 "github.com/unified-replication/operator/api/v1alpha2"
 )
 
-func TestDellActionTranslationToAction(t *testing.T) {
+func TestDellActionDetermination(t *testing.T) {
 	adapter := &PowerStoreV1Alpha2Adapter{}
 
 	tests := []struct {
-		name       string
-		vrState    string
-		dellAction string
+		name         string
+		currentState string
+		desiredState string
+		existingDRG  bool
+		wantAction   string
+		description  string
 	}{
 		{
-			name:       "primary to Failover",
-			vrState:    "primary",
-			dellAction: "Failover",
+			name:         "initial creation as primary - no action",
+			currentState: "",
+			desiredState: "primary",
+			existingDRG:  false,
+			wantAction:   "", // Dell manages via PVC permissions, no initial action
+			description:  "Initial creation doesn't need action, Dell sets up via protection policy",
 		},
 		{
-			name:       "secondary to Sync",
-			vrState:    "secondary",
-			dellAction: "Sync",
+			name:         "initial creation as secondary - no action",
+			currentState: "",
+			desiredState: "secondary",
+			existingDRG:  false,
+			wantAction:   "", // Dell manages via PVC permissions, no initial action
+			description:  "Initial creation doesn't need action, Dell sets up via protection policy",
 		},
 		{
-			name:       "resync to Reprotect",
-			vrState:    "resync",
-			dellAction: "Reprotect",
+			name:         "transition: secondary to primary (failover)",
+			currentState: "secondary",
+			desiredState: "primary",
+			existingDRG:  true,
+			wantAction:   "Failover",
+			description:  "Failover is an explicit operation that needs an action",
 		},
 		{
-			name:       "unknown state defaults to Sync",
-			vrState:    "unknown",
-			dellAction: "Sync",
+			name:         "transition: primary to secondary - no action",
+			currentState: "primary",
+			desiredState: "secondary",
+			existingDRG:  true,
+			wantAction:   "", // Dell handles demotion via PVC permission changes
+			description:  "Demotion is handled by Dell via PVC permissions, no action needed",
+		},
+		{
+			name:         "steady state primary",
+			currentState: "primary",
+			desiredState: "primary",
+			existingDRG:  true,
+			wantAction:   "", // No action for steady state
+			description:  "Steady state, Dell maintains replication",
+		},
+		{
+			name:         "steady state secondary",
+			currentState: "secondary",
+			desiredState: "secondary",
+			existingDRG:  true,
+			wantAction:   "", // No action for steady state
+			description:  "Steady state, Dell maintains replication",
+		},
+		{
+			name:         "resync requested from primary",
+			currentState: "primary",
+			desiredState: "resync",
+			existingDRG:  true,
+			wantAction:   "Reprotect",
+			description:  "Resync is an explicit operation that needs an action",
+		},
+		{
+			name:         "resync requested from secondary",
+			currentState: "secondary",
+			desiredState: "resync",
+			existingDRG:  true,
+			wantAction:   "Reprotect",
+			description:  "Resync is an explicit operation that needs an action",
+		},
+		{
+			name:         "already in resync state",
+			currentState: "resync",
+			desiredState: "resync",
+			existingDRG:  true,
+			wantAction:   "",
+			description:  "Already resyncing, no need to trigger again",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := adapter.translateStateToDellAction(tt.vrState)
+			vr := &replicationv1alpha2.VolumeReplication{
+				Spec: replicationv1alpha2.VolumeReplicationSpec{
+					ReplicationState: tt.desiredState,
+				},
+				Status: replicationv1alpha2.VolumeReplicationStatus{
+					State: tt.currentState,
+				},
+			}
 
-			if result != tt.dellAction {
-				t.Errorf("Translation failed: input=%s, got=%s, want=%s",
-					tt.vrState, result, tt.dellAction)
+			result := adapter.determineRequiredAction(vr, tt.existingDRG, nil)
+
+			if result != tt.wantAction {
+				t.Errorf("Action determination failed: %s\ncurrentState=%s, desiredState=%s, got=%s, want=%s",
+					tt.description, tt.currentState, tt.desiredState, result, tt.wantAction)
 			}
 		})
 	}
@@ -104,55 +170,13 @@ func TestDellStateTranslationFromDell(t *testing.T) {
 	}
 }
 
-func TestDellActionTranslationMappings(t *testing.T) {
-	adapter := &PowerStoreV1Alpha2Adapter{}
-
-	// Test the translation mappings are consistent
-	t.Run("all kubernetes-csi-addons states have Dell actions", func(t *testing.T) {
-		states := []string{"primary", "secondary", "resync"}
-
-		for _, state := range states {
-			action := adapter.translateStateToDellAction(state)
-			if action == "" {
-				t.Errorf("State %s should have a Dell action mapping", state)
-			}
-		}
-	})
-
-	t.Run("Dell actions map to meaningful states", func(t *testing.T) {
-		// Verify that we can translate back from common Dell states
-		dellStates := []string{"Synchronized", "Syncing", "FailedOver"}
-
-		for _, dellState := range dellStates {
-			vrState := adapter.translateStateFromDell(dellState)
-			if vrState == "" {
-				t.Errorf("Dell state %s should map to a VR state", dellState)
-			}
-		}
-	})
-}
-
-func TestDellTranslationSemantics(t *testing.T) {
-	adapter := &PowerStoreV1Alpha2Adapter{}
-
-	t.Run("primary means failover to this site", func(t *testing.T) {
-		action := adapter.translateStateToDellAction("primary")
-		if action != "Failover" {
-			t.Errorf("Primary should translate to Failover (make this site active), got %s", action)
-		}
-	})
-
-	t.Run("secondary means sync from remote", func(t *testing.T) {
-		action := adapter.translateStateToDellAction("secondary")
-		if action != "Sync" {
-			t.Errorf("Secondary should translate to Sync (receive from primary), got %s", action)
-		}
-	})
-
-	t.Run("resync means re-establish protection", func(t *testing.T) {
-		action := adapter.translateStateToDellAction("resync")
-		if action != "Reprotect" {
-			t.Errorf("Resync should translate to Reprotect (re-establish replication), got %s", action)
-		}
-	})
-}
+// REMOVED: TestDellActionTranslationMappings and TestDellTranslationSemantics
+// These tested the old static translation model which has been replaced
+// with event-driven action determination (only set actions during transitions)
+//
+// The new model:
+// - Actions are for operations (failover, sync, reprotect), not steady-state
+// - Primary/secondary is determined by PVC read-write permissions
+// - Actions are only set when state transitions are detected
+//
+// See TestDellActionDetermination for the new test approach
