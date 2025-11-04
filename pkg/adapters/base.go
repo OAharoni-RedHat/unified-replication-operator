@@ -26,7 +26,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	replicationv1alpha1 "github.com/unified-replication/operator/api/v1alpha1"
 	"github.com/unified-replication/operator/pkg/translation"
 )
 
@@ -138,59 +137,6 @@ func (ba *BaseAdapter) Cleanup(ctx context.Context) error {
 	return nil
 }
 
-// ValidateConfiguration validates the configuration of a UnifiedVolumeReplication
-func (ba *BaseAdapter) ValidateConfiguration(uvr *replicationv1alpha1.UnifiedVolumeReplication) error {
-	if uvr == nil {
-		return NewAdapterError(ErrorTypeValidation, ba.backend, "validate", "", "UnifiedVolumeReplication cannot be nil")
-	}
-
-	// Validate basic spec
-	if err := uvr.ValidateSpec(); err != nil {
-		return NewAdapterErrorWithCause(ErrorTypeValidation, ba.backend, "validate", uvr.Name, "spec validation failed", err)
-	}
-
-	// Validate backend-specific configuration
-	return ba.validateBackendConfig(uvr)
-}
-
-// SupportsConfiguration checks if the adapter supports the given configuration
-func (ba *BaseAdapter) SupportsConfiguration(uvr *replicationv1alpha1.UnifiedVolumeReplication) (bool, error) {
-	ba.mu.RLock()
-	capabilities := ba.capabilities
-	ba.mu.RUnlock()
-
-	// Check if replication state is supported
-	if !capabilities.SupportsState(string(uvr.Spec.ReplicationState)) {
-		return false, nil
-	}
-
-	// Check if replication mode is supported
-	if !capabilities.SupportsMode(string(uvr.Spec.ReplicationMode)) {
-		return false, nil
-	}
-
-	return true, nil
-}
-
-// Reconcile provides base reconciliation logic
-func (ba *BaseAdapter) Reconcile(ctx context.Context, uvr *replicationv1alpha1.UnifiedVolumeReplication) error {
-	logger := log.FromContext(ctx).WithName("base-adapter").WithValues("backend", ba.backend, "uvr", uvr.Name)
-
-	// Ensure adapter is initialized
-	if !ba.initialized {
-		if err := ba.Initialize(ctx); err != nil {
-			return err
-		}
-	}
-
-	// Validate configuration
-	if err := ba.ValidateConfiguration(uvr); err != nil {
-		return err
-	}
-
-	logger.V(1).Info("Base reconciliation completed")
-	return nil
-}
 
 // TranslateState translates unified state to backend-specific state
 func (ba *BaseAdapter) TranslateState(unifiedState string) (string, error) {
@@ -232,60 +178,6 @@ func (ba *BaseAdapter) TranslateBackendMode(backendMode string) (string, error) 
 	return unifiedMode, nil
 }
 
-// Default implementations of ReplicationAdapter interface methods
-// These should be overridden by specific adapter implementations
-
-// EnsureReplication ensures the replication is in the desired state (idempotent)
-// This is the primary method for reconciliation - it handles both create and update
-// Default implementation returns NotImplementedError - adapters must override this
-func (ba *BaseAdapter) EnsureReplication(ctx context.Context, uvr *replicationv1alpha1.UnifiedVolumeReplication) error {
-	return ba.NotImplementedError("EnsureReplication")
-}
-
-// DeleteReplication deletes a replication (default implementation)
-func (ba *BaseAdapter) DeleteReplication(ctx context.Context, uvr *replicationv1alpha1.UnifiedVolumeReplication) error {
-	return ba.NotImplementedError("DeleteReplication")
-}
-
-// GetReplicationStatus gets replication status (default implementation)
-func (ba *BaseAdapter) GetReplicationStatus(ctx context.Context, uvr *replicationv1alpha1.UnifiedVolumeReplication) (*ReplicationStatus, error) {
-	return nil, ba.NotImplementedError("GetReplicationStatus")
-}
-
-// PromoteReplica promotes a replica to source (default implementation)
-func (ba *BaseAdapter) PromoteReplica(ctx context.Context, uvr *replicationv1alpha1.UnifiedVolumeReplication) error {
-	return ba.NotImplementedError("PromoteReplica")
-}
-
-// DemoteSource demotes a source to replica (default implementation)
-func (ba *BaseAdapter) DemoteSource(ctx context.Context, uvr *replicationv1alpha1.UnifiedVolumeReplication) error {
-	return ba.NotImplementedError("DemoteSource")
-}
-
-// ResyncReplication resyncs a replication (default implementation)
-func (ba *BaseAdapter) ResyncReplication(ctx context.Context, uvr *replicationv1alpha1.UnifiedVolumeReplication) error {
-	return ba.NotImplementedError("ResyncReplication")
-}
-
-// PauseReplication pauses a replication (default implementation)
-func (ba *BaseAdapter) PauseReplication(ctx context.Context, uvr *replicationv1alpha1.UnifiedVolumeReplication) error {
-	return ba.NotImplementedError("PauseReplication")
-}
-
-// ResumeReplication resumes a paused replication (default implementation)
-func (ba *BaseAdapter) ResumeReplication(ctx context.Context, uvr *replicationv1alpha1.UnifiedVolumeReplication) error {
-	return ba.NotImplementedError("ResumeReplication")
-}
-
-// FailoverReplication performs failover (default implementation)
-func (ba *BaseAdapter) FailoverReplication(ctx context.Context, uvr *replicationv1alpha1.UnifiedVolumeReplication) error {
-	return ba.NotImplementedError("FailoverReplication")
-}
-
-// FailbackReplication performs failback (default implementation)
-func (ba *BaseAdapter) FailbackReplication(ctx context.Context, uvr *replicationv1alpha1.UnifiedVolumeReplication) error {
-	return ba.NotImplementedError("FailbackReplication")
-}
 
 // GetCapabilities returns the adapter capabilities
 func (ba *BaseAdapter) GetCapabilities() AdapterCapabilities {
@@ -402,15 +294,6 @@ func (ba *BaseAdapter) validateConfig() error {
 	return nil
 }
 
-// validateBackendConfig validates backend-specific configuration
-func (ba *BaseAdapter) validateBackendConfig(uvr *replicationv1alpha1.UnifiedVolumeReplication) error {
-	// This is a base implementation that can be overridden by specific adapters
-
-	// Validate that the backend matches
-	// Note: This would typically be determined by looking at storage class or other indicators
-
-	return nil
-}
 
 // NotImplementedError returns an error for operations not implemented by the specific adapter
 func (ba *BaseAdapter) NotImplementedError(operation string) error {

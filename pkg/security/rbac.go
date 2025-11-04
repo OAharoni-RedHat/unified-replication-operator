@@ -40,21 +40,32 @@ func GetMinimalRBACPolicy() *RBACPolicy {
 		Name:        "unified-replication-operator",
 		Description: "Minimal required permissions for Unified Replication Operator",
 		Rules: []RBACRule{
-			// UnifiedVolumeReplication resources
+			// VolumeReplication resources (v1alpha2)
 			{
 				APIGroups: []string{"replication.unified.io"},
-				Resources: []string{"unifiedvolumereplications"},
+				Resources: []string{"volumereplications", "volumereplicationclasses"},
 				Verbs:     []string{"get", "list", "watch", "create", "update", "patch", "delete"},
 			},
 			{
 				APIGroups: []string{"replication.unified.io"},
-				Resources: []string{"unifiedvolumereplications/status"},
+				Resources: []string{"volumereplications/status"},
 				Verbs:     []string{"get", "update", "patch"},
 			},
 			{
 				APIGroups: []string{"replication.unified.io"},
-				Resources: []string{"unifiedvolumereplications/finalizers"},
+				Resources: []string{"volumereplications/finalizers"},
 				Verbs:     []string{"update"},
+			},
+			// VolumeGroupReplication resources (v1alpha2)
+			{
+				APIGroups: []string{"replication.unified.io"},
+				Resources: []string{"volumegroupreplications", "volumegroupreplicationclasses"},
+				Verbs:     []string{"get", "list", "watch", "create", "update", "patch", "delete"},
+			},
+			{
+				APIGroups: []string{"replication.unified.io"},
+				Resources: []string{"volumegroupreplications/status"},
+				Verbs:     []string{"get", "update", "patch"},
 			},
 
 			// Ceph-CSI VolumeReplication resources
@@ -118,12 +129,12 @@ func GetReadOnlyRBACPolicy() *RBACPolicy {
 		Rules: []RBACRule{
 			{
 				APIGroups: []string{"replication.unified.io"},
-				Resources: []string{"unifiedvolumereplications"},
+				Resources: []string{"volumereplications", "volumegroupreplications"},
 				Verbs:     []string{"get", "list", "watch"},
 			},
 			{
 				APIGroups: []string{"replication.unified.io"},
-				Resources: []string{"unifiedvolumereplications/status"},
+				Resources: []string{"volumereplications/status", "volumegroupreplications/status"},
 				Verbs:     []string{"get"},
 			},
 		},

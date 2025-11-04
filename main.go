@@ -19,7 +19,6 @@ package main
 import (
 	"flag"
 	"os"
-	"time"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
@@ -32,13 +31,9 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	replicationv1alpha1 "github.com/unified-replication/operator/api/v1alpha1"
 	replicationv1alpha2 "github.com/unified-replication/operator/api/v1alpha2"
 	"github.com/unified-replication/operator/controllers"
-	"github.com/unified-replication/operator/pkg"
 	"github.com/unified-replication/operator/pkg/adapters"
-	"github.com/unified-replication/operator/pkg/discovery"
-	"github.com/unified-replication/operator/pkg/translation"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -51,10 +46,7 @@ func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 	utilruntime.Must(apiextensionsv1.AddToScheme(scheme))
 
-	// Register both API versions:
-	// - v1alpha1: Legacy UnifiedVolumeReplication (deprecated, will be removed in future)
-	// - v1alpha2: kubernetes-csi-addons compatible VolumeReplication
-	utilruntime.Must(replicationv1alpha1.AddToScheme(scheme))
+	// Register v1alpha2 API version (kubernetes-csi-addons compatible)
 	utilruntime.Must(replicationv1alpha2.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
 }
@@ -78,53 +70,11 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Initialize components
-	translationEngine := translation.NewEngine()
-	discoveryEngine := discovery.NewEngine(mgr.GetClient(), discovery.DefaultDiscoveryConfig())
-
 	// Initialize adapter registry
 	adapterRegistry := adapters.NewRegistry()
 
-	// Register v1alpha1 factories (deprecated - for backward compatibility)
-	adapterRegistry.RegisterFactory(adapters.NewCephAdapterFactory())
-	adapterRegistry.RegisterFactory(adapters.NewTridentAdapterFactory())
-	adapterRegistry.RegisterFactory(adapters.NewPowerStoreAdapterFactory())
-
-	// Register v1alpha2 adapters (new)
+	// Register v1alpha2 adapters
 	adapters.RegisterV1Alpha2Adapters(adapterRegistry, mgr.GetClient())
-
-	// Initialize controller engine
-	controllerEngine := pkg.NewControllerEngine(mgr.GetClient(), discoveryEngine, translationEngine, adapterRegistry, pkg.DefaultControllerEngineConfig())
-
-	// Initialize advanced features
-	stateMachine := controllers.NewStateMachine()
-	retryManager := controllers.NewRetryManager(&controllers.RetryStrategy{
-		MaxAttempts:  5,
-		InitialDelay: 1 * time.Second,
-		MaxDelay:     5 * time.Minute,
-		Multiplier:   2.0,
-	})
-	circuitBreaker := controllers.NewCircuitBreaker(5, 2, 60*time.Second)
-
-	// Setup the UnifiedVolumeReplication controller (v1alpha1 - DEPRECATED)
-	if err = (&controllers.UnifiedVolumeReplicationReconciler{
-		Client:                  mgr.GetClient(),
-		Log:                     ctrl.Log.WithName("controllers").WithName("UnifiedVolumeReplication"),
-		Scheme:                  mgr.GetScheme(),
-		Recorder:                mgr.GetEventRecorderFor("unified-replication-operator"),
-		AdapterRegistry:         adapterRegistry,
-		DiscoveryEngine:         discoveryEngine,
-		TranslationEngine:       translationEngine,
-		ControllerEngine:        controllerEngine,
-		StateMachine:            stateMachine,
-		RetryManager:            retryManager,
-		CircuitBreaker:          circuitBreaker,
-		MaxConcurrentReconciles: 3,
-		ReconcileTimeout:        5 * time.Minute,
-	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "UnifiedVolumeReplication")
-		os.Exit(1)
-	}
 
 	// Setup the VolumeReplication controller (v1alpha2 - kubernetes-csi-addons compatible)
 	if err = (&controllers.VolumeReplicationReconciler{
@@ -146,20 +96,8 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Setup the Dell CSI Discovery controller (automatically imports Dell CSI CRs)
-	if err = (&controllers.DellCSIDiscoveryReconciler{
-		Client:            mgr.GetClient(),
-		Scheme:            mgr.GetScheme(),
-		TranslationEngine: translationEngine,
-	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "DellCSIDiscovery")
-		os.Exit(1)
-	}
-
 	setupLog.Info("All controllers registered successfully",
-		"v1alpha1", "UnifiedVolumeReplication (deprecated)",
-		"v1alpha2", "VolumeReplication + VolumeGroupReplication",
-		"discovery", "DellCSIDiscovery")
+		"v1alpha2", "VolumeReplication + VolumeGroupReplication")
 
 	//+kubebuilder:scaffold:builder
 

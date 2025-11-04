@@ -19,6 +19,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -182,7 +183,7 @@ func (rm *RetryManager) isRetryableError(err error) bool {
 
 	errMsg := err.Error()
 	for _, retryableErr := range rm.strategy.RetryableErrors {
-		if contains(errMsg, retryableErr) {
+		if strings.Contains(errMsg, retryableErr) {
 			return true
 		}
 	}

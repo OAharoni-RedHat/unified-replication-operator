@@ -24,7 +24,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 
-	replicationv1alpha1 "github.com/unified-replication/operator/api/v1alpha1"
 	replicationv1alpha2 "github.com/unified-replication/operator/api/v1alpha2"
 	"github.com/unified-replication/operator/pkg/translation"
 )
@@ -85,45 +84,6 @@ type V1Alpha2ReplicationStatus struct {
 	Conditions       []metav1.Condition
 }
 
-// UnifiedVolumeReplicationAdapter defines the interface for v1alpha1 backend adapters
-// DEPRECATED: This interface is for v1alpha1 API. Use VolumeReplicationAdapter for v1alpha2.
-// This will be removed in v3.0.0 when v1alpha1 support is dropped.
-type UnifiedVolumeReplicationAdapter interface {
-	// Core operations - use EnsureReplication for reconciliation
-	EnsureReplication(ctx context.Context, uvr *replicationv1alpha1.UnifiedVolumeReplication) error
-	DeleteReplication(ctx context.Context, uvr *replicationv1alpha1.UnifiedVolumeReplication) error
-	GetReplicationStatus(ctx context.Context, uvr *replicationv1alpha1.UnifiedVolumeReplication) (*ReplicationStatus, error)
-
-	// Configuration and validation
-	ValidateConfiguration(uvr *replicationv1alpha1.UnifiedVolumeReplication) error
-	SupportsConfiguration(uvr *replicationv1alpha1.UnifiedVolumeReplication) (bool, error)
-
-	// State management
-	PromoteReplica(ctx context.Context, uvr *replicationv1alpha1.UnifiedVolumeReplication) error
-	DemoteSource(ctx context.Context, uvr *replicationv1alpha1.UnifiedVolumeReplication) error
-	ResyncReplication(ctx context.Context, uvr *replicationv1alpha1.UnifiedVolumeReplication) error
-
-	// Advanced operations
-	PauseReplication(ctx context.Context, uvr *replicationv1alpha1.UnifiedVolumeReplication) error
-	ResumeReplication(ctx context.Context, uvr *replicationv1alpha1.UnifiedVolumeReplication) error
-	FailoverReplication(ctx context.Context, uvr *replicationv1alpha1.UnifiedVolumeReplication) error
-	FailbackReplication(ctx context.Context, uvr *replicationv1alpha1.UnifiedVolumeReplication) error
-
-	// Metadata and information
-	GetBackendType() translation.Backend
-	GetSupportedFeatures() []AdapterFeature
-	GetVersion() string
-	IsHealthy() bool
-
-	// Lifecycle management
-	Initialize(ctx context.Context) error
-	Cleanup(ctx context.Context) error
-	Reconcile(ctx context.Context, uvr *replicationv1alpha1.UnifiedVolumeReplication) error
-}
-
-// ReplicationAdapter is an alias for backward compatibility
-// DEPRECATED: Use UnifiedVolumeReplicationAdapter explicitly
-type ReplicationAdapter = UnifiedVolumeReplicationAdapter
 
 // ReplicationStatus represents the status of a replication relationship
 type ReplicationStatus struct {

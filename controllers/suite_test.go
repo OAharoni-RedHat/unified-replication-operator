@@ -29,7 +29,7 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	replicationv1alpha1 "github.com/unified-replication/operator/api/v1alpha1"
+	replicationv1alpha2 "github.com/unified-replication/operator/api/v1alpha2"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -64,7 +64,7 @@ var _ = BeforeSuite(func() {
 	}
 	Expect(cfg).NotTo(BeNil())
 
-	err = replicationv1alpha1.AddToScheme(scheme.Scheme)
+	err = replicationv1alpha2.AddToScheme(scheme.Scheme)
 	Expect(err).NotTo(HaveOccurred())
 
 	//+kubebuilder:scaffold:scheme
