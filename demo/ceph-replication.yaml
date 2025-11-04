@@ -1,42 +1,41 @@
-apiVersion: replication.unified.io/v1alpha1
-kind: UnifiedVolumeReplication
+# Ceph Replication Demo - v1alpha2 (kubernetes-csi-addons compatible)
+# This demonstrates the v1alpha2 API with Ceph backend
+apiVersion: replication.unified.io/v1alpha2
+kind: VolumeReplicationClass
+metadata:
+  name: ceph-rbd-replication
+spec:
+  # Provisioner identifies this as a Ceph backend
+  provisioner: rbd.csi.ceph.com
+  
+  # Parameters for Ceph-specific replication configuration
+  parameters:
+    # Mirroring mode: "snapshot" for snapshot-based mirroring
+    mirroringMode: "snapshot"
+    
+    # Scheduling interval for snapshot replication
+    schedulingInterval: "5m"
+    
+    # Secret containing Ceph cluster credentials for replication
+    replication.storage.openshift.io/replication-secret-name: "rbd-replication-secret"
+    replication.storage.openshift.io/replication-secret-namespace: "rook-ceph"
+
+---
+apiVersion: replication.unified.io/v1alpha2
+kind: VolumeReplication
 metadata:
   name: ceph-volume-replication
   namespace: default
 spec:
-  # Source endpoint configuration
-  sourceEndpoint:
-    cluster: "oa-bm-redux"
-    region: "us-east-1"
-    storageClass: "ceph-rbd"  # Triggers Ceph backend detection
+  # Reference to the VolumeReplicationClass that defines replication parameters
+  volumeReplicationClass: ceph-rbd-replication
   
-  # Destination endpoint configuration (Ceph)
-  destinationEndpoint:
-    cluster: "foobar"
-    region: "us-west-1"
-    storageClass: "ceph-rbd"
+  # Name of the PersistentVolumeClaim to replicate
+  pvcName: ceph-app-data
   
-  # Volume mapping between source and destination
-  volumeMapping:
-    source:
-      pvcName: "ceph-app-data"
-      namespace: "default"
-    destination:
-      volumeHandle: "ceph-volume-handle-abcd1234"
-      namespace: "default"
+  # Replication state: "primary" means this volume is the primary (source)
+  # This will be translated to Ceph backend-specific state
+  replicationState: primary
   
-  # Replication configuration
-  replicationState: "replica"  # Different state than Trident example
-  replicationMode: "asynchronous"
-  
-  # Schedule configuration
-  schedule:
-    rpo: "5m"   # More aggressive than Trident (5 min vs 15 min)
-    rto: "2m"
-    mode: "continuous"
-  
-  # Ceph-specific extensions (optional)
-  extensions:
-    ceph:
-      mirroringMode: "snapshot"  # Ceph-specific: snapshot or journal
-
+  # Automatically resync after connection loss and recovery
+  autoResync: true

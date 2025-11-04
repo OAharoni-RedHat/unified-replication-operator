@@ -580,13 +580,16 @@ kubectl get vgr app-volume-group -n applications -o jsonpath='{.status.persisten
 
 ---
 
-## Comparison: v1alpha1 vs v1alpha2
+## Historical Note: v1alpha1 vs v1alpha2
 
-### v1alpha1 (Old - Complex)
+**Note:** v1alpha1 has been removed from the operator. The following is provided for historical reference only.
+
+### v1alpha1 (Removed - Was Complex)
 
 ```yaml
-apiVersion: replication.unified.io/v1alpha1
-kind: UnifiedVolumeReplication
+# THIS API HAS BEEN REMOVED - DO NOT USE
+# apiVersion: replication.unified.io/v1alpha1
+# kind: UnifiedVolumeReplication
 metadata:
   name: trident-replication
 spec:

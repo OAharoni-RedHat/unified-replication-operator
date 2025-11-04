@@ -29,7 +29,7 @@ kubectl apply -f trident-replication.yaml
 sleep 5
 
 echo_info "Trident replication status:"
-kubectl get uvr trident-volume-replication -n default --no-headers
+kubectl get vr trident-volume-replication -n default --no-headers
 
 echo_info "Backend-specific resource created:"
 kubectl get tridentmirrorrelationship -n default --no-headers 2>/dev/null || echo "TridentMirrorRelationship not found"
@@ -39,7 +39,7 @@ kubectl apply -f ceph-replication.yaml
 sleep 5
 
 echo_info "Both replications running:"
-kubectl get uvr -n default
+kubectl get vr -n default
 
 echo_step "4. Verify No Operator Restart"
 CURRENT_POD=$(kubectl get pods -n unified-replication-system -l control-plane=controller-manager -o name | head -1)
@@ -79,7 +79,7 @@ echo "  ✅ Correct backend detection per resource"
 echo "  ✅ Different adapters used simultaneously"
 echo ""
 echo "Current State:"
-kubectl get uvr -n default -o custom-columns=NAME:.metadata.name,BACKEND:.spec.sourceEndpoint.storageClass,STATE:.spec.replicationState,READY:.status.conditions[0].status
+kubectl get vr -n default -o custom-columns=NAME:.metadata.name,CLASS:.spec.volumeReplicationClass,PVC:.spec.pvcName,STATE:.spec.replicationState,READY:.status.conditions[0].status
 
 echo ""
 echo_info "✅ Backend switching demonstration complete!"

@@ -52,7 +52,7 @@ demo_header "UNIFIED REPLICATION OPERATOR - COMPREHENSIVE DEMO"
 cat << 'EOF'
 This demo demonstrates:
   1. Deploying the operator
-  2. Creating a Trident replication from Unified CR
+  2. Creating a Trident replication using v1alpha2 VolumeReplication API
   3. Updating the CR and seeing Trident CR update
   4. Switching to Ceph backend seamlessly
 
@@ -60,6 +60,9 @@ Prerequisites:
   ✓ KUBECONFIG is set
   ✓ Cluster is accessible
   ✓ Operator is already built and deployed
+
+Note: This demo uses v1alpha2 API (kubernetes-csi-addons compatible).
+v1alpha1 has been removed from the operator.
 
 Let's begin!
 EOF
@@ -88,64 +91,64 @@ pause
 # ============================================================
 # PART 2: CREATE TRIDENT REPLICATION
 # ============================================================
-demo_header "PART 2: CREATE UNIFIED CR → TRIDENT CR"
+demo_header "PART 2: CREATE VOLUMEREPLICATION → TRIDENT CR"
 
-step_header "Apply UnifiedVolumeReplication (Trident backend)"
-cat trident-replication.yaml | grep -A 3 "storageClass:"
+step_header "Apply VolumeReplication (Trident backend)"
+cat trident-replication.yaml | grep -A 3 "provisioner:"
 echo ""
 info "Applying trident-replication.yaml..."
 kubectl apply -f trident-replication.yaml
 
 sleep 5
 
-step_header "Verify Unified CR created"
-kubectl get uvr -n default
-success "UnifiedVolumeReplication created"
+step_header "Verify VolumeReplication created"
+kubectl get vr -n default
+success "VolumeReplication created"
 
 step_header "⭐ VERIFY: TridentMirrorRelationship auto-created"
 kubectl get tridentmirrorrelationship -n default
 success "Backend-specific CRD created automatically!"
 
-step_header "Compare: Unified CR vs Trident CR"
-echo "Unified CR spec:"
-kubectl get uvr trident-volume-replication -n default -o jsonpath='{.spec.replicationState}, {.spec.replicationMode}, {.spec.schedule.rpo}'
+step_header "Compare: VolumeReplication vs Trident CR"
+echo "VolumeReplication spec:"
+kubectl get vr trident-volume-replication -n default -o jsonpath='{.spec.replicationState}, {.spec.volumeReplicationClass}, {.spec.pvcName}'
 echo ""
 echo ""
 echo "Trident CR spec:"
 kubectl get tridentmirrorrelationship trident-volume-replication -n default -o jsonpath='{.spec.state}, {.spec.replicationPolicy}, {.spec.replicationSchedule}'
 echo ""
-success "Translation: source→established, asynchronous→Async, 15m→15m"
+success "Translation: primary→established, backend detected from VolumeReplicationClass"
 
 pause
 
 # ============================================================
 # PART 3: UPDATE AND VERIFY PROPAGATION
 # ============================================================
-demo_header "PART 3: UPDATE UNIFIED CR → TRIDENT CR UPDATES"
+demo_header "PART 3: UPDATE VOLUMEREPLICATION → TRIDENT CR UPDATES"
 
-step_header "Current RPO in Unified CR"
-CURRENT_RPO=$(kubectl get uvr trident-volume-replication -n default -o jsonpath='{.spec.schedule.rpo}')
-echo "Current RPO: ${CURRENT_RPO}"
+step_header "Current replicationState in VolumeReplication"
+CURRENT_STATE=$(kubectl get vr trident-volume-replication -n default -o jsonpath='{.spec.replicationState}')
+echo "Current state: ${CURRENT_STATE}"
 
-step_header "Current replicationSchedule in Trident CR"
-CURRENT_TRIDENT=$(kubectl get tridentmirrorrelationship trident-volume-replication -n default -o jsonpath='{.spec.replicationSchedule}')
-echo "Current schedule: ${CURRENT_TRIDENT}"
+step_header "Current state in Trident CR"
+CURRENT_TRIDENT=$(kubectl get tridentmirrorrelationship trident-volume-replication -n default -o jsonpath='{.spec.state}')
+echo "Current Trident state: ${CURRENT_TRIDENT}"
 
-step_header "Update Unified CR: Change RPO to 10m"
-kubectl patch uvr trident-volume-replication -n default --type=merge -p '{"spec":{"schedule":{"rpo":"10m"}}}'
-success "Unified CR updated"
+step_header "Update VolumeReplication: Change state to secondary"
+kubectl patch vr trident-volume-replication -n default --type=merge -p '{"spec":{"replicationState":"secondary"}}'
+success "VolumeReplication updated"
 
 step_header "Wait for operator to reconcile..."
 sleep 15
 
 step_header "⭐ VERIFY: Trident CR also updated"
-NEW_TRIDENT=$(kubectl get tridentmirrorrelationship trident-volume-replication -n default -o jsonpath='{.spec.replicationSchedule}')
-echo "Trident CR replicationSchedule: ${NEW_TRIDENT}"
+NEW_TRIDENT=$(kubectl get tridentmirrorrelationship trident-volume-replication -n default -o jsonpath='{.spec.state}')
+echo "Trident CR state: ${NEW_TRIDENT}"
 
-if [ "$NEW_TRIDENT" = "10m" ]; then
-    success "UPDATE PROPAGATED! Unified CR change reflected in Trident CR ✅"
+if [ "$NEW_TRIDENT" = "reestablished" ] || [ "$NEW_TRIDENT" = "reestablishing" ]; then
+    success "UPDATE PROPAGATED! VolumeReplication change reflected in Trident CR ✅"
 else
-    warn "Update not yet propagated (may need more time)"
+    warn "Update not yet propagated (may need more time) or different state mapping"
 fi
 
 pause
@@ -160,7 +163,7 @@ BEFORE_START=$(kubectl get pods -n unified-replication-system -l control-plane=c
 info "Operator start time: ${BEFORE_START}"
 
 step_header "Apply Ceph replication (different backend!)"
-cat ceph-replication.yaml | grep -A 3 "storageClass:"
+cat ceph-replication.yaml | grep -A 3 "provisioner:"
 echo ""
 info "Applying ceph-replication.yaml..."
 kubectl apply -f ceph-replication.yaml
@@ -168,7 +171,7 @@ kubectl apply -f ceph-replication.yaml
 sleep 10
 
 step_header "Verify both replications running"
-kubectl get uvr -n default -o wide
+kubectl get vr -n default -o wide
 success "Two different backends managed simultaneously"
 
 step_header "⭐ VERIFY: No operator restart"
@@ -209,14 +212,14 @@ PART 1: Operator Deployment
   ✅ Pods ready: 1/1
   
 PART 2: Trident Replication Created
-  ✅ UnifiedVolumeReplication created
+  ✅ VolumeReplication created (v1alpha2 API)
   ✅ TridentMirrorRelationship auto-created
-  ✅ State translated: source → established
-  ✅ Mode translated: asynchronous → Async
-  ✅ volumeMappings formatted correctly
+  ✅ State translated: primary → established
+  ✅ Backend detected from VolumeReplicationClass provisioner
+  ✅ Parameters correctly mapped to Trident CR
   
 PART 3: Updates Propagated
-  ✅ Unified CR updated (RPO: 15m → 10m)
+  ✅ VolumeReplication updated (state: primary → secondary)
   ✅ Trident CR updated automatically
   ✅ Changes synced within 30 seconds
   
@@ -234,9 +237,10 @@ SUMMARY
 
 echo ""
 echo "Current state:"
-kubectl get uvr -n default -o custom-columns=\
+kubectl get vr -n default -o custom-columns=\
 NAME:.metadata.name,\
-BACKEND:.spec.sourceEndpoint.storageClass,\
+CLASS:.spec.volumeReplicationClass,\
+PVC:.spec.pvcName,\
 STATE:.spec.replicationState,\
 READY:.status.conditions[0].status,\
 AGE:.metadata.creationTimestamp
@@ -246,12 +250,13 @@ echo "Backend-specific resources:"
 echo "  Trident:"
 kubectl get tridentmirrorrelationship -n default --no-headers 2>/dev/null | wc -l | xargs echo "    Resources:"
 echo "  Ceph:"
-kubectl get volumereplication -n default --no-headers 2>/dev/null | wc -l | xargs echo "    Resources:" || echo "    Resources: 0 (CRDs not installed)"
+kubectl get volumereplication.replication.storage.openshift.io -n default --no-headers 2>/dev/null | wc -l | xargs echo "    Resources:" || echo "    Resources: 0 (CRDs not installed)"
 
 echo ""
 success "Demo completed successfully!"
 echo ""
 echo "To clean up:"
-echo "  kubectl delete uvr --all -n default"
+echo "  kubectl delete vr --all -n default"
+echo "  kubectl delete vrc --all -n default"
 echo ""
 

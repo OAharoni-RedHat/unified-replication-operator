@@ -13,39 +13,25 @@ cd demo
 ./run-demo.sh
 ```
 
-Or read the comprehensive guide first:
-```bash
-cat COMPREHENSIVE_DEMO.md | less
-```
-
 ---
 
 ## 📚 **What's in This Folder**
 
-### **Main Demo Guide**
-- **[COMPREHENSIVE_DEMO.md](COMPREHENSIVE_DEMO.md)** ⭐ - Complete 4-part walkthrough
-  - Part 1: Deploy the operator
-  - Part 2: Create Trident replication & validate
-  - Part 3: Update CR and verify propagation
-  - Part 4: Switch to Ceph backend seamlessly
+### **Main Demo Guides**
+- **[V2_DEMOS_README.md](V2_DEMOS_README.md)** ⭐ - Complete guide to v1alpha2 demos
+- **[V2_TRIDENT_DEMO_GUIDE.md](V2_TRIDENT_DEMO_GUIDE.md)** - Detailed Trident demo walkthrough
+- **[DEPRECATION_NOTICE.md](DEPRECATION_NOTICE.md)** - Migration guide from v1alpha1 (removed)
 
 ### **Demo Scripts**
 - **[run-demo.sh](run-demo.sh)** - Interactive 4-part demo (with pauses)
+- **[run-v2-trident-demo.sh](run-v2-trident-demo.sh)** - Trident-specific demo script
 - **[test-backend-switching.sh](test-backend-switching.sh)** - Backend switching validation
-- **[test-webhook-validation.sh](test-webhook-validation.sh)** - Webhook & validation testing
 
-### **Example Resources**
+### **Example Resources (v1alpha2)**
+- **[v2-trident-demo.yaml](v2-trident-demo.yaml)** - Complete Trident demo example
 - **[trident-replication.yaml](trident-replication.yaml)** - Trident backend example
 - **[ceph-replication.yaml](ceph-replication.yaml)** - Ceph backend example
 - **[test-invalid-replication.yaml](test-invalid-replication.yaml)** - Invalid resource for testing validation
-
-### **Supporting Documentation**
-- **[VALIDATION_GUIDE.md](VALIDATION_GUIDE.md)** - How to validate replications
-- **[WEBHOOK_VALIDATION_GUIDE.md](WEBHOOK_VALIDATION_GUIDE.md)** - Webhook & validation layers
-- **[BACKEND_SWITCHING_DEMO.md](BACKEND_SWITCHING_DEMO.md)** - Multi-backend architecture
-- **[DEMO_SUMMARY.md](DEMO_SUMMARY.md)** - Demo package overview
-- **[DEMO_README.md](DEMO_README.md)** - This file (detailed guide)
-- **[DOCUMENTATION_INDEX.md](DOCUMENTATION_INDEX.md)** - Master documentation index
 
 ---
 
@@ -82,7 +68,7 @@ cd demo
 
 ### **Option 3: Manual Step-by-Step**
 
-Follow the steps in `COMPREHENSIVE_DEMO.md` manually.
+Follow the steps in `V2_DEMOS_README.md` or `V2_TRIDENT_DEMO_GUIDE.md` manually.
 
 ---
 
@@ -94,13 +80,13 @@ Follow the steps in `COMPREHENSIVE_DEMO.md` manually.
 - View operator logs
 
 ### **Part 2: Create Trident Replication**
-- Apply `trident-replication.yaml`
-- Validate UnifiedVolumeReplication created
+- Apply `trident-replication.yaml` (VolumeReplicationClass + VolumeReplication)
+- Validate VolumeReplication created (v1alpha2 API)
 - ⭐ Verify TridentMirrorRelationship auto-created
-- Compare translation (source → established)
+- Compare translation (primary → established)
 
 ### **Part 3: Update and Verify Propagation**
-- Update Unified CR (change RPO)
+- Update VolumeReplication (change replicationState)
 - Wait for reconciliation
 - ⭐ Verify Trident CR updated automatically
 - Prove bidirectional sync
@@ -122,11 +108,11 @@ After running the demo, validate with:
 .../scripts/validate-replication.sh trident-volume-replication
 
 # Check both replications
-kubectl get uvr -n default
+kubectl get vr -n default
 
 # Check backend-specific CRDs
 kubectl get tridentmirrorrelationship -n default
-kubectl get volumereplication -n default
+kubectl get volumereplication.replication.storage.openshift.io -n default
 ```
 
 ---
@@ -135,8 +121,8 @@ kubectl get volumereplication -n default
 
 ### **After Part 2 (Trident):**
 ```
-NAME                         STATE    READY
-trident-volume-replication   source   True  ✅
+NAME                         STATE     PVC           READY
+trident-volume-replication   primary   my-app-data   True  ✅
 
 NAME (TridentMirrorRelationship)  DESIRED STATE   LOCAL PVC
 trident-volume-replication         established     my-app-data  ✅
@@ -144,18 +130,18 @@ trident-volume-replication         established     my-app-data  ✅
 
 ### **After Part 3 (Update):**
 ```
-UnifiedVolumeReplication:
-  spec.schedule.rpo: 10m  ← Updated
+VolumeReplication:
+  spec.replicationState: secondary  ← Updated
 
 TridentMirrorRelationship:
-  spec.replicationSchedule: 10m  ← Also updated! ✅
+  spec.state: reestablished  ← Also updated! ✅
 ```
 
 ### **After Part 4 (Backend Switch):**
 ```
-NAME                         BACKEND            READY
-trident-volume-replication   trident-ontap-san  True   ✅
-ceph-volume-replication      ceph-rbd           False  ⚠️
+NAME                         CLASS                    STATE     READY
+trident-volume-replication   trident-async-replication primary   True   ✅
+ceph-volume-replication      ceph-rbd-replication     primary   True   ✅
 
 Operator Restarts: 0  ← NO RESTART! ✅
 ```
@@ -172,7 +158,8 @@ cd demo && ./run-demo.sh
 cd demo && ./test-backend-switching.sh
 
 # Check current state
-kubectl get uvr -n default
+kubectl get vr -n default
+kubectl get vrc -n default
 kubectl get tridentmirrorrelationship -n default
 
 # Validate specific resource
@@ -182,7 +169,8 @@ kubectl get tridentmirrorrelationship -n default
 kubectl logs -n unified-replication-system -l control-plane=controller-manager -f
 
 # Clean up after demo
-kubectl delete uvr --all -n default
+kubectl delete vr --all -n default
+kubectl delete vrc --all -n default
 ```
 
 ---

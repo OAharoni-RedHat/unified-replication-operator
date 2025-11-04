@@ -1,28 +1,13 @@
-apiVersion: replication.unified.io/v1alpha1
-kind: UnifiedVolumeReplication
+# Invalid VolumeReplication - Empty required fields
+# This demonstrates required field validation for v1alpha2 API
+apiVersion: replication.unified.io/v1alpha2
+kind: VolumeReplication
 metadata:
   name: invalid-identical-endpoints
   namespace: default
 spec:
-  # Invalid: source and destination endpoints are identical
-  sourceEndpoint:
-    cluster: "same-cluster"
-    region: "us-east-1"
-    storageClass: "ceph-rbd"
-  destinationEndpoint:
-    cluster: "same-cluster"
-    region: "us-east-1"
-    storageClass: "ceph-rbd"
-  volumeMapping:
-    source:
-      pvcName: "app-data"
-      namespace: "production"
-    destination:
-      volumeHandle: "trident-vol-12345"
-      namespace: "disaster-recovery"
-  replicationState: "source"
-  replicationMode: "asynchronous"
-  schedule:
-    rpo: "15m"
-    rto: "5m"
-    mode: "interval"
+  # Empty string - will fail MinLength validation
+  volumeReplicationClass: ""
+  # Empty string - will fail MinLength validation
+  pvcName: ""
+  replicationState: primary

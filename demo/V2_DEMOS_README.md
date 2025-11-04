@@ -58,47 +58,9 @@ kubectl apply -f demo/v2-trident-demo.yaml
   - `volumegroupreplicationclass_*.yaml` (3 files)
   - `volumegroupreplication_postgresql.yaml`
 
-### v1alpha1 Demos (Legacy - Backward Compatibility)
-
-**1. Ceph Demo**
-- **File:** `ceph-replication.yaml`
-- **Shows:** v1alpha1 API with Ceph backend
-- **Status:** Works (shows backward compatibility)
-
-**2. Trident Demo (Old)**
-- **File:** `trident-replication.yaml`
-- **Shows:** v1alpha1 API with complex spec
-- **Status:** Works (shows backward compatibility)
-
-**3. Other Legacy Demos**
-- `test-invalid-replication.yaml`
-- `COMPREHENSIVE_DEMO.md`
-- `BACKEND_SWITCHING_DEMO.md`
-- `VALIDATION_GUIDE.md`
-
-**Note:** These use the old v1alpha1 `UnifiedVolumeReplication` API. They still work (v1alpha1 is supported), but for new deployments, use v1alpha2.
-
----
-
 ## Comparison
 
-### v1alpha1 Demo (Legacy)
-
-```yaml
-apiVersion: replication.unified.io/v1alpha1
-kind: UnifiedVolumeReplication
-spec:
-  sourceEndpoint: {cluster, region, storageClass}
-  destinationEndpoint: {cluster, region, storageClass}
-  volumeMapping: {source: {...}, destination: {...}}
-  replicationState: source
-  replicationMode: asynchronous
-  schedule: {rpo, rto, mode}
-```
-
-**Complexity:** High (7 required fields, nested structures)
-
-### v1alpha2 Demo (New - Recommended)
+### v1alpha2 API (Current - kubernetes-csi-addons Compatible)
 
 ```yaml
 apiVersion: replication.unified.io/v1alpha2
@@ -118,6 +80,8 @@ spec:
 ```
 
 **Complexity:** Low (3 required fields, simple structure)
+
+**Note:** v1alpha1 has been removed from the operator. All demos now use v1alpha2 API.
 
 ---
 
@@ -214,47 +178,45 @@ kubectl apply -f config/samples/volumereplication_powerstore_primary.yaml
 - **API Reference:** `../docs/api-reference/API_REFERENCE.md`
 - **Architecture:** `../docs/architecture/MIGRATION_ARCHITECTURE.md`
 
-**v1alpha1 Documentation:**
-- **Demo Guide:** `DEMO_README.md`
+**General Documentation:**
+- **Demo Guide:** `README.md`
 - **Comprehensive Demo:** `COMPREHENSIVE_DEMO.md`
-- **Backend Switching:** `BACKEND_SWITCHING_DEMO.md`
+- **Backend Switching:** `test-backend-switching.sh`
 
 ---
 
 ## Which Demo Should I Use?
 
-### Use v2 Demo If:
-- ✅ You're starting fresh
-- ✅ You want kubernetes-csi-addons compatibility
-- ✅ You want the simplest API
-- ✅ You want standard state names
+**All demos now use v1alpha2 API (kubernetes-csi-addons compatible):**
+- ✅ Simple API (3 required fields)
+- ✅ Standard state names (primary, secondary, resync)
+- ✅ Compatible with kubernetes-csi-addons
+- ✅ Works with all backends (Ceph, Trident, Dell PowerStore)
 
-**Recommendation:** Start with v2!
-
-### Use v1alpha1 Demo If:
-- You want to see the old complex API
-- You want to understand backward compatibility
-- You're migrating from v1alpha1
+**Recommendation:** Use any demo - they all use v1alpha2!
 
 ---
 
 ## Files in This Directory
 
-**v2 (kubernetes-csi-addons):**
-- `v2-trident-demo.yaml` - Trident demo YAML
-- `run-v2-trident-demo.sh` - Interactive demo script
-- `V2_TRIDENT_DEMO_GUIDE.md` - Complete walkthrough
+**Demo YAMLs (v1alpha2):**
+- `v2-trident-demo.yaml` - Trident demo YAML (v1alpha2)
+- `ceph-replication.yaml` - Ceph demo (v1alpha2)
+- `trident-replication.yaml` - Trident demo (v1alpha2)
+- `test-invalid-replication.yaml` - Validation demo (v1alpha2)
+
+**Demo Scripts:**
+- `run-demo.sh` - Comprehensive interactive demo
+- `run-v2-trident-demo.sh` - Trident-specific demo script
+- `test-backend-switching.sh` - Backend switching validation
+
+**Documentation:**
 - `V2_DEMOS_README.md` - This file
+- `V2_TRIDENT_DEMO_GUIDE.md` - Complete Trident walkthrough
+- `README.md` - General demo guide
+- `COMPREHENSIVE_DEMO.md` - Detailed 4-part demo
 
-**v1alpha1 (Legacy):**
-- `ceph-replication.yaml` - Old Ceph demo
-- `trident-replication.yaml` - Old Trident demo
-- `test-invalid-replication.yaml` - Validation demo
-- `run-demo.sh` - Legacy demo script
-- `test-backend-switching.sh` - Backend switching
-- Various markdown guides
-
-**Both versions work!** Use v2 for new deployments.
+**Note:** v1alpha1 has been completely removed. All demos and examples use v1alpha2.
 
 ---
 
