@@ -100,11 +100,69 @@ If Trident is installed but the `TridentMirrorRelationship` CRD is missing:
 # Check if CRD exists
 kubectl get crd tridentmirrorrelationships.trident.netapp.io
 
-# If not found, install it manually (usually comes with Trident)
-kubectl apply -f https://raw.githubusercontent.com/NetApp/trident/main/deploy/crds/trident.netapp.io_tridentmirrorrelationships.yaml
+# If not found, you have several options to install it:
+```
 
+**Option 1: Restart Trident Operator (Simplest)**
+
+The CRD should be installed automatically by the Trident operator. Try restarting it:
+
+```bash
+kubectl rollout restart deployment/trident-operator -n trident
+kubectl wait --for=condition=ready pod -n trident -l app=trident-operator --timeout=5m
+
+# Wait a moment for CRDs to be installed, then check
+sleep 10
+kubectl get crd tridentmirrorrelationships.trident.netapp.io
+```
+
+**Option 2: Download from Trident Release**
+
+```bash
+# Download a specific Trident release (replace v23.10.0 with your version)
+TRIDENT_VERSION="v23.10.0"
+curl -sL https://github.com/NetApp/trident/archive/refs/tags/${TRIDENT_VERSION}.tar.gz | tar -xz
+find trident-${TRIDENT_VERSION#v} -name "*tridentmirror*" -type f | head -1 | xargs kubectl apply -f
+rm -rf trident-${TRIDENT_VERSION#v}
+
+# Or browse releases manually:
+# Visit: https://github.com/NetApp/trident/releases
+# Download the release tarball, extract, and find CRD in deploy/crds/
+```
+
+**Option 3: Extract from Trident Operator Pod**
+
+```bash
+# Try to find CRD files in the operator pod
+POD_NAME=$(kubectl get pods -n trident -l app=trident-operator -o jsonpath='{.items[0].metadata.name}')
+kubectl exec -n trident $POD_NAME -- find / -name "*mirror*" -type f 2>/dev/null | head -1 | \
+  xargs -I {} kubectl exec -n trident $POD_NAME -- cat {} | kubectl apply -f -
+```
+
+**Option 4: Check Trident Documentation**
+
+The CRD definition may be available in Trident's official documentation or installation manifests. Check:
+- Trident installation guide
+- Trident Helm chart CRDs
+- Your Trident operator deployment manifests
+
+```bash
 # Verify CRD is installed
 kubectl get crd tridentmirrorrelationships.trident.netapp.io
+
+# If still not found, check Trident operator logs for CRD installation status
+kubectl logs -n trident -l app=trident-operator | grep -i "crd\|mirror"
+```
+
+**Note:** The `TridentMirrorRelationship` CRD is typically installed automatically when Trident operator starts. If it's missing, it may indicate:
+- Trident version doesn't support mirror relationships (requires Trident 23.04+)
+- Trident operator hasn't fully initialized
+- CRD installation failed
+
+Try restarting the Trident operator if the CRD should be present:
+```bash
+kubectl rollout restart deployment/trident-operator -n trident
+kubectl wait --for=condition=ready pod -n trident -l app=trident-operator --timeout=5m
 ```
 
 ### Troubleshooting Trident Installation
@@ -882,16 +940,25 @@ kubectl get crd tridentmirrorrelationships.trident.netapp.io
 **Solution:**
 
 ```bash
-# Option 1: Install CRD manually from Trident repository
-kubectl apply -f https://raw.githubusercontent.com/NetApp/trident/main/deploy/crds/trident.netapp.io_tridentmirrorrelationships.yaml
+# Option 1: Restart Trident operator (CRD should install automatically)
+kubectl rollout restart deployment/trident-operator -n trident
+kubectl wait --for=condition=ready pod -n trident -l app=trident-operator --timeout=5m
+sleep 10  # Wait for CRDs to be installed
+kubectl get crd tridentmirrorrelationships.trident.netapp.io
 
-# Option 2: Upgrade Trident to a version that includes mirror relationship support
-# Mirror relationships require Trident 23.04 or later
+# Option 2: Download from Trident release (replace version as needed)
+TRIDENT_VERSION="v23.10.0"
+curl -sL https://github.com/NetApp/trident/archive/refs/tags/${TRIDENT_VERSION}.tar.gz | tar -xz
+find trident-${TRIDENT_VERSION#v} -name "*tridentmirror*" -type f | head -1 | xargs kubectl apply -f
+rm -rf trident-${TRIDENT_VERSION#v}
+
+# Option 3: Extract from operator pod
+POD_NAME=$(kubectl get pods -n trident -l app=trident-operator -o jsonpath='{.items[0].metadata.name}')
+kubectl exec -n trident $POD_NAME -- find / -name "*mirror*" -type f 2>/dev/null | head -1 | \
+  xargs -I {} kubectl exec -n trident $POD_NAME -- cat {} | kubectl apply -f -
+
+# Option 4: Upgrade Trident (mirror relationships require Trident 23.04+)
 helm upgrade trident netapp-trident/trident-operator -n trident
-
-# Option 3: If using Trident Operator, ensure it's up to date
-# Check operator version
-kubectl get subscription trident-operator -n openshift-operators -o jsonpath='{.spec.channel}'
 
 # Verify CRD is installed
 kubectl get crd tridentmirrorrelationships.trident.netapp.io

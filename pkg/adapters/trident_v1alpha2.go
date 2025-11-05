@@ -136,21 +136,46 @@ func (a *TridentV1Alpha2Adapter) ReconcileVolumeReplication(
 
 	if exists {
 		// For existing resources, use merge patch to avoid field manager conflicts
-		// This only updates the fields we specify, leaving volumeMappings untouched
+		// We need to preserve volumeMappings while updating other fields
+
+		// Get existing volumeMappings to preserve them
+		existingVolumeMappings, found, err := unstructured.NestedSlice(existingTMR.Object, "spec", "volumeMappings")
+		if err != nil {
+			log.Error(err, "Failed to get existing volumeMappings")
+			return ctrl.Result{}, err
+		}
+
+		// Build patch spec with our fields plus preserved volumeMappings
 		patchSpec := map[string]interface{}{
 			"state":               tridentState,
 			"replicationPolicy":   replicationPolicy,
 			"replicationSchedule": replicationSchedule,
 		}
 
-		// Create a patch object with only the fields we want to update
+		// Preserve volumeMappings if they exist (required by Trident)
+		if found && len(existingVolumeMappings) > 0 {
+			patchSpec["volumeMappings"] = existingVolumeMappings
+			log.Info("Preserving existing volumeMappings in patch")
+		} else {
+			// If volumeMappings don't exist, we need to create them
+			// This shouldn't happen, but handle it gracefully
+			log.Info("No existing volumeMappings found, creating new ones")
+			patchSpec["volumeMappings"] = []interface{}{
+				map[string]interface{}{
+					"localPVCName":       vr.Spec.PvcName,
+					"remoteVolumeHandle": remoteVolume,
+				},
+			}
+		}
+
+		// Create a patch object with preserved fields
 		patchObj := existingTMR.DeepCopy()
 		if err := unstructured.SetNestedMap(patchObj.Object, patchSpec, "spec"); err != nil {
 			log.Error(err, "Failed to build patch spec")
 			return ctrl.Result{}, err
 		}
 
-		// Use merge patch (JSON merge patch) to update only our fields
+		// Use merge patch (JSON merge patch) to update our fields while preserving volumeMappings
 		// This doesn't conflict with Trident's field ownership
 		if err := a.client.Patch(ctx, patchObj, client.MergeFrom(existingTMR)); err != nil {
 			log.Error(err, "Failed to patch TridentMirrorRelationship")
