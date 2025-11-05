@@ -242,11 +242,11 @@ kubectl get crd | grep replication.unified.io
 
 If the CRDs are already installed, you can skip this step.
 
-### Step 2: Build and Push Operator Image
+### Step 2: Build and Deploy Operator
 
-**The operator image must be built before deployment.** Choose one of these options:
+**Use the build script to build, push, and deploy the operator in one step.**
 
-#### Option A: Build Using OpenShift Internal Registry (Recommended for OpenShift)
+#### Option A: OpenShift Internal Registry (Recommended for OpenShift)
 
 ```bash
 export KUBECONFIG=/home/oaharoni/aws-gpfs-playground/ocp_install_files/auth/kubeconfig
@@ -254,123 +254,55 @@ export KUBECONFIG=/home/oaharoni/aws-gpfs-playground/ocp_install_files/auth/kube
 # 1. Expose OpenShift internal registry (if not already done)
 oc patch configs.imageregistry.operator.openshift.io/cluster --type merge -p '{"spec":{"defaultRoute":true}}'
 
-# 2. Get registry URL
+# 2. Get registry URL and login
 REGISTRY=$(oc get route default-route -n openshift-image-registry -o jsonpath='{.spec.host}')
-echo "Using registry: $REGISTRY"
-
-# 3. Login to registry
 TOKEN=$(oc whoami -t)
 podman login -u $(oc whoami) -p $TOKEN $REGISTRY --tls-verify=false
 
-# 4. Build and push image
+# 3. Build, push, and deploy (all in one command!)
 cd /home/oaharoni/github_workspaces/replication_extensions/unified-replication-operator
 REGISTRY=$REGISTRY/unified-replication-system VERSION=2.0.0-beta ./scripts/build-and-push.sh
-
-# Note the image URL (will be used in Helm install)
-IMAGE_URL="${REGISTRY}/unified-replication-system/unified-replication-operator:2.0.0-beta"
-echo "Image URL: $IMAGE_URL"
 ```
 
-#### Option B: Build Using External Registry (Quay.io, Docker Hub, etc.)
+The script will:
+- ✅ Run tests
+- ✅ Build operator binary
+- ✅ Build container image
+- ✅ Push to registry
+- ✅ Install CRDs
+- ✅ Deploy operator via Helm with OpenShift-compatible settings
+
+#### Option B: External Registry (Quay.io, Docker Hub, etc.)
 
 ```bash
-# 1. Login to registry
+# Login to registry
 podman login quay.io
 # Enter your credentials
 
-# 2. Build and push
+# Build, push, and deploy
 cd /home/oaharoni/github_workspaces/replication_extensions/unified-replication-operator
 REGISTRY=quay.io/YOUR_USERNAME VERSION=2.0.0-beta ./scripts/build-and-push.sh
-
-# Note the image URL
-IMAGE_URL="quay.io/YOUR_USERNAME/unified-replication-operator:2.0.0-beta"
-echo "Image URL: $IMAGE_URL"
 ```
 
-#### Option C: Build Using Makefile Directly
+#### Option C: Build Only (No Deploy)
+
+If you want to build and push the image but deploy manually later:
 
 ```bash
-cd /home/oaharoni/github_workspaces/replication_extensions/unified-replication-operator
-
-# Build image
-make docker-build IMG=unified-replication-operator:2.0.0-beta
-
-# For OpenShift, tag and push to internal registry:
-REGISTRY=$(oc get route default-route -n openshift-image-registry -o jsonpath='{.spec.host}')
-podman tag unified-replication-operator:2.0.0-beta ${REGISTRY}/unified-replication-system/unified-replication-operator:2.0.0-beta
-TOKEN=$(oc whoami -t)
-podman login -u $(oc whoami) -p $TOKEN $REGISTRY --tls-verify=false
-podman push ${REGISTRY}/unified-replication-system/unified-replication-operator:2.0.0-beta --tls-verify=false
-
-IMAGE_URL="${REGISTRY}/unified-replication-system/unified-replication-operator:2.0.0-beta"
-```
-
-### Step 3: Install Operator
-
-```bash
-export KUBECONFIG=/home/oaharoni/aws-gpfs-playground/ocp_install_files/auth/kubeconfig
-
-# Check if operator is already installed (from previous demo/installation)
-helm list -A | grep unified-replication-operator
-
-# If found in wrong namespace, uninstall it first:
-# helm uninstall unified-replication-operator -n <old-namespace>
-
-# Check for existing ClusterRole that might conflict
-kubectl get clusterrole unified-replication-operator-manager
-
-# If ClusterRole exists from previous installation, delete it:
-# kubectl delete clusterrole unified-replication-operator-manager
-# kubectl delete clusterrolebinding unified-replication-operator-manager
-
-# Install via Helm with OpenShift-compatible security and your image
-helm install unified-replication-operator \
-  ./helm/unified-replication-operator \
-  --namespace unified-replication-system \
-  --create-namespace \
-  --set openshift.compatibleSecurity=true \
-  --set image.repository=$(echo $IMAGE_URL | cut -d: -f1 | sed 's|/.*/||') \
-  --set image.tag=2.0.0-beta
-
-# Or if using full image URL format:
-helm install unified-replication-operator \
-  ./helm/unified-replication-operator \
-  --namespace unified-replication-system \
-  --create-namespace \
-  --set openshift.compatibleSecurity=true \
-  --set image.repository="${REGISTRY}/unified-replication-system/unified-replication-operator" \
-  --set image.tag=2.0.0-beta
-
-# Wait for operator pod to be ready
-kubectl wait --for=condition=ready pod -l control-plane=controller-manager -n unified-replication-system --timeout=5m
-
-# Verify operator is running
-kubectl get pods -n unified-replication-system
-
-# Check operator logs (use pod name if label selector doesn't work)
-OPERATOR_POD=$(kubectl get pods -n unified-replication-system -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)
-if [ -n "$OPERATOR_POD" ]; then
-  kubectl logs -n unified-replication-system $OPERATOR_POD --tail=50
-else
-  echo "Warning: Operator pod not found. Check installation."
-fi
+REGISTRY=your-registry VERSION=2.0.0-beta SKIP_DEPLOY=true ./scripts/build-and-push.sh
 ```
 
 **Expected:** Operator pod running and ready (1/1 Running)
 
-**If CRDs weren't installed by Helm**, install them manually (see Step 1 above).
-
-**If operator pod is not found**, verify Helm installation succeeded:
+**Verify deployment:**
 ```bash
-helm list -n unified-replication-system
-helm status unified-replication-operator -n unified-replication-system
+kubectl get pods -n unified-replication-system
+kubectl logs -n unified-replication-system -l control-plane=controller-manager --tail=50
 ```
 
-**If Helm installation fails with ownership errors**, see troubleshooting section below.
+**If deployment fails**, see troubleshooting section below.
 
-**If pod fails with ImagePullBackOff**, ensure the image was built and pushed (see Step 2 above).
-
-### Step 4: Create VolumeReplicationClass
+### Step 3: Create VolumeReplicationClass
 
 ```bash
 # Apply the Trident replication class
@@ -409,7 +341,7 @@ trident-async-replication   csi.trident.netapp.io      5s
 - ✅ Operator now knows this is a Trident backend
 - ✅ Parameters stored for use during replication
 
-### Step 5: Create a PVC (or Use Existing)
+### Step 4: Create a PVC (or Use Existing)
 
 ```bash
 # Create a test namespace
@@ -435,7 +367,7 @@ EOF
 kubectl get pvc -n applications
 ```
 
-### Step 6: Create VolumeReplication (Primary Site)
+### Step 5: Create VolumeReplication (Primary Site)
 
 ```bash
 # Apply the VolumeReplication using kubernetes-csi-addons API
@@ -468,7 +400,7 @@ NAME                       STATE     PVC                    CLASS               
 trident-app-replication    primary   application-data-pvc   trident-async-replication   5s
 ```
 
-### Step 7: Verify Backend Translation
+### Step 6: Verify Backend Translation
 
 **This is where the magic happens!**
 
@@ -552,7 +484,7 @@ spec:
 - ✅ `ownerReferences` points to our VolumeReplication
 - ✅ Backend CR has same name as VolumeReplication
 
-### Step 8: Check VolumeReplication Status
+### Step 7: Check VolumeReplication Status
 
 ```bash
 # Check status of our VolumeReplication
@@ -576,7 +508,7 @@ Status:
 - ✅ State shows "primary" (our kubernetes-csi-addons input)
 - ✅ No errors in conditions
 
-### Step 9: Check Operator Logs (Translation Verification)
+### Step 8: Check Operator Logs (Translation Verification)
 
 ```bash
 # View operator logs to see translation in action
@@ -755,16 +687,52 @@ kubectl get tridentmirrorrelationship trident-app-replication -n applications -o
 
 ## Cleanup
 
+### Quick Cleanup (Demo Resources Only)
+
+Clean up all demo resources while keeping the operator installed:
+
+```bash
+# From the repo root
+./scripts/cleanup-demo.sh
+```
+
+This removes:
+- ✅ All VolumeReplication resources
+- ✅ All VolumeGroupReplication resources
+- ✅ All VolumeReplicationClass resources
+- ✅ All VolumeGroupReplicationClass resources
+- ✅ Backend-specific resources (TridentMirrorRelationship, etc.)
+
+### Complete Cleanup (Including Operator)
+
+Remove everything including the operator:
+
+```bash
+# From the repo root
+./scripts/cleanup-demo.sh --operator
+```
+
+This removes everything above plus:
+- ✅ Helm release
+- ✅ Operator namespace
+- ✅ CRDs
+- ✅ RBAC resources
+- ✅ Webhooks
+
+### Manual Cleanup
+
+If you prefer to clean up manually:
+
 ```bash
 # Delete VolumeReplication
 kubectl delete vr trident-app-replication -n applications
 
+# Delete VolumeReplicationClass
+kubectl delete vrc trident-async-replication
+
 # Verify backend CR is also deleted (owner reference)
 kubectl get tridentmirrorrelationship -n applications
 # Should be empty - automatic cleanup!
-
-# Delete class
-kubectl delete vrc trident-async-replication
 
 # Delete namespace (optional)
 kubectl delete namespace applications
@@ -850,9 +818,7 @@ spec:
 **Symptom:**
 ```
 Error: INSTALLATION FAILED: Unable to continue with install: ClusterRole "unified-replication-operator-manager" 
-in namespace "" exists and cannot be imported into the current release: invalid ownership metadata; 
-annotation validation error: key "meta.helm.sh/release-namespace" must equal "default": 
-current value is "unified-replication-system"
+exists and cannot be imported into the current release: invalid ownership metadata
 ```
 
 **Solution:**
@@ -860,44 +826,17 @@ current value is "unified-replication-system"
 This happens when the operator was previously installed in a different namespace. Clean up and reinstall:
 
 ```bash
-# 1. Check for existing Helm releases
-helm list -A | grep unified-replication-operator
-
-# 2. Uninstall from any existing namespace
+# Clean up existing installation
 helm uninstall unified-replication-operator -n default 2>/dev/null || true
 helm uninstall unified-replication-operator -n unified-replication-system 2>/dev/null || true
-
-# 3. Delete existing ClusterRole and ClusterRoleBinding (cluster-scoped resources)
 kubectl delete clusterrole unified-replication-operator-manager 2>/dev/null || true
 kubectl delete clusterrolebinding unified-replication-operator-manager 2>/dev/null || true
 
-# 4. Delete ServiceAccount if it exists (optional - will be recreated)
-kubectl delete serviceaccount unified-replication-operator -n unified-replication-system 2>/dev/null || true
-
-# 5. Now install fresh
-helm install unified-replication-operator \
-  ./helm/unified-replication-operator \
-  --namespace unified-replication-system \
-  --create-namespace
-
-# 6. Verify installation
-kubectl get pods -n unified-replication-system
+# Reinstall using build script (recommended)
+REGISTRY=your-registry VERSION=2.0.0-beta ./scripts/build-and-push.sh
 ```
 
-**Alternative: Install in the same namespace as before:**
-
-If you want to keep using the namespace where it was previously installed:
-
-```bash
-# Check which namespace it was in
-helm list -A | grep unified-replication-operator
-
-# Install in that namespace (or use default)
-helm install unified-replication-operator \
-  ./helm/unified-replication-operator \
-  --namespace default \
-  --create-namespace
-```
+The build script handles cleanup and deployment automatically.
 
 ### Issue: ImagePullBackOff - Operator Image Not Found
 
@@ -911,37 +850,25 @@ unified-replication-operator-xxx   0/1     ImagePullBackOff   0          7s
 
 The operator image needs to be built and pushed before deployment. Follow Step 2 above to build the image.
 
-**Quick Fix for OpenShift:**
+**Quick Fix:**
+
+Use the build script - it handles everything automatically:
 
 ```bash
 export KUBECONFIG=/home/oaharoni/aws-gpfs-playground/ocp_install_files/auth/kubeconfig
 
-# 1. Expose registry
-oc patch configs.imageregistry.operator.openshift.io/cluster --type merge -p '{"spec":{"defaultRoute":true}}'
-
-# 2. Get registry URL
+# For OpenShift
 REGISTRY=$(oc get route default-route -n openshift-image-registry -o jsonpath='{.spec.host}')
-
-# 3. Login
 TOKEN=$(oc whoami -t)
 podman login -u $(oc whoami) -p $TOKEN $REGISTRY --tls-verify=false
 
-# 4. Build and push
-cd /home/oaharoni/github_workspaces/replication_extensions/unified-replication-operator
-REGISTRY=$REGISTRY/unified-replication-system VERSION=2.0.0-beta SKIP_DEPLOY=true ./scripts/build-and-push.sh
+REGISTRY=$REGISTRY/unified-replication-system VERSION=2.0.0-beta ./scripts/build-and-push.sh
 
-# 5. Update Helm deployment with correct image
-helm upgrade unified-replication-operator \
-  ./helm/unified-replication-operator \
-  --namespace unified-replication-system \
-  --set openshift.compatibleSecurity=true \
-  --set image.repository="${REGISTRY}/unified-replication-system/unified-replication-operator" \
-  --set image.tag=2.0.0-beta \
-  --set image.pullPolicy=Always
-
-# 6. Wait for pod to start
-kubectl wait --for=condition=ready pod -l control-plane=controller-manager -n unified-replication-system --timeout=5m
+# For external registry
+REGISTRY=quay.io/YOUR_USERNAME VERSION=2.0.0-beta ./scripts/build-and-push.sh
 ```
+
+The script will rebuild the image and redeploy automatically.
 
 ### Issue: CRDs Not Installed
 
@@ -1079,20 +1006,11 @@ kubectl get events -n applications --sort-by='.lastTimestamp' | grep trident-app
    # First, verify operator is installed and running
    kubectl get pods -n unified-replication-system
    
-   # If no pods found, install the operator (see Step 2)
-   helm install unified-replication-operator ./helm/unified-replication-operator \
-     --namespace unified-replication-system --create-namespace
-   
-   # Wait for operator to be ready
-   kubectl wait --for=condition=ready pod -l control-plane=controller-manager -n unified-replication-system --timeout=2m
+   # If no pods found, rebuild and redeploy using build script
+   REGISTRY=your-registry VERSION=2.0.0-beta ./scripts/build-and-push.sh
    
    # Check operator logs show reconciliation attempts
-   OPERATOR_POD=$(kubectl get pods -n unified-replication-system -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)
-   if [ -n "$OPERATOR_POD" ]; then
-     kubectl logs -n unified-replication-system $OPERATOR_POD --tail=100 | grep "trident-app-replication"
-   else
-     echo "Operator pod not found. Please install operator first."
-   fi
+   kubectl logs -n unified-replication-system -l control-plane=controller-manager --tail=100 | grep "trident-app-replication"
    
    # Should see logs like:
    # "Reconciling VolumeReplication"

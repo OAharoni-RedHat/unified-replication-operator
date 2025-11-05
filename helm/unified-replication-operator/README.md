@@ -142,15 +142,27 @@ helm rollback unified-replication-operator 3 -n unified-replication-system
 
 ## Uninstallation
 
-```bash
-# Using script (with prompts)
-./scripts/uninstall.sh
+### Using Cleanup Script (Recommended)
 
-# Or via Helm
+```bash
+# Remove operator and all resources
+./scripts/cleanup-demo.sh --operator
+
+# Or remove only demo resources (keeps operator installed)
+./scripts/cleanup-demo.sh
+```
+
+### Manual Uninstallation
+
+```bash
+# Uninstall Helm release
 helm uninstall unified-replication-operator -n unified-replication-system
 
 # Delete CRDs (WARNING: deletes all replication resources)
-kubectl delete crd unifiedvolumereplications.replication.unified.io
+kubectl delete crd volumereplications.replication.unified.io
+kubectl delete crd volumereplicationclasses.replication.unified.io
+kubectl delete crd volumegroupreplications.replication.unified.io
+kubectl delete crd volumegroupreplicationclasses.replication.unified.io
 
 # Delete namespace
 kubectl delete namespace unified-replication-system

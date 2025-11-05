@@ -1,12 +1,40 @@
-# Unified Replication Operator - Demo Materials
+# Demo Directory
 
-Complete demonstration package showcasing all operator capabilities.
+Complete demonstration package for the Unified Replication Operator.
 
 ---
 
-## 🎬 **Quick Start**
+## 🚀 **Quick Start**
 
-Run the complete interactive demo:
+### Step 1: Build and Deploy Operator
+
+Use the build script to build, push, and deploy in one step:
+
+```bash
+# For OpenShift internal registry
+export KUBECONFIG=/path/to/your/kubeconfig
+oc patch configs.imageregistry.operator.openshift.io/cluster --type merge -p '{"spec":{"defaultRoute":true}}'
+REGISTRY=$(oc get route default-route -n openshift-image-registry -o jsonpath='{.spec.host}')
+TOKEN=$(oc whoami -t)
+podman login -u $(oc whoami) -p $TOKEN $REGISTRY --tls-verify=false
+
+cd /path/to/unified-replication-operator
+REGISTRY=$REGISTRY/unified-replication-system VERSION=2.0.0-beta ./scripts/build-and-push.sh
+
+# For external registry (Quay.io, Docker Hub, etc.)
+podman login quay.io
+REGISTRY=quay.io/YOUR_USERNAME VERSION=2.0.0-beta ./scripts/build-and-push.sh
+```
+
+The script handles:
+- ✅ Running tests
+- ✅ Building operator binary
+- ✅ Building container image
+- ✅ Pushing to registry
+- ✅ Installing CRDs
+- ✅ Deploying operator via Helm
+
+### Step 2: Run Demo
 
 ```bash
 cd demo
@@ -15,149 +43,40 @@ cd demo
 
 ---
 
-## 📚 **What's in This Folder**
+## 📚 **Demo Guides**
 
-### **Main Demo Guides**
-- **[V2_DEMOS_README.md](V2_DEMOS_README.md)** ⭐ - Complete guide to v1alpha2 demos
-- **[V2_TRIDENT_DEMO_GUIDE.md](V2_TRIDENT_DEMO_GUIDE.md)** - Detailed Trident demo walkthrough
-- **[DEPRECATION_NOTICE.md](DEPRECATION_NOTICE.md)** - Migration guide from v1alpha1 (removed)
-
-### **Demo Scripts**
-- **[run-demo.sh](run-demo.sh)** - Interactive 4-part demo (with pauses)
-- **[run-v2-trident-demo.sh](run-v2-trident-demo.sh)** - Trident-specific demo script
-- **[test-backend-switching.sh](test-backend-switching.sh)** - Backend switching validation
-
-### **Example Resources (v1alpha2)**
-- **[v2-trident-demo.yaml](v2-trident-demo.yaml)** - Complete Trident demo example
-- **[trident-replication.yaml](trident-replication.yaml)** - Trident backend example
-- **[ceph-replication.yaml](ceph-replication.yaml)** - Ceph backend example
-- **[test-invalid-replication.yaml](test-invalid-replication.yaml)** - Invalid resource for testing validation
+- **[V2_TRIDENT_DEMO_GUIDE.md](V2_TRIDENT_DEMO_GUIDE.md)** ⭐ - Complete Trident demo with installation steps
+- **[DEPRECATION_NOTICE.md](DEPRECATION_NOTICE.md)** - Historical reference (v1alpha1 removed)
 
 ---
 
-## 🚀 **Running the Demo**
+## 📋 **Demo Workflow**
 
-### **Option 1: Interactive Demo (Recommended)**
-
-```bash
-cd demo
-./run-demo.sh
-```
-
-**Features:**
-- Pauses between steps
-- Explains each action
-- Shows expected outputs
-- Validates results
-
-**Duration:** ~10 minutes
-
-
-### **Option 2: Manual Step-by-Step**
-
-Follow the steps in `V2_DEMOS_README.md` or `V2_TRIDENT_DEMO_GUIDE.md` manually.
-
----
-
-## 📋 **Demo Parts Overview**
-
-### **Part 1: Deploy the Operator**
-- Verify operator is running
-- Check pod status
-- View operator logs
-
-### **Part 2: Create Trident Replication**
-- Apply `trident-replication.yaml` (VolumeReplicationClass + VolumeReplication)
-- Validate VolumeReplication created (v1alpha2 API)
-- ⭐ Verify TridentMirrorRelationship auto-created
-- Compare translation (primary → established)
-
-### **Part 3: Update and Verify Propagation**
-- Update VolumeReplication (change replicationState)
-- Wait for reconciliation
-- ⭐ Verify Trident CR updated automatically
-- Prove bidirectional sync
-
-### **Part 4: Switch to Ceph Backend**
-- Apply `ceph-replication.yaml`
-- Verify both backends running
-- ⭐ Confirm no operator restart
-- Show different adapters used
-
----
-
-## ✅ **Validation**
-
-After running the demo, validate with:
-
-```bash
-# Validate Trident replication
-.../scripts/validate-replication.sh trident-volume-replication
-
-# Check both replications
-kubectl get vr -n default
-
-# Check backend-specific CRDs
-kubectl get tridentmirrorrelationship -n default
-kubectl get volumereplication.replication.storage.openshift.io -n default
-```
-
----
-
-## 📊 **Expected Results**
-
-### **After Part 2 (Trident):**
-```
-NAME                         STATE     PVC           READY
-trident-volume-replication   primary   my-app-data   True  ✅
-
-NAME (TridentMirrorRelationship)  DESIRED STATE   LOCAL PVC
-trident-volume-replication         established     my-app-data  ✅
-```
-
-### **After Part 3 (Update):**
-```
-VolumeReplication:
-  spec.replicationState: secondary  ← Updated
-
-TridentMirrorRelationship:
-  spec.state: reestablished  ← Also updated! ✅
-```
-
-### **After Part 4 (Backend Switch):**
-```
-NAME                         CLASS                    STATE     READY
-trident-volume-replication   trident-async-replication primary   True   ✅
-ceph-volume-replication      ceph-rbd-replication     primary   True   ✅
-
-Operator Restarts: 0  ← NO RESTART! ✅
-```
+1. **Build & Deploy** - Use `../scripts/build-and-push.sh`
+2. **Create VolumeReplicationClass** - Configure backend settings
+3. **Create VolumeReplication** - Set up replication relationship
+4. **Monitor** - Watch replication status
+5. **Test Failover** - Promote secondary to primary
 
 ---
 
 ## 🎯 **Quick Commands**
 
 ```bash
-# Run full demo
-cd demo && ./run-demo.sh
-
-# Quick validation
-cd demo && ./test-backend-switching.sh
-
-# Check current state
-kubectl get vr -n default
-kubectl get vrc -n default
-kubectl get tridentmirrorrelationship -n default
-
-# Validate specific resource
-.../scripts/validate-replication.sh trident-volume-replication
+# Check operator status
+kubectl get pods -n unified-replication-system
 
 # View operator logs
 kubectl logs -n unified-replication-system -l control-plane=controller-manager -f
 
-# Clean up after demo
-kubectl delete vr --all -n default
-kubectl delete vrc --all -n default
+# Check replications
+kubectl get vr,vrc -A
+
+# Clean up demo resources (keeps operator installed)
+../scripts/cleanup-demo.sh
+
+# Clean up everything including operator
+../scripts/cleanup-demo.sh --operator
 ```
 
 ---
@@ -165,38 +84,12 @@ kubectl delete vrc --all -n default
 ## 📖 **Related Documentation**
 
 - **[../README.md](../README.md)** - Main operator documentation
+- **[../BUILD_AND_DEPLOY.md](../BUILD_AND_DEPLOY.md)** - Detailed build instructions
 - **[../QUICK_START.md](../QUICK_START.md)** - Quick setup guide
-- **[../BUILD_AND_DEPLOY.md](../BUILD_AND_DEPLOY.md)** - Build instructions
-- **[../OPENSHIFT_INSTALL.md](../OPENSHIFT_INSTALL.md)** - OpenShift setup
 
 ---
 
-## 🎓 **Learning Path**
-
-1. **Start:** Run `./run-demo.sh`
-2. **Read:** `COMPREHENSIVE_DEMO.md`
-3. **Validate:** Use `.../scripts/validate-replication.sh`
-4. **Understand:** Read `BACKEND_SWITCHING_DEMO.md`
-5. **Reference:** Use `VALIDATION_GUIDE.md` as needed
-
----
-
-## 🎉 **Ready to Demo!**
-
-Your comprehensive demo package includes:
-- ✅ Complete documentation
-- ✅ Interactive scripts
-- ✅ Example resources
-- ✅ Validation tools
-
-**Start the demo:**
-```bash
-./run-demo.sh
-```
-
----
-
-*Demo Package Version: 1.0*  
-*Operator Version: 0.2.1*  
-*Last Updated: 2025-10-14*
+*Demo Package Version: 2.0*  
+*Operator Version: 2.0.0-beta*  
+*Last Updated: 2025-11-05*
 
