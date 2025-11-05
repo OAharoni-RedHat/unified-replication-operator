@@ -203,8 +203,6 @@ If the CRDs are already installed, you can skip this step.
 
 **Use the build script to build, push, and deploy the operator in one step.**
 
-#### Option A: OpenShift Internal Registry (Recommended for OpenShift)
-
 ```bash
 export KUBECONFIG=/home/oaharoni/aws-gpfs-playground/ocp_install_files/auth/kubeconfig
 
@@ -229,35 +227,6 @@ The script will:
 - ✅ Install CRDs
 - ✅ Deploy operator via Helm with OpenShift-compatible settings
 
-#### Option B: External Registry (Quay.io, Docker Hub, etc.)
-
-```bash
-# Login to registry
-podman login quay.io
-# Enter your credentials
-
-# Build, push, and deploy
-cd /home/oaharoni/github_workspaces/replication_extensions/unified-replication-operator
-REGISTRY=quay.io/YOUR_USERNAME VERSION=2.0.0-beta ./scripts/build-and-push.sh
-```
-
-#### Option C: Build Only (No Deploy)
-
-If you want to build and push the image but deploy manually later:
-
-```bash
-REGISTRY=your-registry VERSION=2.0.0-beta SKIP_DEPLOY=true ./scripts/build-and-push.sh
-```
-
-**Expected:** Operator pod running and ready (1/1 Running)
-
-**Verify deployment:**
-```bash
-kubectl get pods -n unified-replication-system
-kubectl logs -n unified-replication-system -l control-plane=controller-manager --tail=50
-```
-
-**If deployment fails**, see troubleshooting section below.
 
 ### Step 3: Create VolumeReplicationClass
 
@@ -890,7 +859,15 @@ Message: unable to detect backend from provisioner: unknown
 ```
 kubectl get tridentmirrorrelationship -n applications
 # No resources found
+
+# Or VolumeReplication shows error:
+# Ready: False
+# Reason: ReconcileError
+# Message: no matches for kind "TridentMirrorRelationship" in version "trident.netapp.io/v1"
 ```
+
+**Root Cause:**
+The `TridentMirrorRelationship` CRD is not installed. This CRD is required for Trident mirror relationships and may not be included in all Trident installations.
 
 **Diagnostic Steps:**
 
@@ -898,9 +875,33 @@ kubectl get tridentmirrorrelationship -n applications
 # 1. Check if TridentMirrorRelationship CRD is installed
 kubectl get crd tridentmirrorrelationships.trident.netapp.io
 
-# If not found, install it (see Trident installation section above)
+# If not found, you'll see:
+# Error from server (NotFound): customresourcedefinitions.apiextensions.k8s.io "tridentmirrorrelationships.trident.netapp.io" not found
+```
+
+**Solution:**
+
+```bash
+# Option 1: Install CRD manually from Trident repository
 kubectl apply -f https://raw.githubusercontent.com/NetApp/trident/main/deploy/crds/trident.netapp.io_tridentmirrorrelationships.yaml
 
+# Option 2: Upgrade Trident to a version that includes mirror relationship support
+# Mirror relationships require Trident 23.04 or later
+helm upgrade trident netapp-trident/trident-operator -n trident
+
+# Option 3: If using Trident Operator, ensure it's up to date
+# Check operator version
+kubectl get subscription trident-operator -n openshift-operators -o jsonpath='{.spec.channel}'
+
+# Verify CRD is installed
+kubectl get crd tridentmirrorrelationships.trident.netapp.io
+```
+
+**After installing the CRD, the operator will automatically retry and create the TridentMirrorRelationship.**
+
+**Additional Diagnostic Steps:**
+
+```bash
 # 2. Check VolumeReplication status
 kubectl get vr trident-app-replication -n applications -o yaml
 kubectl describe vr trident-app-replication -n applications

@@ -182,10 +182,48 @@ if [ "$REMOVE_OPERATOR" = "--operator" ]; then
     
     # Delete CRDs
     echo_step "Step 8: Deleting Custom Resource Definitions..."
-    kubectl delete crd volumereplications.replication.unified.io 2>/dev/null || echo_info "VolumeReplication CRD not found"
-    kubectl delete crd volumereplicationclasses.replication.unified.io 2>/dev/null || echo_info "VolumeReplicationClass CRD not found"
-    kubectl delete crd volumegroupreplications.replication.unified.io 2>/dev/null || echo_info "VolumeGroupReplication CRD not found"
-    kubectl delete crd volumegroupreplicationclasses.replication.unified.io 2>/dev/null || echo_info "VolumeGroupReplicationClass CRD not found"
+    
+    # Function to safely delete CRD with timeout and finalizer handling
+    delete_crd_safe() {
+        local crd_name=$1
+        local description=$2
+        
+        # Check if CRD exists first
+        if ! kubectl get crd "$crd_name" &>/dev/null 2>&1; then
+            echo_info "$description CRD not found (already deleted or never installed)"
+            return 0
+        fi
+        
+        # Check if CRD has finalizers that might block deletion
+        local has_finalizers=$(kubectl get crd "$crd_name" -o jsonpath='{.metadata.finalizers[*]}' 2>/dev/null || echo "")
+        if [ -n "$has_finalizers" ]; then
+            echo_warn "$description CRD has finalizers, removing them first..."
+            kubectl patch crd "$crd_name" -p '{"metadata":{"finalizers":[]}}' --type=merge 2>/dev/null || true
+            sleep 2
+        fi
+        
+        # Try to delete with timeout (use timeout command if available, otherwise rely on kubectl timeout)
+        if command -v timeout >/dev/null 2>&1; then
+            # Use timeout command for extra safety
+            if timeout 30s kubectl delete crd "$crd_name" --timeout=25s 2>/dev/null; then
+                echo_info "$description CRD deleted"
+            else
+                echo_warn "$description CRD deletion timed out or failed (may still be deleting)"
+            fi
+        else
+            # Fallback: rely on kubectl's timeout flag only
+            if kubectl delete crd "$crd_name" --timeout=30s 2>/dev/null; then
+                echo_info "$description CRD deleted"
+            else
+                echo_warn "$description CRD deletion timed out or failed (may still be deleting)"
+            fi
+        fi
+    }
+    
+    delete_crd_safe "volumereplications.replication.unified.io" "VolumeReplication"
+    delete_crd_safe "volumereplicationclasses.replication.unified.io" "VolumeReplicationClass"
+    delete_crd_safe "volumegroupreplications.replication.unified.io" "VolumeGroupReplication"
+    delete_crd_safe "volumegroupreplicationclasses.replication.unified.io" "VolumeGroupReplicationClass"
     
     # Delete OpenShift SCC if exists
     echo_step "Step 9: Deleting OpenShift SCC (if exists)..."

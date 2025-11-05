@@ -63,6 +63,30 @@ func (a *TridentV1Alpha2Adapter) ReconcileVolumeReplication(
 
 	log.Info("Reconciling VolumeReplication with Trident backend (with state translation)")
 
+	// Check if TridentMirrorRelationship CRD is available
+	// This provides a better error message if the CRD is missing
+	crdName := "tridentmirrorrelationships.trident.netapp.io"
+	crd := &unstructured.Unstructured{}
+	crd.SetGroupVersionKind(schema.GroupVersionKind{
+		Group:   "apiextensions.k8s.io",
+		Version: "v1",
+		Kind:    "CustomResourceDefinition",
+	})
+	if err := a.client.Get(ctx, client.ObjectKey{Name: crdName}, crd); err != nil {
+		if client.IgnoreNotFound(err) == nil {
+			// CRD not found - provide helpful error message
+			errMsg := "TridentMirrorRelationship CRD (" + crdName + ") not found. " +
+				"Trident mirror relationships may not be enabled. " +
+				"Please ensure Trident is installed with mirror relationship support, " +
+				"or check if the CRD needs to be installed separately."
+			log.Error(nil, errMsg)
+			return ctrl.Result{}, fmt.Errorf("%s", errMsg)
+		}
+		// Other error checking for CRD
+		log.Error(err, "Failed to check for TridentMirrorRelationship CRD")
+		return ctrl.Result{}, fmt.Errorf("failed to verify TridentMirrorRelationship CRD availability: %w", err)
+	}
+
 	// Translate state from kubernetes-csi-addons to Trident
 	tridentState := a.translateStateToTrident(vr.Spec.ReplicationState)
 	log.Info("Translated state", "vrState", vr.Spec.ReplicationState, "tridentState", tridentState)
