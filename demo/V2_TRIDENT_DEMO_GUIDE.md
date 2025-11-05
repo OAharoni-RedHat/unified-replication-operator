@@ -65,56 +65,13 @@ EOF
 oc get pods -n trident
 ```
 
-### Option 2: Install Trident via Helm (Kubernetes)
-
-**For standard Kubernetes clusters:**
-
-```bash
-# Add Trident Helm repository
-helm repo add netapp-trident https://netapp.github.io/trident-helm-chart
-helm repo update
-
-# Install Trident
-helm install trident netapp-trident/trident-operator \
-  --namespace trident \
-  --create-namespace \
-  --set trident.autopathEnabled=false
-
-# Wait for Trident to be ready
-kubectl wait --for=condition=ready pod -l app=trident-operator -n trident --timeout=5m
-
-# Verify installation
-kubectl get pods -n trident
-kubectl get crd | grep trident
-```
-
-### Option 3: Install Trident via Tridentctl (Direct Installation)
-
-**Using Trident's native installer:**
-
-```bash
-# Download Trident installer
-curl -o trident-installer.tar.gz https://github.com/NetApp/trident/releases/latest/download/trident-installer-<VERSION>.tar.gz
-tar -xzf trident-installer.tar.gz
-cd trident-installer
-
-# Install Trident
-./tridentctl install -n trident
-
-# Verify installation
-./tridentctl version -n trident
-kubectl get pods -n trident
-```
-
-**Note:** Replace `<VERSION>` with the latest Trident version (e.g., `23.10.0`).
-
 ### Verify Trident Installation
 
 After installation, verify everything is working:
 
 ```bash
 # Check Trident pods are running
-kubectl get pods -n trident
+kubectl get pods
 
 # Expected output:
 # NAME                                READY   STATUS    RESTARTS   AGE

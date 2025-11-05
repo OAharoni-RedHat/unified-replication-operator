@@ -19,11 +19,12 @@ metadata:
   labels:
     {{- include "unified-replication-operator.labels" . | nindent 4 }}
 rules:
-# UnifiedVolumeReplication resources
+# VolumeReplication resources (v1alpha2)
 - apiGroups:
   - replication.unified.io
   resources:
-  - unifiedvolumereplications
+  - volumereplications
+  - volumereplicationclasses
   verbs:
   - get
   - list
@@ -35,7 +36,7 @@ rules:
 - apiGroups:
   - replication.unified.io
   resources:
-  - unifiedvolumereplications/status
+  - volumereplications/status
   verbs:
   - get
   - update
@@ -43,7 +44,35 @@ rules:
 - apiGroups:
   - replication.unified.io
   resources:
-  - unifiedvolumereplications/finalizers
+  - volumereplications/finalizers
+  verbs:
+  - update
+# VolumeGroupReplication resources (v1alpha2)
+- apiGroups:
+  - replication.unified.io
+  resources:
+  - volumegroupreplications
+  - volumegroupreplicationclasses
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - replication.unified.io
+  resources:
+  - volumegroupreplications/status
+  verbs:
+  - get
+  - update
+  - patch
+- apiGroups:
+  - replication.unified.io
+  resources:
+  - volumegroupreplications/finalizers
   verbs:
   - update
 {{- if .Values.backends.ceph.enabled }}

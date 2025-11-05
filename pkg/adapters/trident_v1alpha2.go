@@ -95,7 +95,49 @@ func (a *TridentV1Alpha2Adapter) ReconcileVolumeReplication(
 		return ctrl.Result{}, err
 	}
 
-	// Build spec with translations
+	// Check if TridentMirrorRelationship already exists
+	existingTMR := &unstructured.Unstructured{}
+	existingTMR.SetGroupVersionKind(TridentMirrorRelationshipGVKV1Alpha2)
+	exists := false
+	if err := a.client.Get(ctx, client.ObjectKey{
+		Name:      vr.Name,
+		Namespace: vr.Namespace,
+	}, existingTMR); err == nil {
+		exists = true
+		log.Info("TridentMirrorRelationship already exists, using merge patch to update only managed fields")
+	} else if client.IgnoreNotFound(err) != nil {
+		log.Error(err, "Failed to check for existing TridentMirrorRelationship")
+		return ctrl.Result{}, err
+	}
+
+	if exists {
+		// For existing resources, use merge patch to avoid field manager conflicts
+		// This only updates the fields we specify, leaving volumeMappings untouched
+		patchSpec := map[string]interface{}{
+			"state":               tridentState,
+			"replicationPolicy":   replicationPolicy,
+			"replicationSchedule": replicationSchedule,
+		}
+
+		// Create a patch object with only the fields we want to update
+		patchObj := existingTMR.DeepCopy()
+		if err := unstructured.SetNestedMap(patchObj.Object, patchSpec, "spec"); err != nil {
+			log.Error(err, "Failed to build patch spec")
+			return ctrl.Result{}, err
+		}
+
+		// Use merge patch (JSON merge patch) to update only our fields
+		// This doesn't conflict with Trident's field ownership
+		if err := a.client.Patch(ctx, patchObj, client.MergeFrom(existingTMR)); err != nil {
+			log.Error(err, "Failed to patch TridentMirrorRelationship")
+			return ctrl.Result{}, err
+		}
+
+		log.Info("Successfully patched TridentMirrorRelationship with state translation")
+		return ctrl.Result{}, nil
+	}
+
+	// For new resources, use server-side apply with volumeMappings
 	spec := map[string]interface{}{
 		"state":               tridentState, // Translated!
 		"replicationPolicy":   replicationPolicy,
@@ -113,13 +155,13 @@ func (a *TridentV1Alpha2Adapter) ReconcileVolumeReplication(
 		return ctrl.Result{}, err
 	}
 
-	// Create or update
+	// Use server-side apply for new resources
 	if err := a.client.Patch(ctx, tmr, client.Apply, client.FieldOwner("unified-replication-operator")); err != nil {
-		log.Error(err, "Failed to create/update TridentMirrorRelationship")
+		log.Error(err, "Failed to create TridentMirrorRelationship")
 		return ctrl.Result{}, err
 	}
 
-	log.Info("Successfully created/updated TridentMirrorRelationship with state translation")
+	log.Info("Successfully created TridentMirrorRelationship with state translation")
 	return ctrl.Result{}, nil
 }
 
@@ -266,7 +308,49 @@ func (a *TridentV1Alpha2Adapter) ReconcileVolumeGroupReplication(
 		return ctrl.Result{}, err
 	}
 
-	// Build spec
+	// Check if TridentMirrorRelationship already exists
+	existingTMR := &unstructured.Unstructured{}
+	existingTMR.SetGroupVersionKind(TridentMirrorRelationshipGVKV1Alpha2)
+	exists := false
+	if err := a.client.Get(ctx, client.ObjectKey{
+		Name:      vgr.Name,
+		Namespace: vgr.Namespace,
+	}, existingTMR); err == nil {
+		exists = true
+		log.Info("TridentMirrorRelationship already exists, using merge patch to update only managed fields")
+	} else if client.IgnoreNotFound(err) != nil {
+		log.Error(err, "Failed to check for existing TridentMirrorRelationship")
+		return ctrl.Result{}, err
+	}
+
+	if exists {
+		// For existing resources, use merge patch to avoid field manager conflicts
+		// This only updates the fields we specify, leaving volumeMappings untouched
+		patchSpec := map[string]interface{}{
+			"state":               tridentState,
+			"replicationPolicy":   replicationPolicy,
+			"replicationSchedule": vgrc.Spec.Parameters["groupReplicationSchedule"],
+		}
+
+		// Create a patch object with only the fields we want to update
+		patchObj := existingTMR.DeepCopy()
+		if err := unstructured.SetNestedMap(patchObj.Object, patchSpec, "spec"); err != nil {
+			log.Error(err, "Failed to build patch spec")
+			return ctrl.Result{}, err
+		}
+
+		// Use merge patch (JSON merge patch) to update only our fields
+		// This doesn't conflict with Trident's field ownership
+		if err := a.client.Patch(ctx, patchObj, client.MergeFrom(existingTMR)); err != nil {
+			log.Error(err, "Failed to patch TridentMirrorRelationship")
+			return ctrl.Result{}, err
+		}
+
+		log.Info("Successfully patched TridentMirrorRelationship for volume group", "volumeCount", len(pvcs))
+		return ctrl.Result{}, nil
+	}
+
+	// For new resources, use server-side apply with volumeMappings
 	spec := map[string]interface{}{
 		"state":               tridentState,
 		"replicationPolicy":   replicationPolicy,
@@ -279,13 +363,13 @@ func (a *TridentV1Alpha2Adapter) ReconcileVolumeGroupReplication(
 		return ctrl.Result{}, err
 	}
 
-	// Create or update
+	// Use server-side apply for new resources
 	if err := a.client.Patch(ctx, tmr, client.Apply, client.FieldOwner("unified-replication-operator")); err != nil {
-		log.Error(err, "Failed to create/update TridentMirrorRelationship")
+		log.Error(err, "Failed to create TridentMirrorRelationship")
 		return ctrl.Result{}, err
 	}
 
-	log.Info("Successfully created/updated TridentMirrorRelationship for volume group", "volumeCount", len(pvcs))
+	log.Info("Successfully created TridentMirrorRelationship for volume group", "volumeCount", len(pvcs))
 	return ctrl.Result{}, nil
 }
 

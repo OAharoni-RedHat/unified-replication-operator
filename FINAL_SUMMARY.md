@@ -36,7 +36,7 @@ Your operator now has:
 - ✅ OpenShift-compatible security contexts
 - ✅ Automatic CRD installation
 - ✅ Automatic webhook certificate generation
-- ✅ One-command uninstall (`./scripts/uninstall.sh`)
+- ✅ One-command cleanup (`./scripts/cleanup-demo.sh`)
 
 ---
 
@@ -69,7 +69,7 @@ unified-replication-operator/
 │
 ├── 🔧 scripts/
 │   ├── build-and-push.sh (Full automation)
-│   ├── uninstall.sh (Clean removal)
+│   ├── cleanup-demo.sh (Clean removal)
 │   ├── install-openshift.sh
 │   ├── validate-replication.sh
 │   └── create-webhook-cert.sh
@@ -162,7 +162,11 @@ cd demo && ./run-demo.sh
 
 ### **Clean Up:**
 ```bash
-./scripts/uninstall.sh
+# Clean up demo resources (keeps operator)
+./scripts/cleanup-demo.sh
+
+# Or remove everything including operator
+./scripts/cleanup-demo.sh --operator
 ```
 
 ---
@@ -193,7 +197,7 @@ cd demo && ./run-demo.sh
 | **Validate replication** | `./scripts/validate-replication.sh <name>` |
 | **Test validation** | `cd demo && ./test-webhook-validation.sh` |
 | **Test backend switching** | `cd demo && ./test-backend-switching.sh` |
-| **Uninstall** | `./scripts/uninstall.sh` |
+| **Cleanup** | `./scripts/cleanup-demo.sh` or `./scripts/cleanup-demo.sh --operator` |
 
 ### **Read Documentation:**
 - **Demo Guide:** `demo/COMPREHENSIVE_DEMO.md`
@@ -272,7 +276,7 @@ spec:
 ```bash
 ./scripts/build-and-push.sh       # Build and deploy
 ./scripts/install-openshift.sh    # OpenShift-specific install
-./scripts/uninstall.sh            # Complete removal
+./scripts/cleanup-demo.sh --operator  # Complete removal
 ```
 
 ### **Validation & Testing:**
@@ -386,7 +390,7 @@ VERSION=1.0.0 \
 cd demo && ./run-demo.sh                    # Run demo
 ./scripts/build-and-push.sh                 # Deploy
 ./scripts/validate-replication.sh <name>    # Validate
-./scripts/uninstall.sh                      # Clean up
+./scripts/cleanup-demo.sh                  # Clean up demo resources
 
 # Validation tests
 cd demo && ./test-webhook-validation.sh     # Test validation
