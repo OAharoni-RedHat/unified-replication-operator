@@ -84,7 +84,6 @@ type V1Alpha2ReplicationStatus struct {
 	Conditions       []metav1.Condition
 }
 
-
 // ReplicationStatus represents the status of a replication relationship
 type ReplicationStatus struct {
 	State              string                 `json:"state"`

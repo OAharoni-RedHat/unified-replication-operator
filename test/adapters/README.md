@@ -21,39 +21,7 @@ go test -v ./test/adapters -run TestAdapterValidation
 go test -v ./test/adapters -run TestAdapterResourceCleanup
 ```
 
-### 2. Performance Tests (`performance_test.go`)
-Establishes performance baselines and benchmarks adapter operations.
-
-**Benchmarks:**
-- `BenchmarkAdapterCreate` - Replication creation performance
-- `BenchmarkAdapterUpdate` - Replication update performance
-- `BenchmarkAdapterGetStatus` - Status retrieval performance
-- `BenchmarkAdapterDelete` - Replication deletion performance
-- `BenchmarkAdapterValidation` - Configuration validation performance
-
-**Performance Tests:**
-- Baseline latency measurements
-- Concurrent operation handling
-- Sustained throughput testing
-
-**Usage:**
-```bash
-# Run all benchmarks
-go test -bench=. ./test/adapters
-
-# Run specific benchmark
-go test -bench=BenchmarkAdapterCreate ./test/adapters
-
-# Run with memory profiling
-go test -bench=. -benchmem ./test/adapters
-
-# Run performance baseline tests
-go test -v ./test/adapters -run TestAdapterPerformanceBaseline
-go test -v ./test/adapters -run TestAdapterConcurrency
-go test -v ./test/adapters -run TestAdapterThroughput
-```
-
-### 3. Fault Tolerance Tests (`fault_tolerance_test.go`)
+### 2. Fault Tolerance Tests (`fault_tolerance_test.go`)
 Tests adapter resilience under various failure conditions.
 
 **Tests:**
@@ -72,7 +40,7 @@ go test -v ./test/adapters -run TestErrorPropagation
 go test -v ./test/adapters -run TestPartialFailureScenarios
 ```
 
-### 4. State Transition Tests (`state_transition_test.go`)
+### 3. State Transition Tests (`state_transition_test.go`)
 Validates state management and transition logic.
 
 **Tests:**
@@ -92,33 +60,6 @@ go test -v ./test/adapters -run TestStatusReporting
 go test -v ./test/adapters -run TestConcurrentStateTransitions
 ```
 
-### 5. Load Tests (`load_test.go`)
-Verifies adapter scalability and performance under load.
-
-**Tests:**
-- Basic scalability (10, 50, 100 operations)
-- Sustained throughput over time
-- High concurrency handling (5, 10, 20 concurrent users)
-- Memory usage under load
-- Recovery after load spikes
-- Comprehensive stress test
-
-**Usage:**
-```bash
-# Run all load tests (may take several minutes)
-go test -v ./test/adapters -run TestLoad
-
-# Run specific load test
-go test -v ./test/adapters -run TestLoadBasicScalability
-go test -v ./test/adapters -run TestLoadSustainedThroughput
-go test -v ./test/adapters -run TestLoadConcurrentOperations
-go test -v ./test/adapters -run TestLoadMemoryUsage
-go test -v ./test/adapters -run TestLoadRecovery
-
-# Run comprehensive stress test
-go test -v ./test/adapters -run TestLoadStressTest -timeout 30m
-```
-
 ## Running All Tests
 
 ### Quick Test Suite
@@ -129,8 +70,8 @@ go test -v -short ./test/adapters
 
 ### Full Test Suite
 ```bash
-# Run all tests including load and performance tests
-go test -v ./test/adapters -timeout 30m
+# Run all tests
+go test -v ./test/adapters
 ```
 
 ### With Coverage
@@ -146,34 +87,11 @@ go tool cover -html=coverage.out -o coverage.html
 - `TEST_TIMEOUT=30m` - Set custom test timeout
 
 ### Test Flags
-- `-short` - Run only fast tests, skip load and performance tests
+- `-short` - Run only fast tests
 - `-v` - Verbose output
 - `-run <pattern>` - Run specific tests matching pattern
-- `-bench <pattern>` - Run benchmarks matching pattern
 - `-timeout <duration>` - Set test timeout (default: 10m)
 - `-count <n>` - Run each test n times
-
-## Performance Baselines
-
-Expected performance thresholds (adjust based on hardware):
-
-### Latency
-- Create: < 500ms
-- Update: < 500ms
-- Status: < 500ms
-- Delete: < 500ms
-
-### Throughput
-- Minimum: > 10 ops/sec sustained
-
-### Success Rates
-- Normal operations: > 80%
-- Under load: > 70%
-- Under stress: > 50%
-
-### Concurrency
-- Should handle 10+ concurrent operations
-- Should maintain > 70% success rate with 10 concurrent users
 
 ## Adding New Tests
 
@@ -189,12 +107,12 @@ backends := []translation.Backend{
 }
 ```
 
-2. Update `createTestAdapter` helper function:
+2. Update `createTestAdapter` helper function in the test file:
 ```go
-func createTestAdapter(...) adapters.ReplicationAdapter {
+func createTestAdapter(...) adapters.VolumeReplicationAdapter {
     switch backend {
     case translation.BackendYourNew:
-        return adapters.NewYourNewAdapter(client, translator, nil)
+        return adapters.NewYourNewV1Alpha2Adapter(client)
     // ... existing cases
     }
 }
@@ -245,11 +163,6 @@ These tests are designed to run in CI environments:
 - Review error messages for patterns
 - Check if test expectations match implementation
 - Verify test environment has sufficient resources
-
-### Inconsistent Results
-- Some variance is expected with concurrent tests
-- Run tests multiple times: `go test -count=10`
-- Check for race conditions: `go test -race`
 
 ## Support
 

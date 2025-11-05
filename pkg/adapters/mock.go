@@ -87,10 +87,10 @@ func NewMockAdapter(backend translation.Backend, client client.Client, translato
 	baseAdapter := NewBaseAdapter(backend, client, translator, config)
 
 	return &MockAdapter{
-		BaseAdapter: baseAdapter,
-		config:      mockConfig,
+		BaseAdapter:  baseAdapter,
+		config:       mockConfig,
 		replications: make(map[string]*MockReplication),
-		failureRate:   mockConfig.FailureRate,
+		failureRate:  mockConfig.FailureRate,
 	}
 }
 

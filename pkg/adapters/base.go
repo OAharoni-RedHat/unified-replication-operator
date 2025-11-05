@@ -137,7 +137,6 @@ func (ba *BaseAdapter) Cleanup(ctx context.Context) error {
 	return nil
 }
 
-
 // TranslateState translates unified state to backend-specific state
 func (ba *BaseAdapter) TranslateState(unifiedState string) (string, error) {
 	backendState, err := ba.translator.TranslateStateToBackend(ba.backend, unifiedState)
@@ -177,7 +176,6 @@ func (ba *BaseAdapter) TranslateBackendMode(backendMode string) (string, error) 
 	}
 	return unifiedMode, nil
 }
-
 
 // GetCapabilities returns the adapter capabilities
 func (ba *BaseAdapter) GetCapabilities() AdapterCapabilities {
@@ -293,7 +291,6 @@ func (ba *BaseAdapter) validateConfig() error {
 
 	return nil
 }
-
 
 // NotImplementedError returns an error for operations not implemented by the specific adapter
 func (ba *BaseAdapter) NotImplementedError(operation string) error {

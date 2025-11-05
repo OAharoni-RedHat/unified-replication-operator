@@ -40,11 +40,10 @@ pkg/adapters/
 **Why here:** Tests adapter implementations  
 **Run:** `go test ./pkg/adapters/...`
 
-### Discovery Tests (4 files, co-located)
+### Discovery Tests (3 files, co-located)
 ```
 pkg/discovery/
 ├── engine_test.go (discovery engine)
-├── integration_test.go (discovery integration)
 ├── capabilities_test.go (capability detection)
 └── capabilities_integration_test.go (capability integration)
 ```
@@ -87,41 +86,29 @@ pkg/
 **Why here:** Tests controller engine coordination  
 **Run:** `go test ./pkg/...`
 
-### Test Directory Tests (co-located with utilities)
+### Test Directory Tests
 ```
 test/
-├── adapters/ (compliance and integration test suite)
-│   ├── compliance_test.go (5 test functions)
-│   ├── performance_test.go (5 benchmarks, 3 tests)
-│   ├── fault_tolerance_test.go (6 test functions)
-│   ├── state_transition_test.go (6 test functions)
-│   └── load_test.go (6 test functions)
-├── e2e/
-│   └── e2e_test.go (4 test functions)
-├── integration/
-│   ├── unifiedvolumereplication_test.go
-│   └── crd_validation_test.go
-├── utils/
-│   └── crd_helpers_test.go
-└── fixtures/
-    └── samples_test.go
+└── adapters/ (compliance and integration test suite)
+    ├── compliance_test.go (5 test functions)
+    ├── fault_tolerance_test.go (6 test functions)
+    ├── state_transition_test.go (6 test functions)
+    └── README.md
 ```
-**Why here:** Shared test suites and utilities  
+**Why here:** Shared test suites  
 **Run:** `go test ./test/...`
 
 ---
 
 ## Test Statistics
 
-**Total Test Files:** ~35
+**Total Test Files:** ~30
 - Package tests: ~29 files
-- Test directory: ~6 files
+- Test directory: ~1 file
 
-**Total Test Functions:** ~180
+**Total Test Functions:** ~120
 - Unit tests: ~100
-- Integration tests: ~50
-- E2E tests: 4
-- Benchmarks: ~20
+- Integration tests: ~20
 
 **Total Test Code:** ~3,000 lines
 

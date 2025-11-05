@@ -56,7 +56,6 @@ func NewRegistry() Registry {
 	}
 }
 
-
 // Initialize initializes the registry
 func (r *DefaultRegistry) Initialize(ctx context.Context) error {
 	r.mu.Lock()
@@ -90,8 +89,6 @@ func (r *DefaultRegistry) Shutdown(ctx context.Context) error {
 	logger.Info("Adapter registry shutdown completed")
 	return nil
 }
-
-
 
 // v1alpha2 Adapter Management Methods
 

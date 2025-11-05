@@ -52,21 +52,8 @@ cd demo
 
 **Duration:** ~10 minutes
 
-### **Option 2: Quick Backend Switching Test**
 
-```bash
-cd demo
-./test-backend-switching.sh
-```
-
-**Features:**
-- Automated (no pauses)
-- Focuses on backend switching
-- Quick validation
-
-**Duration:** ~2 minutes
-
-### **Option 3: Manual Step-by-Step**
+### **Option 2: Manual Step-by-Step**
 
 Follow the steps in `V2_DEMOS_README.md` or `V2_TRIDENT_DEMO_GUIDE.md` manually.
 

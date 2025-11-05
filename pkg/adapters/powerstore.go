@@ -27,6 +27,5 @@ var DellCSIReplicationGroupGVK = schema.GroupVersionKind{
 	Kind:    "DellCSIReplicationGroup",
 }
 
-
 // Note: PowerStoreAdapter v1alpha1 implementation has been removed.
 // Use PowerStoreV1Alpha2Adapter in powerstore_v1alpha2.go for v1alpha2 API support.

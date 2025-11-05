@@ -10,26 +10,9 @@ This document explains the testing structure for the Unified Replication Operato
 test/
 ├── adapters/               # Adapter compliance and integration tests
 │   ├── compliance_test.go  # Interface compliance tests
-│   ├── performance_test.go # Performance benchmarks
 │   ├── fault_tolerance_test.go # Failure injection tests
 │   ├── state_transition_test.go # State machine tests
-│   ├── load_test.go       # Load and stress tests
 │   └── README.md          # Testing framework documentation
-├── e2e/                   # End-to-end integration tests
-│   └── e2e_test.go        # Complete workflow tests
-├── integration/           # Cross-component integration tests
-│   ├── unifiedvolumereplication_test.go
-│   └── crd_validation_test.go
-├── utils/                 # Test utilities and helpers
-│   ├── crd_helpers.go
-│   ├── assertions.go
-│   ├── cluster_setup.go
-│   └── crd_helpers_test.go
-├── fixtures/              # Test fixtures and sample data
-│   ├── samples.go
-│   └── samples_test.go
-├── benchmarks/            # Performance benchmarks
-│   └── performance.go
 └── README.md             # This file
 ```
 
@@ -118,27 +101,7 @@ pkg/
 - `pkg/adapters/ceph_test.go` - Ceph adapter unit tests
 - `controllers/controller_unit_test.go` - Controller unit tests
 
-### 2. Integration Tests
-**Location:** Mixed (package-level + `test/integration/`)  
-**Purpose:** Test component interactions  
-**Run:** `go test ./test/integration/... ./pkg/*/integration_test.go`  
-**Count:** ~50 test functions
-
-**Examples:**
-- `test/integration/unifiedvolumereplication_test.go` - Full resource lifecycle
-- `pkg/adapters/ceph_integration_test.go` - Ceph with real CRDs
-- `controllers/engine_integration_test.go` - Controller + engines
-
-### 3. End-to-End Tests
-**Location:** `test/e2e/`  
-**Purpose:** Test complete workflows  
-**Run:** `go test ./test/e2e/...`  
-**Count:** 4 test functions
-
-**Examples:**
-- `test/e2e/e2e_test.go` - Complete workflow, multi-backend, failover
-
-### 4. Compliance Tests
+### 2. Compliance Tests
 **Location:** `test/adapters/`  
 **Purpose:** Validate adapter interface compliance  
 **Run:** `go test ./test/adapters/...`  
@@ -146,19 +109,7 @@ pkg/
 
 **Examples:**
 - `test/adapters/compliance_test.go` - Interface compliance
-- `test/adapters/performance_test.go` - Performance benchmarks
 - `test/adapters/fault_tolerance_test.go` - Failure injection
-
-### 5. Benchmark Tests
-**Location:** `*_test.go` files with Benchmark functions + `test/benchmarks/`  
-**Purpose:** Performance measurement  
-**Run:** `go test -bench=. ./...`  
-**Count:** ~20 benchmarks
-
-**Examples:**
-- `pkg/translation/benchmark_test.go` - Translation performance
-- `test/adapters/performance_test.go` - Adapter benchmarks
-- `test/benchmarks/performance.go` - Overall benchmarks
 
 ## Running Tests
 
@@ -178,20 +129,12 @@ go test ./...
 # Unit tests only
 go test -short ./api/... ./controllers/... ./pkg/...
 
-# Integration tests
-go test ./test/integration/... ./pkg/*/integration_test.go
-
-# E2E tests
-go test ./test/e2e/...
-
 # Adapter tests
 go test ./test/adapters/...
 
 # Controller tests
 go test ./controllers/...
 
-# Benchmarks
-go test -bench=. ./pkg/translation/...
 ```
 
 ### Test Coverage
@@ -302,28 +245,6 @@ go test -cover ./...
 go test -p 4 ./...
 ```
 
-## Test Utilities
-
-### Helper Functions
-Location: `test/utils/`
-
-- `crd_helpers.go` - CRD creation and manipulation
-- `assertions.go` - Custom assertions
-- `cluster_setup.go` - Test cluster setup
-
-### Test Fixtures
-Location: `test/fixtures/`
-
-- Sample resources
-- Mock data generators
-- Common test scenarios
-
-### Test Benchmarks
-Location: `test/benchmarks/`
-
-- Performance baselines
-- Load testing utilities
-
 ## Continuous Integration
 
 ### GitHub Actions
@@ -331,11 +252,6 @@ Location: `test/benchmarks/`
 - name: Unit Tests
   run: go test -short ./...
 
-- name: Integration Tests
-  run: go test ./test/integration/...
-
-- name: E2E Tests
-  run: go test ./test/e2e/...
 
 - name: Coverage
   run: |
@@ -362,18 +278,9 @@ go vet ./...
    func TestNewFeature(t *testing.T) { ... }
    ```
 
-2. **Add integration test** if spans packages:
-   ```go
-   // test/integration/mynewfeature_test.go
-   package integration
-   
-   func TestNewFeatureIntegration(t *testing.T) { ... }
-   ```
-
-3. **Update test/adapters** if new adapter:
+2. **Update test/adapters** if new adapter:
    - Add to compliance tests
    - Add to cross-backend tests
-   - Add performance tests
 
 ### For Bug Fixes
 

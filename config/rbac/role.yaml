@@ -7,13 +7,6 @@ rules:
 - apiGroups:
   - ""
   resources:
-  - events
-  verbs:
-  - create
-  - patch
-- apiGroups:
-  - ""
-  resources:
   - persistentvolumeclaims
   verbs:
   - get
@@ -21,32 +14,6 @@ rules:
   - patch
   - update
   - watch
-- apiGroups:
-  - replication.storage.io
-  resources:
-  - unifiedvolumereplications
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - replication.storage.io
-  resources:
-  - unifiedvolumereplications/finalizers
-  verbs:
-  - update
-- apiGroups:
-  - replication.storage.io
-  resources:
-  - unifiedvolumereplications/status
-  verbs:
-  - get
-  - patch
-  - update
 - apiGroups:
   - replication.unified.io
   resources:
