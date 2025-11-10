@@ -610,7 +610,7 @@ kubectl get tridentmirrorrelationship trident-app-replication -n applications -o
 # Output: reestablishing
 ```
 
-**Translation:** `secondary` → `reestablishing` ✅
+**Translation:** `secondary` → `reestablished` ✅
 
 ### Force Resync
 
@@ -625,7 +625,7 @@ kubectl get tridentmirrorrelationship trident-app-replication -n applications -o
 # Output: reestablishing
 ```
 
-**Translation:** `resync` → `reestablishing` ✅
+**Translation:** `resync` → `reestablished` ✅
 
 ---
 
