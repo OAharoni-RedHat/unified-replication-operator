@@ -301,17 +301,27 @@ resync → secondary ✅ (after resync completes)
 - `remoteClusterId`: Remote Kubernetes cluster ID
 
 **Group Parameters:**
-- `consistencyType`: `"Metro"` or `"Async"` - Consistency type
-- `groupProtectionPolicy`: Group-level protection policy
+- `replicationMode`: `"synchronous"` or `"asynchronous"` - Replication mode (translated to `consistencyType`: `"Metro"` or `"Async"`)
+- `groupProtectionPolicy`: Group-level protection policy (optional)
 
 **Translation:**
+
+**State Translation:**
 | kubernetes-csi-addons | Dell Action |
 |-----------------------|-------------|
 | `primary` | `Failover` |
 | `secondary` | `Sync` |
 | `resync` | `Reprotect` |
 
-**Special Behavior:** Automatically labels PVCs with `replication.storage.dell.com/` labels for selector matching.
+**Mode Translation (Volume Groups):**
+| CSI-addons Format | PowerStore Format |
+|-------------------|-------------------|
+| `replicationMode: "synchronous"` | `consistencyType: "Metro"` |
+| `replicationMode: "asynchronous"` | `consistencyType: "Async"` |
+
+**Special Behavior:** 
+- Automatically labels PVCs with `replication.storage.dell.com/` labels for selector matching
+- Only accepts CSI-addons standard format (`replicationMode`) for volume groups - direct `consistencyType` specification is not supported
 
 ---
 
@@ -566,7 +576,6 @@ spec:
   parameters:
     protectionPolicy: "metro-sync"
     remoteSystem: "PS-DR-001"
-    consistencyType: "Metro"
 ---
 apiVersion: replication.unified.io/v1alpha2
 kind: VolumeReplication
@@ -581,6 +590,8 @@ spec:
 ```
 
 **Result:** Operator creates `DellCSIReplicationGroup` with `action: Failover` and labels PVC.
+
+**Note:** For volume groups, use `replicationMode: "synchronous"` or `replicationMode: "asynchronous"` in VolumeGroupReplicationClass parameters. This is translated to PowerStore's `consistencyType: "Metro"` or `consistencyType: "Async"`.
 
 ### Example 4: PostgreSQL Multi-Volume Group
 

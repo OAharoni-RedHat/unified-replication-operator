@@ -31,6 +31,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	replicationv1alpha2 "github.com/unified-replication/operator/api/v1alpha2"
+	"github.com/unified-replication/operator/pkg/translation"
 )
 
 // Dell DellCSIReplicationGroup CRD details
@@ -43,13 +44,15 @@ var DellCSIReplicationGroupGVKV1Alpha2 = schema.GroupVersionKind{
 // PowerStoreV1Alpha2Adapter implements VolumeReplicationAdapter for Dell PowerStore backend
 // Translates kubernetes-csi-addons states to Dell actions
 type PowerStoreV1Alpha2Adapter struct {
-	client client.Client
+	client     client.Client
+	translator *translation.Engine
 }
 
 // NewPowerStoreV1Alpha2Adapter creates a new Dell PowerStore adapter for v1alpha2
 func NewPowerStoreV1Alpha2Adapter(client client.Client) *PowerStoreV1Alpha2Adapter {
 	return &PowerStoreV1Alpha2Adapter{
-		client: client,
+		client:     client,
+		translator: translation.NewEngine(),
 	}
 }
 
@@ -338,6 +341,30 @@ func (a *PowerStoreV1Alpha2Adapter) removePVCLabels(
 	return nil
 }
 
+// determineConsistencyType translates CSI-addons replicationMode parameter to PowerStore consistencyType
+// Only supports translation from CSI-addons standard format (synchronous/asynchronous) to PowerStore format (Metro/Async)
+// Returns: "Metro" for synchronous, "Async" for asynchronous, or empty string if not provided
+func (a *PowerStoreV1Alpha2Adapter) determineConsistencyType(parameters map[string]string, log logr.Logger) string {
+	// Only support translation from CSI-addons standard replicationMode parameter
+	replicationMode, exists := parameters["replicationMode"]
+	if !exists || replicationMode == "" {
+		// No replicationMode specified - return empty (let PowerStore use default from protection policy)
+		return ""
+	}
+
+	// Translate from CSI-addons format (synchronous/asynchronous) to PowerStore format (Metro/Async)
+	translatedMode, err := a.translator.TranslateModeToBackend(translation.BackendPowerStore, replicationMode)
+	if err != nil {
+		log.Info("Failed to translate replicationMode from CSI-addons format",
+			"replicationMode", replicationMode, "error", err)
+		return ""
+	}
+
+	log.V(1).Info("Translated replicationMode to consistencyType",
+		"replicationMode", replicationMode, "consistencyType", translatedMode)
+	return translatedMode
+}
+
 // ReconcileVolumeGroupReplication reconciles a volume group for Dell PowerStore
 // Dell natively supports groups via PVCSelector
 func (a *PowerStoreV1Alpha2Adapter) ReconcileVolumeGroupReplication(
@@ -389,6 +416,14 @@ func (a *PowerStoreV1Alpha2Adapter) ReconcileVolumeGroupReplication(
 		return ctrl.Result{}, err
 	}
 
+	// Determine consistencyType by translating from CSI-addons replicationMode parameter
+	// Translates: synchronous -> Metro, asynchronous -> Async
+	consistencyType := a.determineConsistencyType(vgrc.Spec.Parameters, log)
+	if consistencyType != "" {
+		log.Info("Setting consistencyType for volume group (translated from CSI-addons format)",
+			"consistencyType", consistencyType)
+	}
+
 	// Build spec with PVCSelector WITHOUT action
 	// Dell manages primary/secondary based on PVC read/write permissions
 	spec := map[string]interface{}{
@@ -401,6 +436,11 @@ func (a *PowerStoreV1Alpha2Adapter) ReconcileVolumeGroupReplication(
 				"replication.storage.dell.com/group": vgr.Name,
 			},
 		},
+	}
+
+	// Set consistencyType if determined
+	if consistencyType != "" {
+		spec["consistencyType"] = consistencyType
 	}
 
 	// Determine if we need to set an action to trigger an explicit operation
