@@ -1,0 +1,80 @@
+# Dell PowerStore Demo - Complete YAML Manifest
+# This file contains all resources needed for the Dell PowerStore demo
+
+---
+# StorageClass with Dell replication enabled
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: powerstore-replication
+provisioner: csi-powerstore.dellemc.com
+parameters:
+  # Enable replication
+  replication.storage.dell.com/isReplicationEnabled: "true"
+  # Remote PowerStore system ID (replace with your actual system ID)
+  replication.storage.dell.com/remoteSystem: "PS-DR-001"
+  # Protection policy (must exist on PowerStore array)
+  replication.storage.dell.com/protectionPolicy: "15min-async"
+allowVolumeExpansion: true
+volumeBindingMode: WaitForFirstConsumer
+
+---
+# VolumeReplicationClass for Dell PowerStore
+apiVersion: replication.unified.io/v1alpha2
+kind: VolumeReplicationClass
+metadata:
+  name: powerstore-replication-class
+spec:
+  # Provisioner identifies this as Dell PowerStore backend
+  provisioner: csi-powerstore.dellemc.com
+  
+  # Dell PowerStore-specific parameters
+  parameters:
+    # Protection policy name (must match StorageClass or PowerStore config)
+    protectionPolicy: "15min-async"
+    
+    # Remote PowerStore system ID
+    remoteSystem: "PS-DR-001"
+    
+    # Recovery Point Objective
+    rpo: "15m"
+    
+    # Optional: Remote cluster identifier
+    remoteClusterId: "dr-cluster"
+
+---
+# PersistentVolumeClaim
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: app-data-pvc
+  namespace: dell-demo
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+  storageClassName: powerstore-replication
+
+---
+# VolumeReplication (Primary Site)
+apiVersion: replication.unified.io/v1alpha2
+kind: VolumeReplication
+metadata:
+  name: app-data-replication
+  namespace: dell-demo
+spec:
+  # Reference to the VolumeReplicationClass
+  volumeReplicationClass: powerstore-replication-class
+  
+  # Name of the PVC to replicate
+  pvcName: app-data-pvc
+  
+  # Replication state: "primary" means this is the active site
+  # This translates to appropriate Dell actions/states
+  replicationState: primary
+  
+  # Automatically resync after failures
+  autoResync: true
+

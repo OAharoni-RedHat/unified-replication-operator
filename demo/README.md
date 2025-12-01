@@ -46,6 +46,7 @@ cd demo
 ## 📚 **Demo Guides**
 
 - **[V2_TRIDENT_DEMO_GUIDE.md](V2_TRIDENT_DEMO_GUIDE.md)** ⭐ - Complete Trident demo with installation steps
+- **[V2_DELL_POWERSTORE_DEMO_GUIDE.md](V2_DELL_POWERSTORE_DEMO_GUIDE.md)** ⭐ - Complete Dell PowerStore demo with operator integration
 - **[DEPRECATION_NOTICE.md](DEPRECATION_NOTICE.md)** - Historical reference (v1alpha1 removed)
 
 ---
