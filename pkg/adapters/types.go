@@ -84,47 +84,6 @@ type V1Alpha2ReplicationStatus struct {
 	Conditions       []metav1.Condition
 }
 
-// ReplicationStatus represents the status of a replication relationship
-type ReplicationStatus struct {
-	State              string                 `json:"state"`
-	Mode               string                 `json:"mode"`
-	Health             ReplicationHealth      `json:"health"`
-	LastSyncTime       *time.Time             `json:"last_sync_time,omitempty"`
-	NextSyncTime       *time.Time             `json:"next_sync_time,omitempty"`
-	SyncProgress       *SyncProgress          `json:"sync_progress,omitempty"`
-	BackendSpecific    map[string]interface{} `json:"backend_specific,omitempty"`
-	Message            string                 `json:"message,omitempty"`
-	ObservedGeneration int64                  `json:"observed_generation"`
-	Conditions         []StatusCondition      `json:"conditions,omitempty"`
-}
-
-// ReplicationHealth represents the health of a replication relationship
-type ReplicationHealth string
-
-const (
-	ReplicationHealthHealthy   ReplicationHealth = "Healthy"
-	ReplicationHealthDegraded  ReplicationHealth = "Degraded"
-	ReplicationHealthUnhealthy ReplicationHealth = "Unhealthy"
-	ReplicationHealthUnknown   ReplicationHealth = "Unknown"
-)
-
-// SyncProgress represents the progress of synchronization
-type SyncProgress struct {
-	TotalBytes      int64   `json:"total_bytes"`
-	SyncedBytes     int64   `json:"synced_bytes"`
-	PercentComplete float64 `json:"percent_complete"`
-	EstimatedTime   string  `json:"estimated_time,omitempty"`
-}
-
-// StatusCondition represents a condition of the replication status
-type StatusCondition struct {
-	Type               string    `json:"type"`
-	Status             string    `json:"status"`
-	LastTransitionTime time.Time `json:"last_transition_time"`
-	Reason             string    `json:"reason,omitempty"`
-	Message            string    `json:"message,omitempty"`
-}
-
 // AdapterFeature represents a feature supported by an adapter
 type AdapterFeature string
 

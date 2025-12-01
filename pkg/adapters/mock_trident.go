@@ -21,23 +21,19 @@ import (
 )
 
 // MockTridentReplication represents a simulated Trident replication resource
+// Note: This uses v1alpha2-compatible types only
 type MockTridentReplication struct {
-	Name              string                 `json:"name"`
-	Namespace         string                 `json:"namespace"`
-	State             string                 `json:"state"`
-	Mode              string                 `json:"mode"`
-	SourcePVC         string                 `json:"source_pvc"`
-	DestinationVolume string                 `json:"destination_volume"`
-	LastSyncTime      *time.Time             `json:"last_sync_time,omitempty"`
-	NextSyncTime      *time.Time             `json:"next_sync_time,omitempty"`
-	SyncProgress      *SyncProgress          `json:"sync_progress,omitempty"`
-	Health            ReplicationHealth      `json:"health"`
-	Message           string                 `json:"message"`
-	Conditions        []StatusCondition      `json:"conditions"`
-	BackendSpecific   map[string]interface{} `json:"backend_specific"`
-	CreatedAt         time.Time              `json:"created_at"`
-	UpdatedAt         time.Time              `json:"updated_at"`
-	Version           int64                  `json:"version"`
+	Name              string    `json:"name"`
+	Namespace         string    `json:"namespace"`
+	State             string    `json:"state"`
+	Mode              string    `json:"mode"`
+	SourcePVC         string    `json:"source_pvc"`
+	DestinationVolume string    `json:"destination_volume"`
+	LastSyncTime      *time.Time `json:"last_sync_time,omitempty"`
+	Message           string    `json:"message"`
+	CreatedAt         time.Time `json:"created_at"`
+	UpdatedAt         time.Time `json:"updated_at"`
+	Version           int64     `json:"version"`
 }
 
 // MockTridentConfig configures mock behavior for the Trident adapter
@@ -85,3 +81,4 @@ func DefaultMockTridentConfig() *MockTridentConfig {
 
 // Note: MockTridentAdapter v1alpha1 methods have been removed.
 // Use TridentV1Alpha2Adapter for v1alpha2 API support.
+

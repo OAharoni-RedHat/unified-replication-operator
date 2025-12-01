@@ -260,16 +260,6 @@ func (ba *BaseAdapter) ExecuteWithTimeout(ctx context.Context, operation string,
 	}
 }
 
-// CreateCondition creates a status condition
-func (ba *BaseAdapter) CreateCondition(condType, status, reason, message string) StatusCondition {
-	return StatusCondition{
-		Type:               condType,
-		Status:             status,
-		LastTransitionTime: time.Now(),
-		Reason:             reason,
-		Message:            message,
-	}
-}
 
 // validateConfig validates the adapter configuration
 func (ba *BaseAdapter) validateConfig() error {

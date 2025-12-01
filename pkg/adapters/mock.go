@@ -65,16 +65,14 @@ func DefaultMockConfig() *MockConfig {
 }
 
 // MockReplication represents the state of a mock replication
+// Note: This uses v1alpha2-compatible types only
 type MockReplication struct {
 	Name               string
 	State              string
 	Mode               string
-	Health             ReplicationHealth
 	CreatedAt          time.Time
 	LastSyncTime       time.Time
-	SyncProgress       *SyncProgress
 	Events             []ReplicationEvent
-	BackendSpecific    map[string]interface{}
 	ObservedGeneration int64
 }
 
@@ -96,3 +94,4 @@ func NewMockAdapter(backend translation.Backend, client client.Client, translato
 
 // Note: MockAdapter v1alpha1 methods have been removed.
 // Mock adapters are test-only helpers. Use v1alpha2 adapters for production.
+

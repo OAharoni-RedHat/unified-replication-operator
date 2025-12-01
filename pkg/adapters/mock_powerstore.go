@@ -21,27 +21,23 @@ import (
 )
 
 // MockPowerStoreReplication represents a simulated PowerStore replication resource
+// Note: This uses v1alpha2-compatible types only
 type MockPowerStoreReplication struct {
-	Name               string                 `json:"name"`
-	Namespace          string                 `json:"namespace"`
-	State              string                 `json:"state"`
-	Mode               string                 `json:"mode"`
-	SourceVolume       string                 `json:"source_volume"`
-	DestinationVolume  string                 `json:"destination_volume"`
-	ReplicationGroupID string                 `json:"replication_group_id"`
-	SessionID          string                 `json:"session_id"`
-	LastSyncTime       *time.Time             `json:"last_sync_time,omitempty"`
-	NextSyncTime       *time.Time             `json:"next_sync_time,omitempty"`
-	SyncProgress       *SyncProgress          `json:"sync_progress,omitempty"`
-	Health             ReplicationHealth      `json:"health"`
-	Message            string                 `json:"message"`
-	Conditions         []StatusCondition      `json:"conditions"`
-	BackendSpecific    map[string]interface{} `json:"backend_specific"`
-	CreatedAt          time.Time              `json:"created_at"`
-	UpdatedAt          time.Time              `json:"updated_at"`
-	Version            int64                  `json:"version"`
-	RPOCompliance      float64                `json:"rpo_compliance"`
-	RTOEstimate        time.Duration          `json:"rto_estimate"`
+	Name               string     `json:"name"`
+	Namespace          string     `json:"namespace"`
+	State              string     `json:"state"`
+	Mode               string     `json:"mode"`
+	SourceVolume       string     `json:"source_volume"`
+	DestinationVolume  string     `json:"destination_volume"`
+	ReplicationGroupID string     `json:"replication_group_id"`
+	SessionID          string     `json:"session_id"`
+	LastSyncTime       *time.Time `json:"last_sync_time,omitempty"`
+	Message            string     `json:"message"`
+	CreatedAt          time.Time  `json:"created_at"`
+	UpdatedAt          time.Time  `json:"updated_at"`
+	Version            int64      `json:"version"`
+	RPOCompliance      float64    `json:"rpo_compliance"`
+	RTOEstimate        time.Duration `json:"rto_estimate"`
 }
 
 // MockPowerStoreConfig configures mock behavior for the PowerStore adapter
@@ -99,3 +95,4 @@ func DefaultMockPowerStoreConfig() *MockPowerStoreConfig {
 
 // Note: MockPowerStoreAdapter v1alpha1 methods have been removed.
 // Use PowerStoreV1Alpha2Adapter for v1alpha2 API support.
+
