@@ -19,9 +19,12 @@ package adapters
 import (
 	"context"
 	"fmt"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -162,8 +165,25 @@ func (a *CephV1Alpha2Adapter) GetStatus(
 		Name:      vr.Name,
 		Namespace: vr.Namespace,
 	}, cephVR); err != nil {
-		log.Error(err, "Failed to get Ceph VolumeReplication status")
-		return nil, err
+		if client.IgnoreNotFound(err) != nil {
+			log.Error(err, "Failed to get Ceph VolumeReplication status")
+			return nil, err
+		}
+		// Backend CRD doesn't exist yet - return partial status
+		log.V(1).Info("Ceph VolumeReplication not found, returning partial status")
+		return &V1Alpha2ReplicationStatus{
+			State:   vr.Spec.ReplicationState,
+			Message: "Backend VolumeReplication not found - may be initializing",
+			Conditions: []metav1.Condition{
+				{
+					Type:               "Degraded",
+					Status:             metav1.ConditionTrue,
+					Reason:             "BackendResourceNotFound",
+					Message:            "Ceph VolumeReplication CRD not found",
+					LastTransitionTime: metav1.Now(),
+				},
+			},
+		}, nil
 	}
 
 	// Extract status fields
@@ -179,7 +199,44 @@ func (a *CephV1Alpha2Adapter) GetStatus(
 		status.Message = message
 	}
 
-	// TODO: Parse lastSyncTime, lastSyncDuration, conditions from Ceph VR status
+	// Extract lastSyncTime
+	if lastSyncTimeRaw, found, err := unstructured.NestedString(cephVR.Object, "status", "lastSyncTime"); found && err == nil && lastSyncTimeRaw != "" {
+		parsedTime, err := time.Parse(time.RFC3339, lastSyncTimeRaw)
+		if err == nil {
+			status.LastSyncTime = &metav1.Time{Time: parsedTime}
+		} else {
+			log.V(1).Info("Failed to parse lastSyncTime", "value", lastSyncTimeRaw, "error", err)
+		}
+	}
+
+	// Extract lastSyncDuration
+	if lastSyncDurationRaw, found, err := unstructured.NestedString(cephVR.Object, "status", "lastSyncDuration"); found && err == nil && lastSyncDurationRaw != "" {
+		parsedDuration, err := time.ParseDuration(lastSyncDurationRaw)
+		if err == nil {
+			status.LastSyncDuration = &metav1.Duration{Duration: parsedDuration}
+		} else {
+			log.V(1).Info("Failed to parse lastSyncDuration", "value", lastSyncDurationRaw, "error", err)
+		}
+	}
+
+	// Extract conditions
+	if conditionsRaw, found, err := unstructured.NestedSlice(cephVR.Object, "status", "conditions"); found && err == nil {
+		conditions := make([]metav1.Condition, 0, len(conditionsRaw))
+		for _, condRaw := range conditionsRaw {
+			condMap, ok := condRaw.(map[string]interface{})
+			if !ok {
+				continue
+			}
+
+			condition := metav1.Condition{}
+			if err := runtime.DefaultUnstructuredConverter.FromUnstructured(condMap, &condition); err == nil {
+				conditions = append(conditions, condition)
+			} else {
+				log.V(1).Info("Failed to convert condition", "error", err)
+			}
+		}
+		status.Conditions = conditions
+	}
 
 	return status, nil
 }
@@ -297,9 +354,153 @@ func (a *CephV1Alpha2Adapter) GetGroupStatus(
 	ctx context.Context,
 	vgr *replicationv1alpha2.VolumeGroupReplication,
 ) (*V1Alpha2ReplicationStatus, error) {
-	// TODO: Aggregate status from all Ceph VolumeReplications in the group
-	return &V1Alpha2ReplicationStatus{
-		State:   vgr.Spec.ReplicationState,
-		Message: "Group status aggregation pending",
-	}, nil
+	log := log.FromContext(ctx).WithName("ceph-adapter")
+
+	// List all Ceph VolumeReplications with our group label
+	cephVRList := &unstructured.UnstructuredList{}
+	cephVRList.SetGroupVersionKind(schema.GroupVersionKind{
+		Group:   "replication.storage.openshift.io",
+		Version: "v1alpha1",
+		Kind:    "VolumeReplicationList",
+	})
+
+	if err := a.client.List(ctx, cephVRList,
+		client.InNamespace(vgr.Namespace),
+		client.MatchingLabels{"volumeGroupReplication": vgr.Name}); err != nil {
+		log.Error(err, "Failed to list Ceph VolumeReplications for group")
+		return nil, err
+	}
+
+	// If no volumes found, return partial status
+	if len(cephVRList.Items) == 0 {
+		log.V(1).Info("No Ceph VolumeReplications found for group, returning partial status")
+		return &V1Alpha2ReplicationStatus{
+			State:   vgr.Spec.ReplicationState,
+			Message: "No volumes found in group - may be initializing",
+			Conditions: []metav1.Condition{
+				{
+					Type:               "Degraded",
+					Status:             metav1.ConditionTrue,
+					Reason:             "NoVolumesFound",
+					Message:            "No Ceph VolumeReplications found for group",
+					LastTransitionTime: metav1.Now(),
+				},
+			},
+		}, nil
+	}
+
+
+	// Aggregate status from all volumes
+	aggregatedStatus := &V1Alpha2ReplicationStatus{
+		Conditions: make([]metav1.Condition, 0),
+	}
+
+	stateCounts := make(map[string]int)
+	var messages []string
+	var lastSyncTimes []*metav1.Time
+	var lastSyncDurations []*metav1.Duration
+	conditionMap := make(map[string]*metav1.Condition) // Map by type to deduplicate
+
+	for _, item := range cephVRList.Items {
+		// Extract state
+		if state, found, err := unstructured.NestedString(item.Object, "status", "state"); found && err == nil {
+			stateCounts[state]++
+		}
+
+		// Collect messages
+		if message, found, err := unstructured.NestedString(item.Object, "status", "message"); found && err == nil && message != "" {
+			messages = append(messages, message)
+		}
+
+		// Collect lastSyncTime
+		if lastSyncTimeRaw, found, err := unstructured.NestedString(item.Object, "status", "lastSyncTime"); found && err == nil && lastSyncTimeRaw != "" {
+			parsedTime, err := time.Parse(time.RFC3339, lastSyncTimeRaw)
+			if err == nil {
+				lastSyncTimes = append(lastSyncTimes, &metav1.Time{Time: parsedTime})
+			}
+		}
+
+		// Collect lastSyncDuration
+		if lastSyncDurationRaw, found, err := unstructured.NestedString(item.Object, "status", "lastSyncDuration"); found && err == nil && lastSyncDurationRaw != "" {
+			parsedDuration, err := time.ParseDuration(lastSyncDurationRaw)
+			if err == nil {
+				lastSyncDurations = append(lastSyncDurations, &metav1.Duration{Duration: parsedDuration})
+			}
+		}
+
+		// Collect and merge conditions
+		if conditionsRaw, found, err := unstructured.NestedSlice(item.Object, "status", "conditions"); found && err == nil {
+			for _, condRaw := range conditionsRaw {
+				condMap, ok := condRaw.(map[string]interface{})
+				if !ok {
+					continue
+				}
+
+				condition := metav1.Condition{}
+				if err := runtime.DefaultUnstructuredConverter.FromUnstructured(condMap, &condition); err == nil {
+					// Keep the most recent condition of each type
+					existing, exists := conditionMap[condition.Type]
+					if !exists || existing.LastTransitionTime.Before(&condition.LastTransitionTime) {
+						conditionCopy := condition
+						conditionMap[condition.Type] = &conditionCopy
+					}
+				}
+			}
+		}
+	}
+
+	// Determine aggregated state using "worst case" logic
+	// Priority: failed > syncing/resync > secondary > primary
+	if stateCounts["failed"] > 0 || stateCounts["error"] > 0 {
+		aggregatedStatus.State = "failed"
+	} else if stateCounts["syncing"] > 0 || stateCounts["resync"] > 0 {
+		aggregatedStatus.State = "syncing"
+	} else if stateCounts["secondary"] > 0 {
+		aggregatedStatus.State = "secondary"
+	} else if stateCounts["primary"] > 0 {
+		aggregatedStatus.State = "primary"
+	} else {
+		// Fallback to spec state if no volumes have status
+		aggregatedStatus.State = vgr.Spec.ReplicationState
+	}
+
+	// Aggregate message
+	if len(messages) > 0 {
+		if len(messages) == 1 {
+			aggregatedStatus.Message = messages[0]
+		} else {
+			aggregatedStatus.Message = fmt.Sprintf("Group status: %d volumes", len(cephVRList.Items))
+		}
+	} else {
+		aggregatedStatus.Message = fmt.Sprintf("Group replication active for %d volumes", len(cephVRList.Items))
+	}
+
+	// Use most recent lastSyncTime
+	if len(lastSyncTimes) > 0 {
+		var mostRecent *metav1.Time
+		for _, t := range lastSyncTimes {
+			if mostRecent == nil || t.After(mostRecent.Time) {
+				mostRecent = t
+			}
+		}
+		aggregatedStatus.LastSyncTime = mostRecent
+	}
+
+	// Use longest lastSyncDuration
+	if len(lastSyncDurations) > 0 {
+		var longest *metav1.Duration
+		for _, d := range lastSyncDurations {
+			if longest == nil || d.Duration > longest.Duration {
+				longest = d
+			}
+		}
+		aggregatedStatus.LastSyncDuration = longest
+	}
+
+	// Convert condition map to slice
+	for _, cond := range conditionMap {
+		aggregatedStatus.Conditions = append(aggregatedStatus.Conditions, *cond)
+	}
+
+	return aggregatedStatus, nil
 }

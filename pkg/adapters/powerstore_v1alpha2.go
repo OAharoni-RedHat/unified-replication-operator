@@ -19,10 +19,13 @@ package adapters
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -199,8 +202,25 @@ func (a *PowerStoreV1Alpha2Adapter) GetStatus(
 		Name:      vr.Name,
 		Namespace: vr.Namespace,
 	}, drg); err != nil {
-		log.Error(err, "Failed to get DellCSIReplicationGroup status")
-		return nil, err
+		if client.IgnoreNotFound(err) != nil {
+			log.Error(err, "Failed to get DellCSIReplicationGroup status")
+			return nil, err
+		}
+		// Backend CRD doesn't exist yet - return partial status
+		log.V(1).Info("DellCSIReplicationGroup not found, returning partial status")
+		return &V1Alpha2ReplicationStatus{
+			State:   vr.Spec.ReplicationState,
+			Message: "Backend DellCSIReplicationGroup not found - may be initializing",
+			Conditions: []metav1.Condition{
+				{
+					Type:               "Degraded",
+					Status:             metav1.ConditionTrue,
+					Reason:             "BackendResourceNotFound",
+					Message:            "DellCSIReplicationGroup CRD not found",
+					LastTransitionTime: metav1.Now(),
+				},
+			},
+		}, nil
 	}
 
 	// Extract and translate status
@@ -216,7 +236,119 @@ func (a *PowerStoreV1Alpha2Adapter) GetStatus(
 		status.Message = message
 	}
 
+	// Extract lastSyncTime (Dell may use different field names)
+	// Try common field names: lastSyncTime, lastSync, lastSyncTimestamp
+	if lastSyncTimeRaw, found, err := unstructured.NestedString(drg.Object, "status", "lastSyncTime"); found && err == nil && lastSyncTimeRaw != "" {
+		parsedTime, err := time.Parse(time.RFC3339, lastSyncTimeRaw)
+		if err == nil {
+			status.LastSyncTime = &metav1.Time{Time: parsedTime}
+		} else {
+			log.V(1).Info("Failed to parse lastSyncTime", "value", lastSyncTimeRaw, "error", err)
+		}
+	} else if lastSyncTimeRaw, found, err := unstructured.NestedString(drg.Object, "status", "lastSync"); found && err == nil && lastSyncTimeRaw != "" {
+		parsedTime, err := time.Parse(time.RFC3339, lastSyncTimeRaw)
+		if err == nil {
+			status.LastSyncTime = &metav1.Time{Time: parsedTime}
+		}
+	} else if lastSyncTimeRaw, found, err := unstructured.NestedString(drg.Object, "status", "lastSyncTimestamp"); found && err == nil && lastSyncTimeRaw != "" {
+		parsedTime, err := time.Parse(time.RFC3339, lastSyncTimeRaw)
+		if err == nil {
+			status.LastSyncTime = &metav1.Time{Time: parsedTime}
+		}
+	}
+
+	// Extract lastSyncDuration
+	if lastSyncDurationRaw, found, err := unstructured.NestedString(drg.Object, "status", "lastSyncDuration"); found && err == nil && lastSyncDurationRaw != "" {
+		parsedDuration, err := time.ParseDuration(lastSyncDurationRaw)
+		if err == nil {
+			status.LastSyncDuration = &metav1.Duration{Duration: parsedDuration}
+		} else {
+			log.V(1).Info("Failed to parse lastSyncDuration", "value", lastSyncDurationRaw, "error", err)
+		}
+	}
+
+	// Extract conditions
+	if conditionsRaw, found, err := unstructured.NestedSlice(drg.Object, "status", "conditions"); found && err == nil {
+		conditions := make([]metav1.Condition, 0, len(conditionsRaw))
+		for _, condRaw := range conditionsRaw {
+			condMap, ok := condRaw.(map[string]interface{})
+			if !ok {
+				continue
+			}
+
+			condition := metav1.Condition{}
+			if err := runtime.DefaultUnstructuredConverter.FromUnstructured(condMap, &condition); err == nil {
+				conditions = append(conditions, condition)
+			} else {
+				log.V(1).Info("Failed to convert condition", "error", err)
+			}
+		}
+		status.Conditions = conditions
+	}
+
+	// If no conditions found, derive from state and message
+	if len(status.Conditions) == 0 {
+		status.Conditions = a.deriveConditionsFromStatus(status.State, status.Message)
+	}
+
 	return status, nil
+}
+
+// deriveConditionsFromStatus creates standard conditions from PowerStore state and message
+func (a *PowerStoreV1Alpha2Adapter) deriveConditionsFromStatus(state, message string) []metav1.Condition {
+	conditions := make([]metav1.Condition, 0)
+	now := metav1.Now()
+
+	// Ready condition based on state
+	readyStatus := metav1.ConditionTrue
+	readyReason := "ReplicationActive"
+	if state == "failed" || state == "error" {
+		readyStatus = metav1.ConditionFalse
+		readyReason = "ReplicationError"
+	}
+
+	conditions = append(conditions, metav1.Condition{
+		Type:               "Ready",
+		Status:             readyStatus,
+		Reason:             readyReason,
+		Message:            message,
+		LastTransitionTime: now,
+	})
+
+	// Syncing condition
+	syncingStatus := metav1.ConditionFalse
+	syncingReason := "Synchronized"
+	if state == "syncing" || state == "resync" || state == "secondary" {
+		// Secondary state typically means syncing from primary
+		syncingStatus = metav1.ConditionTrue
+		syncingReason = "Synchronizing"
+	}
+
+	conditions = append(conditions, metav1.Condition{
+		Type:               "Syncing",
+		Status:             syncingStatus,
+		Reason:             syncingReason,
+		Message:            message,
+		LastTransitionTime: now,
+	})
+
+	// Degraded condition
+	degradedStatus := metav1.ConditionFalse
+	degradedReason := "Healthy"
+	if state == "failed" || state == "error" {
+		degradedStatus = metav1.ConditionTrue
+		degradedReason = "ReplicationError"
+	}
+
+	conditions = append(conditions, metav1.Condition{
+		Type:               "Degraded",
+		Status:             degradedStatus,
+		Reason:             degradedReason,
+		Message:            message,
+		LastTransitionTime: now,
+	})
+
+	return conditions
 }
 
 // determineRequiredAction determines if a Dell action is needed to trigger an explicit operation
@@ -521,9 +653,103 @@ func (a *PowerStoreV1Alpha2Adapter) GetGroupStatus(
 	ctx context.Context,
 	vgr *replicationv1alpha2.VolumeGroupReplication,
 ) (*V1Alpha2ReplicationStatus, error) {
-	// TODO: Fetch and translate status from DellCSIReplicationGroup
-	return &V1Alpha2ReplicationStatus{
-		State:   vgr.Spec.ReplicationState,
-		Message: "Group status pending",
-	}, nil
+	log := log.FromContext(ctx).WithName("powerstore-adapter")
+
+	// Fetch DellCSIReplicationGroup (single CRD for the group)
+	drg := &unstructured.Unstructured{}
+	drg.SetGroupVersionKind(DellCSIReplicationGroupGVKV1Alpha2)
+
+	if err := a.client.Get(ctx, client.ObjectKey{
+		Name:      vgr.Name,
+		Namespace: vgr.Namespace,
+	}, drg); err != nil {
+		if client.IgnoreNotFound(err) != nil {
+			log.Error(err, "Failed to get DellCSIReplicationGroup status for group")
+			return nil, err
+		}
+		// Backend CRD doesn't exist yet - return partial status
+		log.V(1).Info("DellCSIReplicationGroup not found for group, returning partial status")
+		return &V1Alpha2ReplicationStatus{
+			State:   vgr.Spec.ReplicationState,
+			Message: "Backend DellCSIReplicationGroup not found - may be initializing",
+			Conditions: []metav1.Condition{
+				{
+					Type:               "Degraded",
+					Status:             metav1.ConditionTrue,
+					Reason:             "BackendResourceNotFound",
+					Message:            "DellCSIReplicationGroup CRD not found for group",
+					LastTransitionTime: metav1.Now(),
+				},
+			},
+		}, nil
+	}
+
+	// Extract and translate status (same as single volume, but for group)
+	status := &V1Alpha2ReplicationStatus{}
+
+	// Get Dell state/status and translate back
+	if dellState, found, err := unstructured.NestedString(drg.Object, "status", "state"); found && err == nil {
+		status.State = a.translateStateFromDell(dellState)
+	}
+
+	// Get message
+	if message, found, err := unstructured.NestedString(drg.Object, "status", "message"); found && err == nil {
+		status.Message = message
+	}
+
+	// Extract lastSyncTime
+	if lastSyncTimeRaw, found, err := unstructured.NestedString(drg.Object, "status", "lastSyncTime"); found && err == nil && lastSyncTimeRaw != "" {
+		parsedTime, err := time.Parse(time.RFC3339, lastSyncTimeRaw)
+		if err == nil {
+			status.LastSyncTime = &metav1.Time{Time: parsedTime}
+		} else {
+			log.V(1).Info("Failed to parse lastSyncTime", "value", lastSyncTimeRaw, "error", err)
+		}
+	} else if lastSyncTimeRaw, found, err := unstructured.NestedString(drg.Object, "status", "lastSync"); found && err == nil && lastSyncTimeRaw != "" {
+		parsedTime, err := time.Parse(time.RFC3339, lastSyncTimeRaw)
+		if err == nil {
+			status.LastSyncTime = &metav1.Time{Time: parsedTime}
+		}
+	} else if lastSyncTimeRaw, found, err := unstructured.NestedString(drg.Object, "status", "lastSyncTimestamp"); found && err == nil && lastSyncTimeRaw != "" {
+		parsedTime, err := time.Parse(time.RFC3339, lastSyncTimeRaw)
+		if err == nil {
+			status.LastSyncTime = &metav1.Time{Time: parsedTime}
+		}
+	}
+
+	// Extract lastSyncDuration
+	if lastSyncDurationRaw, found, err := unstructured.NestedString(drg.Object, "status", "lastSyncDuration"); found && err == nil && lastSyncDurationRaw != "" {
+		parsedDuration, err := time.ParseDuration(lastSyncDurationRaw)
+		if err == nil {
+			status.LastSyncDuration = &metav1.Duration{Duration: parsedDuration}
+		} else {
+			log.V(1).Info("Failed to parse lastSyncDuration", "value", lastSyncDurationRaw, "error", err)
+		}
+	}
+
+	// Extract conditions
+	if conditionsRaw, found, err := unstructured.NestedSlice(drg.Object, "status", "conditions"); found && err == nil {
+		conditions := make([]metav1.Condition, 0, len(conditionsRaw))
+		for _, condRaw := range conditionsRaw {
+			condMap, ok := condRaw.(map[string]interface{})
+			if !ok {
+				continue
+			}
+
+			condition := metav1.Condition{}
+			if err := runtime.DefaultUnstructuredConverter.FromUnstructured(condMap, &condition); err == nil {
+				conditions = append(conditions, condition)
+			} else {
+				log.V(1).Info("Failed to convert condition", "error", err)
+			}
+		}
+		status.Conditions = conditions
+	}
+
+	// If no conditions found, derive from state and message
+	if len(status.Conditions) == 0 {
+		status.Conditions = a.deriveConditionsFromStatus(status.State, status.Message)
+	}
+
+	return status, nil
 }

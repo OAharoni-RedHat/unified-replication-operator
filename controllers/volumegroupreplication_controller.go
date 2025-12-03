@@ -134,7 +134,7 @@ func (r *VolumeGroupReplicationReconciler) Reconcile(ctx context.Context, req ct
 		return r.handleError(ctx, vgr, err, log)
 	}
 
-	// 9. Update status with PVC list and Ready condition
+	// 9. Update PVC list
 	vgr.Status.PersistentVolumeClaimsRefList = make([]corev1.LocalObjectReference, len(pvcList.Items))
 	for i, pvc := range pvcList.Items {
 		vgr.Status.PersistentVolumeClaimsRefList[i] = corev1.LocalObjectReference{
@@ -142,9 +142,22 @@ func (r *VolumeGroupReplicationReconciler) Reconcile(ctx context.Context, req ct
 		}
 	}
 
-	if err := r.updateStatus(ctx, vgr, "Ready", metav1.ConditionTrue, "ReconcileComplete",
-		fmt.Sprintf("Group replication configured for %d volumes", len(pvcList.Items)), log); err != nil {
-		return ctrl.Result{}, err
+	// 10. Fetch backend status and update VolumeGroupReplication status
+	backendStatus, err := adapter.GetGroupStatus(ctx, vgr)
+	if err != nil {
+		// Log warning but don't fail reconciliation - use partial status
+		log.V(1).Info("Failed to fetch backend group status, using partial status", "error", err)
+		// Still update Ready condition to indicate reconciliation succeeded
+		if err := r.updateStatusFromBackend(ctx, vgr, nil, "Ready", metav1.ConditionTrue, "ReconcileComplete",
+			fmt.Sprintf("Group replication configured for %d volumes, but status fetch failed", len(pvcList.Items)), log); err != nil {
+			return ctrl.Result{}, err
+		}
+	} else {
+		// Update status with backend status
+		if err := r.updateStatusFromBackend(ctx, vgr, backendStatus, "Ready", metav1.ConditionTrue, "ReconcileComplete",
+			fmt.Sprintf("Group replication configured for %d volumes", len(pvcList.Items)), log); err != nil {
+			return ctrl.Result{}, err
+		}
 	}
 
 	return result, nil
@@ -220,6 +233,7 @@ func (r *VolumeGroupReplicationReconciler) handleError(
 	return ctrl.Result{}, err
 }
 
+// updateStatus is a legacy method for error cases - use updateStatusFromBackend for normal flow
 func (r *VolumeGroupReplicationReconciler) updateStatus(
 	ctx context.Context,
 	vgr *replicationv1alpha2.VolumeGroupReplication,
@@ -229,7 +243,21 @@ func (r *VolumeGroupReplicationReconciler) updateStatus(
 	message string,
 	log logr.Logger,
 ) error {
-	// Update condition
+	return r.updateStatusFromBackend(ctx, vgr, nil, conditionType, status, reason, message, log)
+}
+
+// updateStatusFromBackend updates VolumeGroupReplication status using backend status
+func (r *VolumeGroupReplicationReconciler) updateStatusFromBackend(
+	ctx context.Context,
+	vgr *replicationv1alpha2.VolumeGroupReplication,
+	backendStatus *adapters.V1Alpha2ReplicationStatus,
+	conditionType string,
+	status metav1.ConditionStatus,
+	reason string,
+	message string,
+	log logr.Logger,
+) error {
+	// Update controller-managed Ready condition
 	meta.SetStatusCondition(&vgr.Status.Conditions, metav1.Condition{
 		Type:               conditionType,
 		Status:             status,
@@ -242,8 +270,47 @@ func (r *VolumeGroupReplicationReconciler) updateStatus(
 	// Update observedGeneration
 	vgr.Status.ObservedGeneration = vgr.Generation
 
-	// Update state to match spec
-	vgr.Status.State = vgr.Spec.ReplicationState
+	// Update status fields from backend if available
+	if backendStatus != nil {
+		// Use backend state (not spec state)
+		if backendStatus.State != "" {
+			vgr.Status.State = backendStatus.State
+		}
+
+		// Update message from backend
+		if backendStatus.Message != "" {
+			vgr.Status.Message = backendStatus.Message
+		} else if message != "" {
+			vgr.Status.Message = message
+		}
+
+		// Update lastSyncTime from backend
+		if backendStatus.LastSyncTime != nil {
+			vgr.Status.LastSyncTime = backendStatus.LastSyncTime
+		}
+
+		// Update lastSyncDuration from backend
+		if backendStatus.LastSyncDuration != nil {
+			vgr.Status.LastSyncDuration = backendStatus.LastSyncDuration
+		}
+
+		// Merge backend conditions with controller-managed conditions
+		// Backend conditions (Syncing, Degraded) take precedence, but Ready is controller-managed
+		for _, backendCond := range backendStatus.Conditions {
+			// Skip Ready condition - controller manages it
+			if backendCond.Type == "Ready" {
+				continue
+			}
+			// Merge other conditions (Syncing, Degraded, etc.)
+			meta.SetStatusCondition(&vgr.Status.Conditions, backendCond)
+		}
+	} else {
+		// No backend status - fallback to spec state
+		vgr.Status.State = vgr.Spec.ReplicationState
+		if message != "" {
+			vgr.Status.Message = message
+		}
+	}
 
 	// Save status
 	if err := r.Status().Update(ctx, vgr); err != nil {
@@ -251,7 +318,7 @@ func (r *VolumeGroupReplicationReconciler) updateStatus(
 		return err
 	}
 
-	log.V(1).Info("Updated VolumeGroupReplication status", "condition", conditionType, "status", status)
+	log.V(1).Info("Updated VolumeGroupReplication status", "condition", conditionType, "status", status, "backendState", vgr.Status.State)
 	return nil
 }
 

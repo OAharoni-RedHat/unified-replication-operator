@@ -120,10 +120,22 @@ func (r *VolumeReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Re
 		return r.handleError(ctx, vr, err, log)
 	}
 
-	// 8. Update status to Ready
-	if err := r.updateStatus(ctx, vr, "Ready", metav1.ConditionTrue, "ReconcileComplete",
-		"Replication configured successfully", log); err != nil {
-		return ctrl.Result{}, err
+	// 8. Fetch backend status and update VolumeReplication status
+	backendStatus, err := adapter.GetStatus(ctx, vr)
+	if err != nil {
+		// Log warning but don't fail reconciliation - use partial status
+		log.V(1).Info("Failed to fetch backend status, using partial status", "error", err)
+		// Still update Ready condition to indicate reconciliation succeeded
+		if err := r.updateStatusFromBackend(ctx, vr, nil, "Ready", metav1.ConditionTrue, "ReconcileComplete",
+			"Replication configured successfully, but status fetch failed", log); err != nil {
+			return ctrl.Result{}, err
+		}
+	} else {
+		// Update status with backend status
+		if err := r.updateStatusFromBackend(ctx, vr, backendStatus, "Ready", metav1.ConditionTrue, "ReconcileComplete",
+			"Replication configured successfully", log); err != nil {
+			return ctrl.Result{}, err
+		}
 	}
 
 	return result, nil
@@ -196,6 +208,7 @@ func (r *VolumeReplicationReconciler) handleError(
 	return ctrl.Result{}, err
 }
 
+// updateStatus is a legacy method for error cases - use updateStatusFromBackend for normal flow
 func (r *VolumeReplicationReconciler) updateStatus(
 	ctx context.Context,
 	vr *replicationv1alpha2.VolumeReplication,
@@ -205,7 +218,21 @@ func (r *VolumeReplicationReconciler) updateStatus(
 	message string,
 	log logr.Logger,
 ) error {
-	// Update condition
+	return r.updateStatusFromBackend(ctx, vr, nil, conditionType, status, reason, message, log)
+}
+
+// updateStatusFromBackend updates VolumeReplication status using backend status
+func (r *VolumeReplicationReconciler) updateStatusFromBackend(
+	ctx context.Context,
+	vr *replicationv1alpha2.VolumeReplication,
+	backendStatus *adapters.V1Alpha2ReplicationStatus,
+	conditionType string,
+	status metav1.ConditionStatus,
+	reason string,
+	message string,
+	log logr.Logger,
+) error {
+	// Update controller-managed Ready condition
 	meta.SetStatusCondition(&vr.Status.Conditions, metav1.Condition{
 		Type:               conditionType,
 		Status:             status,
@@ -218,8 +245,47 @@ func (r *VolumeReplicationReconciler) updateStatus(
 	// Update observedGeneration
 	vr.Status.ObservedGeneration = vr.Generation
 
-	// Update state to match spec
-	vr.Status.State = vr.Spec.ReplicationState
+	// Update status fields from backend if available
+	if backendStatus != nil {
+		// Use backend state (not spec state)
+		if backendStatus.State != "" {
+			vr.Status.State = backendStatus.State
+		}
+
+		// Update message from backend
+		if backendStatus.Message != "" {
+			vr.Status.Message = backendStatus.Message
+		} else if message != "" {
+			vr.Status.Message = message
+		}
+
+		// Update lastSyncTime from backend
+		if backendStatus.LastSyncTime != nil {
+			vr.Status.LastSyncTime = backendStatus.LastSyncTime
+		}
+
+		// Update lastSyncDuration from backend
+		if backendStatus.LastSyncDuration != nil {
+			vr.Status.LastSyncDuration = backendStatus.LastSyncDuration
+		}
+
+		// Merge backend conditions with controller-managed conditions
+		// Backend conditions (Syncing, Degraded) take precedence, but Ready is controller-managed
+		for _, backendCond := range backendStatus.Conditions {
+			// Skip Ready condition - controller manages it
+			if backendCond.Type == "Ready" {
+				continue
+			}
+			// Merge other conditions (Syncing, Degraded, etc.)
+			meta.SetStatusCondition(&vr.Status.Conditions, backendCond)
+		}
+	} else {
+		// No backend status - fallback to spec state
+		vr.Status.State = vr.Spec.ReplicationState
+		if message != "" {
+			vr.Status.Message = message
+		}
+	}
 
 	// Save status
 	if err := r.Status().Update(ctx, vr); err != nil {
@@ -227,7 +293,7 @@ func (r *VolumeReplicationReconciler) updateStatus(
 		return err
 	}
 
-	log.V(1).Info("Updated VolumeReplication status", "condition", conditionType, "status", status)
+	log.V(1).Info("Updated VolumeReplication status", "condition", conditionType, "status", status, "backendState", vr.Status.State)
 	return nil
 }
 
