@@ -32,8 +32,9 @@ spec:
 #   autoResync: true
 #
 # For Dell PowerStore:
-# - primary state translates to "Failover" action (this site is active)
-# - secondary state translates to "Sync" action (this site syncs from remote)
+# - primary state translates to "Failover" action (only when transitioning from secondary → primary)
+# - primary state (initial/steady) has no action - Dell manages via protection policy
+# - secondary state has no action - Dell manages via protection policy and PVC permissions
 # - resync state translates to "Reprotect" action (re-establish replication)
 #
 # The operator will also:

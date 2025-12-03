@@ -69,8 +69,9 @@ spec:
 - Automatic translation in both directions
 
 **Dell PowerStore (Action Translation):**
-- `primary` → `Failover`
-- `secondary` → `Sync`
+- `primary` → `Failover` (only when transitioning from `secondary` → `primary`)
+- `primary` → `""` (no action) for initial creation or steady state
+- `secondary` → `""` (no action) - Dell manages via protection policy
 - `resync` → `Reprotect`
 - Automatic PVC labeling for selector
 

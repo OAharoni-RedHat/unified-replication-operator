@@ -557,8 +557,9 @@ func (a *PowerStoreAdapter) translateAction(vrState string) string {
 
 | v1alpha2 (kubernetes-csi-addons) | Dell Action | Dell Behavior |
 |----------------------------------|-------------|---------------|
-| `primary` | `Failover` | Promote this volume to primary (write-enabled) |
-| `secondary` | `Sync` | Sync from remote primary (read-only) |
+| `primary` (transitioning from secondary) | `Failover` | Promote this volume to primary (write-enabled) |
+| `primary` (initial/steady state) | `""` (no action) | Dell manages via protection policy |
+| `secondary` | `""` (no action) | Dell manages via protection policy and PVC permissions |
 | `resync` | `Reprotect` | Re-establish replication relationship |
 
 **VolumeReplicationClass Parameters (Dell):**

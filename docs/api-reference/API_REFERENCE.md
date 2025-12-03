@@ -307,11 +307,12 @@ resync → secondary ✅ (after resync completes)
 **Translation:**
 
 **State Translation:**
-| kubernetes-csi-addons | Dell Action |
-|-----------------------|-------------|
-| `primary` | `Failover` |
-| `secondary` | `Sync` |
-| `resync` | `Reprotect` |
+| kubernetes-csi-addons | Dell Action | Notes |
+|-----------------------|-------------|-------|
+| `primary` | `Failover` | Only when transitioning from `secondary` → `primary` |
+| `primary` | `""` (no action) | Initial creation or steady state |
+| `secondary` | `""` (no action) | Dell manages via protection policy and PVC permissions |
+| `resync` | `Reprotect` | When explicitly requesting resync |
 
 **Mode Translation (Volume Groups):**
 | CSI-addons Format | PowerStore Format |

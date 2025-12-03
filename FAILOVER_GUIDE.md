@@ -211,14 +211,14 @@ spec:
 ```yaml
 # DellCSIReplicationGroup
 spec:
-  action: Sync          # TRANSLATED from "secondary"
+  # No action set - Dell manages via protection policy and PVC permissions
   protectionPolicy: "15min-async"
   remoteSystem: "PS-PRIMARY-001"  # Points to primary
 ```
 
 **What's Happening:**
-- Primary site: `action: Failover` = active, replicating OUT
-- Secondary site: `action: Sync` = syncing, receiving data IN
+- Primary site: `action: Failover` (when transitioning from secondary) = active, replicating OUT
+- Secondary site: No action = Dell manages replication via protection policy, receiving data IN
 - Replication flowing: Primary → Secondary
 
 ---
@@ -263,7 +263,7 @@ kubectl patch vr database-pvc-replica -n production \
 
 ```yaml
 spec:
-  action: Failover      # ← Changed from "Sync" to "Failover"
+  action: Failover      # ← Set because transitioning from secondary → primary
   protectionPolicy: "15min-async"
   remoteSystem: "PS-PRIMARY-001"  # Still points to (failed) primary
 ```
@@ -354,7 +354,8 @@ kubectl patch vr database-pvc-replica -n production \
 **Dell Translation:**
 ```yaml
 spec:
-  action: Sync          # TRANSLATED from "secondary"
+  # No action set - Dell handles demotion via PVC permission changes
+  # Dell manages replication via protection policy
   remoteSystem: "PS-PRIMARY-001"
 ```
 
@@ -405,22 +406,26 @@ spec:
 
 ---
 
-### Action: `Sync`
+### Secondary State (No Action)
 
 **Purpose:** Keep this site synchronized as secondary
 
 **What Happens in PowerStore:**
-1. Maintains replication relationship to remote primary
-2. Keeps local volumes read-only (or writable but replicating)
-3. Receives replicated data from primary
-4. Stays in sync with primary site
+1. Dell manages replication via protection policy (no explicit action set)
+2. Maintains replication relationship to remote primary
+3. Keeps local volumes read-only (or writable but replicating)
+4. Receives replicated data from primary
+5. Stays in sync with primary site
 
 **When Used:**
 - Normal DR configuration
 - After failback to original primary
 - Steady-state replication
+- Initial creation as secondary
 
 **Kubernetes-CSI-Addons State:** `secondary`
+
+**Note:** The operator does NOT set an action for secondary state. Dell PowerStore manages replication automatically via protection policies and PVC permissions.
 
 ---
 
@@ -449,8 +454,8 @@ spec:
 
 ```
 T-0:    Primary site operational
-        Primary VR: state=primary → Dell: action=Failover
-        DR VR: state=secondary → Dell: action=Sync
+        Primary VR: state=primary → Dell: action=Failover (if transitioning from secondary)
+        DR VR: state=secondary → Dell: no action (managed via protection policy)
         
 T+5min: Primary site fails (disaster!)
         Primary: ❌ Down
@@ -738,7 +743,7 @@ kind: DellCSIReplicationGroup
 metadata:
   name: app-replication
 spec:
-  action: Sync      # Secondary site - TRANSLATED!
+  # No action set - Dell manages via protection policy
   remoteSystem: "PS-PRIMARY-001"
 ```
 
@@ -746,6 +751,7 @@ spec:
 - Secondary volumes are read-only (or synchronized)
 - Receiving replication FROM primary
 - Volumes stay in sync with primary
+- Managed automatically via protection policy
 
 ---
 
@@ -780,7 +786,7 @@ kubectl patch vr app-replication -n production \
 **Before:**
 ```yaml
 spec:
-  action: Sync
+  # No action (secondary state - Dell manages via protection policy)
   remoteSystem: "PS-PRIMARY-001"
 ```
 
@@ -1030,9 +1036,9 @@ primary → Failover
 ### Key Points for Dell PowerStore
 
 1. **Uses Actions** (not states) - different model
-2. **Failover action** = promote to primary
-3. **Sync action** = keep as secondary
-4. **Reprotect action** = re-establish after failover
+2. **Failover action** = promote to primary (only when transitioning from secondary → primary)
+3. **No action for secondary** = Dell manages via protection policy and PVC permissions
+4. **Reprotect action** = re-establish after failover (when resync requested)
 5. **Group operations** = atomic (all volumes together)
 6. **PVC labeling** = automatic by operator
 7. **Protection policies** = must exist on array

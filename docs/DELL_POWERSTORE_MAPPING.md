@@ -392,6 +392,13 @@ spec:
 
 5. **Mode Translation:** Mode translation only applies if `replicationMode` parameter is provided in VolumeReplicationClass.
 
+6. **Planned Failover Limitations:** 
+   - When transitioning from `primary` → `secondary`, no action is set in the DellCSIReplicationGroup
+   - The operator relies on Dell CSI driver to handle demotion via PVC permission changes
+   - This may not provide explicit synchronization guarantees that some planned failover scenarios require
+   - Dell PowerStore's native "Planned Failover" feature (available via PowerStore Manager UI) performs synchronization before role reversal, but this is not currently exposed through the DellCSIReplicationGroup CRD action field
+   - For scenarios requiring explicit synchronization before demotion, consider using `resync` state first to ensure data consistency
+
 ---
 
 *Last Updated: 2025-01-XX*  
